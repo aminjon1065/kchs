@@ -22,7 +22,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { CalendarSearch, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -38,7 +37,13 @@ import { ColorInput, CustomRepeat, DateTimeInput, RemindersInput } from './event
 import { FindTimeSheet } from './find-time.js'
 import { useCalendarFormat } from './format.js'
 import { PeoplePicker } from './people-picker.js'
-import { calendarSettingsQuery, calendarsQuery, useCalendarInvalidation } from './queries.js'
+import {
+  calendarApi,
+  calendarSettingsQuery,
+  calendarsQuery,
+  meetingsStatusQuery,
+  useCalendarInvalidation,
+} from './queries.js'
 import {
   describeRule,
   presetRule,
@@ -74,11 +79,7 @@ export function EventEditor({
   const { data: calendars = [] } = useQuery(calendarsQuery({ scope: 'mine' }))
   const { data: settings } = useQuery(calendarSettingsQuery())
   // Без медиасервера онлайн-встречи не поднимаются — переключателя нет (ADR-0089)
-  const { data: meetings } = useQuery({
-    queryKey: ['meetings', 'status'],
-    queryFn: () => http.get('/meetings/status'),
-    staleTime: 5 * 60_000,
-  })
+  const { data: meetings } = useQuery({ ...meetingsStatusQuery(), staleTime: 5 * 60_000 })
   const meetingsEnabled = meetings?.enabled ?? false
   const resources = calendars.filter((calendar) => calendar.kind === 'resource')
   const writable = editableCalendars(calendars)
@@ -117,8 +118,8 @@ export function EventEditor({
     let cancelled = false
     void Promise.all(
       target.draft.people.map((name) =>
-        http
-          .get('/principals/search', { query: { q: name, types: 'user', limit: 1 } })
+        calendarApi
+          .getPrincipalsSearch({ q: name, types: 'user', limit: 1 })
           .then((response) => response.items[0] ?? null)
           .catch(() => null),
       ),
@@ -183,7 +184,7 @@ export function EventEditor({
       if (target.mode === 'create') {
         // Время введено по часам пользователя — в его поясе и повторяется
         const body = { ...payloadOf(form, rule, times, null), timezone: tz }
-        return (await http.post('/events', { body })).id
+        return (await calendarApi.createEvent(body)).id
       }
       const record = target.record
       const body = payloadOf(form, rule, times, scope)
@@ -213,7 +214,7 @@ export function EventEditor({
         const startDate = addDays(record.startDate ?? form.startDate, shift)
         Object.assign(body, { scope: 'series', startDate, endDate: addDays(startDate, span) })
       }
-      return (await http.patch('/events/:id', { params: { id: record.id }, body })).id
+      return (await calendarApi.patchEvents(record.id, body)).id
     },
     onSuccess: (id) => {
       invalidate(id)

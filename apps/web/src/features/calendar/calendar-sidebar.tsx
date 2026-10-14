@@ -35,7 +35,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -51,6 +50,7 @@ import {
 } from './calendar-dialogs.js'
 import { daysFor } from './model.js'
 import {
+  calendarApi,
   calendarKeys,
   calendarSettingsQuery,
   calendarsQuery,
@@ -116,8 +116,7 @@ export function CalendarSidebar({
 
   const listKey = calendarKeys.list({ scope: 'mine' })
   const saveSettings = useMutation({
-    mutationFn: (patch: Partial<CalendarSettings>) =>
-      http.put('/calendar/settings', { body: patch }),
+    mutationFn: (patch: Partial<CalendarSettings>) => calendarApi.putSettings(patch),
     onMutate: async (patch) => {
       await client.cancelQueries({ queryKey: listKey })
       const previous = client.getQueryData<CalendarRecord[]>(listKey)
@@ -149,7 +148,7 @@ export function CalendarSidebar({
   })
 
   const sync = useMutation({
-    mutationFn: (id: string) => http.post('/calendars/:id/sync', { params: { id } }),
+    mutationFn: (id: string) => calendarApi.postCalendarsSync(id),
     onSuccess: () => toast.show({ title: t('calendar.sidebar.syncQueued'), tone: 'info' }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

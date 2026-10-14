@@ -21,11 +21,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { CalendarSearch, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { useCalendarFormat } from './format.js'
 import { type Invitee, PeoplePicker } from './people-picker.js'
-import { freeBusyQuery } from './queries.js'
+import { calendarApi, freeBusyQuery } from './queries.js'
 import { addDays, clockMinutes, instantAt, MINUTE_MS, wallOf } from './time.js'
 
 const DURATIONS = [15, 30, 45, 60, 90, 120]
@@ -97,18 +96,16 @@ export function FindTimeSheet({
       { date, duration, workingOnly, people, resourceIds, optional, excludeEventId },
     ],
     queryFn: () =>
-      http.post('/calendar/find-time', {
-        body: {
-          userIds: people.filter((id) => !optional.includes(id)),
-          optionalUserIds: optional,
-          resourceIds,
-          durationMinutes: duration,
-          from: new Date(instantAt(date, 0, tz)).toISOString(),
-          to: new Date(instantAt(addDays(date, 14), 0, tz)).toISOString(),
-          workingHoursOnly: workingOnly,
-          limit: 12,
-          ...(excludeEventId ? { excludeEventId } : {}),
-        },
+      calendarApi.postFindTime({
+        userIds: people.filter((id) => !optional.includes(id)),
+        optionalUserIds: optional,
+        resourceIds,
+        durationMinutes: duration,
+        from: new Date(instantAt(date, 0, tz)).toISOString(),
+        to: new Date(instantAt(addDays(date, 14), 0, tz)).toISOString(),
+        workingHoursOnly: workingOnly,
+        limit: 12,
+        ...(excludeEventId ? { excludeEventId } : {}),
       }),
   })
 

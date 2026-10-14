@@ -2,6 +2,7 @@ import type { CalendarListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody, ApiQuery } from '~/shared/api/route-types.js'
 
 /**
  * Ключи кэша календаря. Событие и календарь — под `['object', id, …]`:
@@ -147,3 +148,34 @@ export function useCalendarInvalidation(): (eventId?: string) => void {
     [client],
   )
 }
+
+export const calendarApi = {
+  createCalendar: (body: ApiBody<'POST /calendars'>) => http.post('/calendars', { body }),
+  putSettings: (body: ApiBody<'PUT /calendar/settings'>) =>
+    http.put('/calendar/settings', { body }),
+  patchCalendars: (id: string, body: ApiBody<'PATCH /calendars/:id'>) =>
+    http.patch('/calendars/:id', { params: { id }, body }),
+  postCalendarsFeeds: (id: string) => http.post('/calendars/:id/feeds', { params: { id } }),
+  removeCalendarsFeeds: (id: string, feedId: string) =>
+    http.delete('/calendars/:id/feeds/:feedId', { params: { id, feedId } }),
+  postCalendarsImport: (id: string, body: ApiBody<'POST /calendars/:id/import'>) =>
+    http.post('/calendars/:id/import', { params: { id }, body }),
+  patchEvents: (id: string, body: ApiBody<'PATCH /events/:id'>) =>
+    http.patch('/events/:id', { params: { id }, body }),
+  postCalendarsSync: (id: string) => http.post('/calendars/:id/sync', { params: { id } }),
+  postEventsRespond: (id: string, body: ApiBody<'POST /events/:id/respond'>) =>
+    http.post('/events/:id/respond', { params: { id }, body }),
+  postEventsCancel: (id: string, body: ApiBody<'POST /events/:id/cancel'>) =>
+    http.post('/events/:id/cancel', { params: { id }, body }),
+  getPrincipalsSearch: (query: ApiQuery<'GET /principals/search'>) =>
+    http.get('/principals/search', { query }),
+  createEvent: (body: ApiBody<'POST /events'>) => http.post('/events', { body }),
+  postFindTime: (body: ApiBody<'POST /calendar/find-time'>) =>
+    http.post('/calendar/find-time', { body }),
+}
+
+export const meetingsStatusQuery = () =>
+  queryOptions({
+    queryKey: ['meetings', 'status'],
+    queryFn: () => http.get('/meetings/status'),
+  })

@@ -31,14 +31,13 @@ import {
   Video,
 } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { reminderLabel } from './event-inputs.js'
 import { useCalendarFormat } from './format.js'
-import { useCalendarInvalidation } from './queries.js'
+import { calendarApi, useCalendarInvalidation } from './queries.js'
 import { describeRule, parseRule } from './recurrence.js'
 import { ScopeDialog } from './scope-dialog.js'
 import { clockMinutes, clockText, instantAt, wallOf } from './time.js'
@@ -98,7 +97,7 @@ export function EventDetails({
 
   const respond = useMutation({
     mutationFn: (input: ApiBody<'POST /events/:id/respond'>) =>
-      http.post('/events/:id/respond', { params: { id: record.id }, body: input }),
+      calendarApi.postEventsRespond(record.id, input),
     onSuccess: () => {
       invalidate(record.id)
       toast.show({ title: t('calendar.respond.sent'), tone: 'success' })
@@ -110,12 +109,9 @@ export function EventDetails({
 
   const cancel = useMutation({
     mutationFn: (scope: EventEditScope) =>
-      http.post('/events/:id/cancel', {
-        params: { id: record.id },
-        body: {
-          scope,
-          ...(scope !== 'series' && occurrence ? { recurrenceId: occurrence.recurrenceId } : {}),
-        },
+      calendarApi.postEventsCancel(record.id, {
+        scope,
+        ...(scope !== 'series' && occurrence ? { recurrenceId: occurrence.recurrenceId } : {}),
       }),
     onSuccess: () => {
       invalidate(record.id)
@@ -130,15 +126,12 @@ export function EventDetails({
 
   const acceptProposal = useMutation({
     mutationFn: (proposal: { startsAt: string; endsAt: string; recurrenceId: string | null }) =>
-      http.patch('/events/:id', {
-        params: { id: record.id },
-        body: {
-          ...(record.rrule && proposal.recurrenceId
-            ? { scope: 'occurrence', recurrenceId: proposal.recurrenceId }
-            : { scope: 'series' }),
-          startsAt: proposal.startsAt,
-          endsAt: proposal.endsAt,
-        },
+      calendarApi.patchEvents(record.id, {
+        ...(record.rrule && proposal.recurrenceId
+          ? { scope: 'occurrence', recurrenceId: proposal.recurrenceId }
+          : { scope: 'series' }),
+        startsAt: proposal.startsAt,
+        endsAt: proposal.endsAt,
       }),
     onSuccess: () => {
       invalidate(record.id)

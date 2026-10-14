@@ -33,13 +33,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarSearch, Copy, Link2, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { projectsQuery } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { ColorInput, RemindersInput } from './event-inputs.js'
-import { calendarKeys, calendarSettingsQuery, calendarsQuery, feedsQuery } from './queries.js'
+import {
+  calendarApi,
+  calendarKeys,
+  calendarSettingsQuery,
+  calendarsQuery,
+  feedsQuery,
+} from './queries.js'
 import { clockMinutes } from './time.js'
 
 export type CreatableKind = 'team' | 'project' | 'resource' | 'subscription'
@@ -100,25 +105,23 @@ export function CreateCalendarDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/calendars', {
-        body: {
-          kind,
-          ...(title.trim() ? { title: title.trim() } : {}),
-          ...(color ? { color } : {}),
-          ...(description.trim() ? { description: description.trim() } : {}),
-          ...(kind === 'team' || kind === 'resource' ? { spaceId } : {}),
-          ...(kind === 'project' ? { projectId } : {}),
-          ...(kind === 'subscription' ? { url: url.trim() } : {}),
-          ...(kind === 'resource'
-            ? {
-                resource: {
-                  kind: resourceKind,
-                  location: location.trim() || null,
-                  capacity: capacity ? Number(capacity) : null,
-                },
-              }
-            : {}),
-        },
+      calendarApi.createCalendar({
+        kind,
+        ...(title.trim() ? { title: title.trim() } : {}),
+        ...(color ? { color } : {}),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(kind === 'team' || kind === 'resource' ? { spaceId } : {}),
+        ...(kind === 'project' ? { projectId } : {}),
+        ...(kind === 'subscription' ? { url: url.trim() } : {}),
+        ...(kind === 'resource'
+          ? {
+              resource: {
+                kind: resourceKind,
+                location: location.trim() || null,
+                capacity: capacity ? Number(capacity) : null,
+              },
+            }
+          : {}),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })
@@ -305,11 +308,9 @@ export function AddCalendarDialog({ onClose }: { onClose: () => void }) {
 
   const add = useMutation({
     mutationFn: (calendar: CalendarRecord) =>
-      http.put('/calendar/settings', {
-        body: {
-          addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), calendar.id])],
-          shown: { ...(settings?.shown ?? {}), [calendar.id]: true },
-        },
+      calendarApi.putSettings({
+        addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), calendar.id])],
+        shown: { ...(settings?.shown ?? {}), [calendar.id]: true },
       }),
     onSuccess: (_, calendar) => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })
@@ -396,15 +397,12 @@ export function CalendarSettingsDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/calendars/:id', {
-        params: { id: calendar.id },
-        body: {
-          ...(calendar.kind !== 'personal' && title.trim() ? { title: title.trim() } : {}),
-          color,
-          timezone,
-          description: description.trim() || null,
-          ...(resource ? { resource } : {}),
-        },
+      calendarApi.patchCalendars(calendar.id, {
+        ...(calendar.kind !== 'personal' && title.trim() ? { title: title.trim() } : {}),
+        color,
+        timezone,
+        description: description.trim() || null,
+        ...(resource ? { resource } : {}),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })
@@ -546,7 +544,7 @@ export function FeedDialog({
   const { data: feeds = [], isLoading } = useQuery(feedsQuery(calendar.id))
 
   const create = useMutation({
-    mutationFn: () => http.post('/calendars/:id/feeds', { params: { id: calendar.id } }),
+    mutationFn: () => calendarApi.postCalendarsFeeds(calendar.id),
     onSuccess: (feed) => {
       setCreated(feed.url)
       void client.invalidateQueries({ queryKey: calendarKeys.feeds(calendar.id) })
@@ -554,8 +552,7 @@ export function FeedDialog({
     onError: (error) => toast.error(errorText(error)),
   })
   const revoke = useMutation({
-    mutationFn: (feedId: string) =>
-      http.delete('/calendars/:id/feeds/:feedId', { params: { id: calendar.id, feedId } }),
+    mutationFn: (feedId: string) => calendarApi.removeCalendarsFeeds(calendar.id, feedId),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.feeds(calendar.id) })
       toast.show({ title: t('calendar.feed.revoked'), tone: 'info' })
@@ -670,11 +667,8 @@ export function ImportDialog({
 
   const upload = useMutation({
     mutationFn: async (file: File) =>
-      http.post('/calendars/:id/import', {
-        params: { id: calendar.id },
-        body: {
-          ics: await file.text(),
-        },
+      calendarApi.postCalendarsImport(calendar.id, {
+        ics: await file.text(),
       }),
     onSuccess: (data) => {
       setResult(data)
@@ -754,12 +748,10 @@ export function MySettingsDialog({ onClose }: { onClose: () => void }) {
 
   const save = useMutation({
     mutationFn: () =>
-      http.put('/calendar/settings', {
-        body: {
-          workingHours: { start: form.start, end: form.end },
-          defaultDurationMinutes: form.duration,
-          defaultReminders: form.reminders,
-        },
+      calendarApi.putSettings({
+        workingHours: { start: form.start, end: form.end },
+        defaultDurationMinutes: form.duration,
+        defaultReminders: form.reminders,
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })

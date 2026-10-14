@@ -35,7 +35,6 @@ import {
   Plus,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
@@ -60,6 +59,7 @@ import { useCalendarFormat } from './format.js'
 import { daysFor, daysOfItem, shiftAnchor, VIEW_MODES, type ViewMode } from './model.js'
 import type { Invitee } from './people-picker.js'
 import {
+  calendarApi,
   calendarSettingsQuery,
   calendarsQuery,
   eventQuery,
@@ -204,7 +204,7 @@ export function CalendarScreen({
           Object.assign(body, { scope, recurrenceId: item.recurrenceId })
         }
       }
-      await http.patch('/events/:id', { params: { id: item.eventId }, body })
+      await calendarApi.patchEvents(item.eventId, body)
     },
     onMutate: async ({ item, change, scope }) => {
       // Перенос виден сразу, не дожидаясь ответа
