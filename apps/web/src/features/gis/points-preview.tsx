@@ -4,7 +4,6 @@ import {
   LayerStyle,
   type Locale,
   type MapCamera,
-  type QueryResult,
   type QuerySpec,
 } from '@kchs/contracts'
 import { compileLayerStyle } from '@kchs/map-style'
@@ -16,14 +15,14 @@ import {
   useDebouncedValue,
   useMapTheme,
 } from '@kchs/ui'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { BasemapSwitcher } from './basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { featuresBbox, resultFeatures } from './choropleth/geojson.js'
+import { apiFailureMessage, explorePointsQuery } from './queries.js'
 
 /** Точек на карте не больше: дальше — уточнить фильтр. */
 const POINTS_LIMIT = 5000
@@ -77,14 +76,7 @@ export function PointsPreview({
   const [camera, setCamera] = useState<MapCamera>(DEFAULT_CAMERA)
   const [fit, setFit] = useState<{ bbox: Bbox; key: string } | null>(null)
   const request = useDebouncedValue(JSON.stringify(pointsSpec(datasetId, field, filter)), 300)
-  const points = useQuery({
-    queryKey: ['explore', 'points', request],
-    queryFn: (): Promise<QueryResult> =>
-      http.post('/queries/run', { body: { spec: JSON.parse(request) as QuerySpec } }),
-    placeholderData: keepPreviousData,
-    retry: false,
-    staleTime: 60_000,
-  })
+  const points = useQuery(explorePointsQuery(request))
   const features = useMemo(
     () =>
       points.data
@@ -132,7 +124,7 @@ export function PointsPreview({
     return (
       <Callout tone="warning">
         {t('gis.points.failed', {
-          reason: points.error instanceof ApiError ? points.error.message : t('errors.unknown'),
+          reason: apiFailureMessage(points.error) ?? t('errors.unknown'),
         })}
       </Callout>
     )

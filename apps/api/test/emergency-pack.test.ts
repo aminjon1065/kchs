@@ -191,7 +191,7 @@ describe('пакет ЧС: чистая установка', () => {
       .where(eq(documentTypes.key, 'situation_report'))
     expect(reportType?.defaultRouteKey).toBe('situation_report_intake')
     // Место происшествия точкой (ADR-0221)
-    expect((reportType?.cardSchema as { fields: unknown[] }).fields).toContainEqual(
+    expect((reportType?.cardSchema as { fields: unknown[] } | undefined)?.fields).toContainEqual(
       expect.objectContaining({ key: 'location', type: 'geometry', geometryType: 'point' }),
     )
     const [warningSettings] = await db()
