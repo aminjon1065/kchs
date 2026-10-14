@@ -34,8 +34,8 @@ import { registerPmtilesProtocol } from '~/features/gis/index.js'
 import { useNotebook } from '~/features/notebooks/notebook-context.js'
 import { QueryCell } from '~/features/notebooks/query-cell.js'
 import { ChartCell } from '~/features/notebooks/source-cells.js'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
+import { reportsApi } from './queries.js'
 import { useReportMap } from './report-map.js'
 
 const NO_METRICS: string[] = []
@@ -348,9 +348,7 @@ export function ImageBlock({ cell }: { cell: CellMap }) {
   const size = useCellValue<ReportFigureSize>(cell, 'size') ?? 'medium'
   const image = useQuery({
     queryKey: ['report', notebookId, 'image', fileId],
-    queryFn: fileId
-      ? () => http.get('/reports/:id/images/:fileId', { params: { id: notebookId, fileId } })
-      : skipToken,
+    queryFn: fileId ? () => reportsApi.getImages(notebookId, fileId) : skipToken,
     staleTime: 300_000,
     retry: false,
   })
@@ -393,11 +391,7 @@ export function FileBlock({ cell }: { cell: CellMap }) {
   const fileIds = useCellValue<string[]>(cell, 'fileIds') ?? NO_FILES
   const { data } = useQuery({
     queryKey: ['report', notebookId, 'files', fileIds],
-    queryFn: () =>
-      http.get('/reports/:id/files', {
-        params: { id: notebookId },
-        query: { ids: fileIds.join(',') },
-      }),
+    queryFn: () => reportsApi.getFiles(notebookId, { ids: fileIds.join(',') }),
     enabled: fileIds.length > 0,
   })
   const names = new Map((data?.items ?? []).map((item) => [item.id, item.name]))

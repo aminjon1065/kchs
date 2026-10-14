@@ -13,13 +13,13 @@ import { Printer } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
 import { useLabelledResult } from '~/features/gis/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { setCsrfToken } from '~/shared/api/session.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { PrintMap } from './print-blocks.js'
 import { type PrintContextValue, PrintProvider, setPrintState, settleDom } from './print-context.js'
+import { dashboardsQuery, reportsPrintApi } from './queries.js'
 
 /** Высота строки сетки на листе, px: плитка в 4 строки — около четверти альбомного A4. */
 const ROW = 56
@@ -257,26 +257,20 @@ export function DashboardPrint({
   // Сессия пользователя: CSRF-токен из /me нужен POST-запросу данных плиток
   const me = useQuery({
     queryKey: ['print', 'me'],
-    queryFn: () => http.get('/me', { anonymous: true }).catch(() => null),
+    queryFn: () => reportsPrintApi.getMe().catch(() => null),
     retry: false,
   })
   useEffect(() => {
     if (me.data?.session.csrfToken) setCsrfToken(me.data.session.csrfToken)
   }, [me.data])
   const dashboard = useQuery({
-    queryKey: ['print', 'dashboard', dashboardId],
-    queryFn: () => http.get('/dashboards/:id', { params: { id: dashboardId }, anonymous: true }),
+    ...dashboardsQuery(dashboardId),
     enabled: !me.isLoading,
     retry: false,
   })
   const data = useQuery({
     queryKey: ['print', 'dashboard', dashboardId, 'data', filters],
-    queryFn: () =>
-      http.post('/dashboards/:id/data', {
-        params: { id: dashboardId },
-        body: { filters },
-        anonymous: true,
-      }),
+    queryFn: () => reportsPrintApi.postDashboardsData(dashboardId, { filters }),
     enabled: Boolean(me.data) && Boolean(dashboard.data),
     retry: false,
   })

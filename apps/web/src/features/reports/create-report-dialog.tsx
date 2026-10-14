@@ -13,11 +13,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { reportTemplatesQuery } from './queries.js'
+import { reportsApi, reportTemplatesQuery } from './queries.js'
 
 /**
  * Новый отчёт в пространстве (06-analytics-engine.md §12): с пустым текстовым
@@ -39,14 +38,12 @@ export function CreateReportDialog({ spaceId, onClose }: { spaceId: string; onCl
     item.key ? t(`data.report.templates.builtin.${item.key}.description`) : item.description
   const create = useMutation({
     mutationFn: () =>
-      http.post('/reports', {
-        body: {
-          name: name.trim(),
-          spaceId,
-          ...(template
-            ? { blocks: template.blocks, params: template.params, settings: template.settings }
-            : { blocks: [{ id: 'intro', kind: 'text' }] }),
-        },
+      reportsApi.create({
+        name: name.trim(),
+        spaceId,
+        ...(template
+          ? { blocks: template.blocks, params: template.params, settings: template.settings }
+          : { blocks: [{ id: 'intro', kind: 'text' }] }),
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.report.created'), tone: 'success' })

@@ -8,11 +8,10 @@ import { formatDateTime, formatFileSize, formatNumber } from '@kchs/fields'
 import { Badge, Button, EmptyState, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download, FileClock } from 'lucide-react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { reportRunsQuery } from './queries.js'
+import { reportRunsQuery, reportsApi } from './queries.js'
 
 const STATUS_TONE: Record<
   ReportRunStatus,
@@ -32,8 +31,7 @@ function RunItem({ run }: { run: ReportRunRecord }) {
   const toast = useToast()
   const locale = useLocale()
   const download = useMutation({
-    mutationFn: (format: ReportFormat) =>
-      http.get('/reports/runs/:runId/download', { params: { runId: run.id }, query: { format } }),
+    mutationFn: (format: ReportFormat) => reportsApi.getRunsDownload(run.id, { format }),
     onSuccess: ({ url }) => {
       window.location.assign(url)
     },

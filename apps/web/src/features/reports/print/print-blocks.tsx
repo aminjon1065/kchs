@@ -29,11 +29,11 @@ import { useExploreLabels, withChannelLabels } from '~/features/data/explore-bui
 import { chartQuery, datasetQuery, metricQuery } from '~/features/data/index.js'
 import { registerPmtilesProtocol, useLabelledResult } from '~/features/gis/index.js'
 import { cellSpec, chartQuerySpec, metricPeriod, sqlParams } from '~/features/notebooks/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useReportMap } from '../report-map.js'
 import { type PrintTable, printTable, usePrint, useReportReady } from './print-context.js'
+import { reportsPrintApi } from './queries.js'
 
 type BlockOf<K extends ReportBlock['kind']> = Extract<ReportBlock, { kind: K }>
 
@@ -204,13 +204,13 @@ export function PrintQuery({ block }: { block: BlockOf<'query'> }) {
   }, [sql, dataset.data, block.plan, block.bindings, block.view, block.maxRows, params])
   const visual = useQuery({
     queryKey: ['print', 'query', block.id, spec],
-    queryFn: spec ? () => http.post('/queries/run', { body: { spec } }) : skipToken,
+    queryFn: spec ? () => reportsPrintApi.postQueriesRun({ spec }) : skipToken,
     retry: false,
   })
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
   const raw = useQuery({
     queryKey: ['print', 'sql', block.id, block.sql, values],
-    queryFn: () => http.post('/sql/run', { body: { sql: block.sql, params: values } }),
+    queryFn: () => reportsPrintApi.postSqlRun({ sql: block.sql, params: values }),
     enabled: sql && canSql && Boolean(block.sql.trim()),
     retry: false,
   })
@@ -278,15 +278,12 @@ export function PrintChart({ block }: { block: BlockOf<'chart'> }) {
   const runSpec = ready ? chartQuerySpec(query, dataset.data, params, block.bindings) : null
   const viaQuery = useQuery({
     queryKey: ['print', 'chart', block.id, runSpec],
-    queryFn: runSpec ? () => http.post('/queries/run', { body: { spec: runSpec } }) : skipToken,
+    queryFn: runSpec ? () => reportsPrintApi.postQueriesRun({ spec: runSpec }) : skipToken,
     retry: false,
   })
   const viaChart = useQuery({
     queryKey: ['print', 'chart-data', block.id, chartId],
-    queryFn:
-      chartId && spec && !query
-        ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
-        : skipToken,
+    queryFn: chartId && spec && !query ? () => reportsPrintApi.postChartsData(chartId) : skipToken,
     retry: false,
   })
   const result = query ? viaQuery : viaChart
@@ -359,7 +356,7 @@ export function PrintMetrics({ block }: { block: BlockOf<'metrics'> }) {
   const values = useQueries({
     queries: inputs.map((item) => ({
       queryKey: ['print', 'metric', block.id, item.id, item.input],
-      queryFn: () => http.post('/metrics/:id/value', { params: { id: item.id }, body: item.input }),
+      queryFn: () => reportsPrintApi.postMetricsValue(item.id, item.input),
       enabled: item.ready,
       retry: false,
     })),
