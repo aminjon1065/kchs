@@ -3,10 +3,10 @@ import { Button, Callout, Card, cn, Field, Input, Skeleton, useToast } from '@kc
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { brandingQuery } from '~/shared/api/branding.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { HelpCard } from './help-card.js'
+import { adminApi } from './queries.js'
 
 /** Типы, которые принимает настройка логотипа (контракт `Branding`). */
 const LOGO_TYPES = 'image/png,image/jpeg,image/webp,image/svg+xml'
@@ -26,7 +26,7 @@ export function BrandingSection() {
   const [error, setError] = useState('')
 
   const save = useMutation({
-    mutationFn: (next: Branding) => http.patch('/admin/branding', { body: next }),
+    mutationFn: (next: Branding) => adminApi.patchBranding(next),
     onSuccess: (saved) => {
       client.setQueryData(brandingQuery().queryKey, saved)
       setDraft(null)

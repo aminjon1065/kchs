@@ -18,11 +18,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, UserCog } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { adminSpacesQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 /**
  * «Пространства» (15-admin-operations.md): все пространства организации,
@@ -141,11 +141,7 @@ function AssignAdminDialog({ space, onClose }: { space: AdminSpace | null; onClo
   }
 
   const assign = useMutation({
-    mutationFn: () =>
-      http.post('/admin/spaces/:id/admins', {
-        params: { id: space!.id },
-        body: { userId: picked!.id },
-      }),
+    mutationFn: () => adminApi.postSpacesAdmins(space!.id, { userId: picked!.id }),
     onSuccess: () => {
       toast.show({
         title: t('admin.spaces.assigned', { name: picked?.title ?? '' }),

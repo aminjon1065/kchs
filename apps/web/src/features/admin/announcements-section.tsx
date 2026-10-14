@@ -26,11 +26,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { adminAnnouncementsQuery, keys } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const STATUS_TONES: Record<AnnouncementStatus, 'accent' | 'success' | 'neutral'> = {
   scheduled: 'accent',
@@ -66,7 +66,7 @@ export function AnnouncementsSection() {
   }
 
   const withdraw = useMutation({
-    mutationFn: (id: string) => http.post('/admin/announcements/:id/withdraw', { params: { id } }),
+    mutationFn: (id: string) => adminApi.postAnnouncementsWithdraw(id),
     onSuccess: () => {
       toast.show({ title: t('admin.announcements.withdrawn'), tone: 'info' })
       setWithdrawing(null)
@@ -201,14 +201,12 @@ function CreateAnnouncementDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/admin/announcements', {
-        body: {
-          title: form.title.trim(),
-          body: form.body.trim(),
-          severity: form.severity,
-          startsAt: toIso(form.startsAt, timeZone),
-          endsAt: toIso(form.endsAt, timeZone),
-        },
+      adminApi.postAnnouncements({
+        title: form.title.trim(),
+        body: form.body.trim(),
+        severity: form.severity,
+        startsAt: toIso(form.startsAt, timeZone),
+        endsAt: toIso(form.endsAt, timeZone),
       }),
     onSuccess: () => {
       onCreated()

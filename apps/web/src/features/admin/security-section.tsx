@@ -13,12 +13,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, rolesQuery, securityPolicyQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { AdminModeCard } from './admin-mode.js'
+import { adminApi } from './queries.js'
 
 /** Домены списка: по одному в строке (запятые и пробелы тоже разделяют). */
 const domainsOf = (text: string): string[] =>
@@ -48,7 +48,7 @@ export function SecuritySection() {
   const [draft, setDraft] = useState<SecurityPolicy | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: SecurityPolicy) => http.patch('/admin/security-policy', { body: next }),
+    mutationFn: (next: SecurityPolicy) => adminApi.patchSecurityPolicy(next),
     onSuccess: (saved) => {
       client.setQueryData(keys.securityPolicy, saved)
       setDraft(null)

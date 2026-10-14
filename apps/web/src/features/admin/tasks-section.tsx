@@ -17,12 +17,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { controlMetricsQuery, taskKeys, taskSettingsQuery } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { adminApi } from './queries.js'
 
 /** Подпись показателя контроля, пока он не заведён. */
 const METRIC_LABEL: Record<ControlMetricKey, string> = {
@@ -44,7 +44,7 @@ export function TasksSection() {
   const [draft, setDraft] = useState<TaskSettings | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: TaskSettings) => http.put('/admin/tasks/settings', { body: next }),
+    mutationFn: (next: TaskSettings) => adminApi.putTasksSettings(next),
     onSuccess: (saved) => {
       client.setQueryData(taskKeys.settings, saved)
       setDraft(null)
@@ -132,7 +132,7 @@ function ControlMetricsCard() {
   const [space, setSpace] = useState('')
 
   const setup = useMutation({
-    mutationFn: () => http.post('/admin/tasks/metrics', { body: { spaceId: space } }),
+    mutationFn: () => adminApi.postTasksMetrics({ spaceId: space }),
     onSuccess: (state) => {
       client.setQueryData(taskKeys.metrics, state)
       void client.invalidateQueries({ queryKey: taskKeys.all })

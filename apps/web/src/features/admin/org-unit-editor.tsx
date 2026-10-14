@@ -16,12 +16,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, orgUnitsQuery, usersQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { TOP_LEVEL } from './org-management.js'
+import { adminApi } from './queries.js'
 import { unitOptions } from './user-management.js'
 
 /** Никого не назначать руководителем — значение списка, а не пустая строка. */
@@ -53,20 +53,17 @@ export function OrgUnitEditor({ unitId }: { unitId: string }) {
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/org/units/:id', {
-        params: { id: unitId },
-        body: {
-          name: {
-            ru: form.ru.trim(),
-            ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
-            ...(form.en.trim() ? { en: form.en.trim() } : {}),
-          },
-          code: form.code.trim(),
-          kind: form.kind,
-          parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
-          headUserId: form.headUserId === NO_HEAD ? null : form.headUserId,
-          isActive: form.isActive,
+      adminApi.patchOrgUnits(unitId, {
+        name: {
+          ru: form.ru.trim(),
+          ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
+          ...(form.en.trim() ? { en: form.en.trim() } : {}),
         },
+        code: form.code.trim(),
+        kind: form.kind,
+        parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
+        headUserId: form.headUserId === NO_HEAD ? null : form.headUserId,
+        isActive: form.isActive,
       }),
     onSuccess: () => {
       setError(null)

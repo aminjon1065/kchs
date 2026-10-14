@@ -31,12 +31,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderTree, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { authProviderKeys, directoryQuery, directorySyncsQuery } from './auth-providers.js'
+import { authProviderKeys, directoryQuery, directorySyncsQuery } from './auth-provider-queries.js'
+import { adminApi } from './queries.js'
 
 const ACTION_TONES: Record<DirectoryChange['action'], BadgeProps['tone']> = {
   create: 'success',
@@ -92,7 +92,7 @@ export function DirectorySection() {
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const save = useMutation({
-    mutationFn: (next: Draft) => http.put('/admin/directory', { body: next }),
+    mutationFn: (next: Draft) => adminApi.putDirectory(next),
     onSuccess: (saved) => {
       client.setQueryData(authProviderKeys.directory, saved)
       setDraft(null)
@@ -102,13 +102,13 @@ export function DirectorySection() {
   })
 
   const test = useMutation({
-    mutationFn: () => http.post('/admin/directory/test'),
+    mutationFn: () => adminApi.postDirectoryTest(),
     onSuccess: setTested,
     onError: failed,
   })
 
   const preview = useMutation({
-    mutationFn: () => http.post('/admin/directory/preview'),
+    mutationFn: () => adminApi.postDirectoryPreview(),
     onSuccess: (run) => {
       setPlan(run)
       void client.invalidateQueries({ queryKey: authProviderKeys.directorySyncs })
@@ -117,7 +117,7 @@ export function DirectorySection() {
   })
 
   const run = useMutation({
-    mutationFn: () => http.post('/admin/directory/sync'),
+    mutationFn: () => adminApi.postDirectorySync(),
     onSuccess: (result) => {
       setPlan(result)
       toast.show({

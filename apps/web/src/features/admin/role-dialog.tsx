@@ -19,11 +19,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, rolesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
+import { adminApi } from './queries.js'
 
 const isCapability = (value: string): value is Capability =>
   (CAPABILITIES as readonly string[]).includes(value)
@@ -81,14 +81,14 @@ export function RoleDialog({ role, onClose }: { role: RoleInfo | null; onClose: 
         description: form.description.trim() || null,
         capabilities: [...form.capabilities],
       }
-      if (role) await http.patch('/roles/:id', { params: { id: role.id }, body })
-      else await http.post('/roles', { body })
+      if (role) await adminApi.patchRoles(role.id, body)
+      else await adminApi.postRoles(body)
     },
     onSuccess: () => done(t('admin.roles.saved')),
     onError: failed,
   })
   const remove = useMutation({
-    mutationFn: () => http.delete('/roles/:id', { params: { id: role!.id } }),
+    mutationFn: () => adminApi.removeRoles(role!.id),
     onSuccess: () => done(t('admin.roles.deleted')),
     onError: (err) => {
       setRemoving(false)

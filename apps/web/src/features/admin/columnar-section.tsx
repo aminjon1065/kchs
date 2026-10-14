@@ -3,10 +3,10 @@ import { formatFileSize, formatNumber, formatRelativeTime } from '@kchs/fields'
 import { Badge, Button, Card, EmptyState, Field, Input, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 /**
  * Колоночный tier (06-analytics-engine.md §19, ADR-0109): порог, с которого
@@ -33,12 +33,11 @@ export function ColumnarSection() {
   const [draft, setDraft] = useState<ColumnarSettings | null>(null)
   const { data } = useQuery({
     queryKey: KEY,
-    queryFn: () => http.get('/admin/data/columnar'),
+    queryFn: () => adminApi.getDataColumnar(),
   })
 
   const save = useMutation({
-    mutationFn: (next: ColumnarSettings) =>
-      http.put('/admin/data/columnar/settings', { body: next }),
+    mutationFn: (next: ColumnarSettings) => adminApi.putDataColumnarSettings(next),
     onSuccess: () => {
       setDraft(null)
       void client.invalidateQueries({ queryKey: KEY })
@@ -49,8 +48,7 @@ export function ColumnarSection() {
   })
 
   const build = useMutation({
-    mutationFn: (datasetId: string) =>
-      http.post('/datasets/:id/columnar/build', { params: { id: datasetId } }),
+    mutationFn: (datasetId: string) => adminApi.postDatasetsColumnarBuild(datasetId),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: KEY })
       toast.show({ title: t('data.columnar.buildStarted'), tone: 'success' })

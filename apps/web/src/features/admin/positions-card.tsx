@@ -16,17 +16,17 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const positionsKey = ['org', 'positions'] as const
 
 /** Должности от старших к младшим: ранг — старшинство (у председателя больше). */
 export const positionsQuery = () => ({
   queryKey: positionsKey,
-  queryFn: async () => (await http.get('/org/positions')).items.sort((a, b) => b.rank - a.rank),
+  queryFn: async () => (await adminApi.getOrgPositions()).items.sort((a, b) => b.rank - a.rank),
 })
 
 /**
@@ -43,7 +43,7 @@ export function PositionsCard() {
   const [editing, setEditing] = useState<Position | 'new' | null>(null)
   const [removing, setRemoving] = useState<Position | null>(null)
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete('/org/positions/:id', { params: { id } }),
+    mutationFn: (id: string) => adminApi.removeOrgPositions(id),
     onSuccess: () => {
       setRemoving(null)
       toast.show({ title: t('admin.positions.removed'), tone: 'info' })
@@ -148,8 +148,8 @@ function PositionDialog({ position, onClose }: { position: Position | null; onCl
         },
         rank: Number.parseInt(form.rank, 10) || 0,
       }
-      if (position) await http.patch('/org/positions/:id', { params: { id: position.id }, body })
-      else await http.post('/org/positions', { body })
+      if (position) await adminApi.patchOrgPositions(position.id, body)
+      else await adminApi.postOrgPositions(body)
     },
     onSuccess: () => {
       toast.show({ title: t('admin.positions.saved'), tone: 'success' })

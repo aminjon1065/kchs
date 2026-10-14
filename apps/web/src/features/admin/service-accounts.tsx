@@ -31,7 +31,6 @@ import {
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, MoreHorizontal, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import {
   adminSpacesQuery,
@@ -43,6 +42,7 @@ import {
 } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 import { unitOptions } from './user-management.js'
 
 const NO_UNIT = '__none__'
@@ -129,10 +129,7 @@ export function ServiceAccountDialog({
   const spaces = useSpaceChoices()
   const existing = useQuery({
     queryKey: [...keys.serviceAccounts, accountId],
-    queryFn:
-      open && accountId !== null
-        ? () => http.get('/service-accounts/:id', { params: { id: accountId } })
-        : skipToken,
+    queryFn: open && accountId !== null ? () => adminApi.getServiceAccounts(accountId) : skipToken,
   })
   const [form, setForm] = useState<FormState>(EMPTY)
   const [error, setError] = useState<string | null>(null)
@@ -155,8 +152,8 @@ export function ServiceAccountDialog({
         spaces: form.spaces,
       }
       return accountId
-        ? http.patch('/service-accounts/:id', { params: { id: accountId }, body: payload })
-        : http.post('/service-accounts', { body: payload })
+        ? adminApi.patchServiceAccounts(accountId, payload)
+        : adminApi.postServiceAccounts(payload)
     },
     onSuccess: async (account) => {
       await client.invalidateQueries({ queryKey: ['users'] })
@@ -369,7 +366,7 @@ export function ServiceAccountActions({
 
   const setStatus = useMutation({
     mutationFn: (status: 'active' | 'blocked') =>
-      http.patch('/service-accounts/:id', { params: { id: user.id }, body: { status } }),
+      adminApi.patchServiceAccounts(user.id, { status }),
     onSuccess: (_result, status) => {
       toast.show({
         title: status === 'blocked' ? t('admin.users.blocked') : t('admin.users.unblocked'),
