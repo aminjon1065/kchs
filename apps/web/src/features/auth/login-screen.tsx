@@ -4,12 +4,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useBranding } from '~/shared/api/branding.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { setCsrfToken } from '~/shared/api/session.js'
 import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { passkeysSupported, requestPasskey } from '~/shared/auth/webauthn.js'
 import { useT } from '~/shared/i18n.js'
+import { authApi, methodsQuery } from './queries.js'
 
 type Step = 'credentials' | 'mfa' | 'reset'
 
@@ -38,12 +38,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   // Способы входа установки: кнопка IdP и вход по ключу показываются,
   // только если они настроены
-  const { data: methods } = useQuery({
-    queryKey: ['auth', 'methods'],
-    queryFn: () => http.get('/auth/methods', { anonymous: true }),
-    staleTime: 60_000,
-    retry: false,
-  })
+  const { data: methods } = useQuery({ ...methodsQuery(), staleTime: 60_000, retry: false })
   const canUseKeys = passkeysSupported() && (methods?.passkeys ?? false)
 
   // Лимит частоты — понятным текстом со временем ожидания, а не ответом сервера
@@ -55,11 +50,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   const signIn = useMutation({
-    mutationFn: () =>
-      http.post('/auth/login', {
-        body: { login, password, rememberDevice: false },
-        anonymous: true,
-      }),
+    mutationFn: () => authApi.login({ login, password, rememberDevice: false }),
     onSuccess: (result) => {
       setError(null)
       if (result.status === 'mfa_required') {
@@ -74,11 +65,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   })
 
   const verifyMfa = useMutation({
-    mutationFn: () =>
-      http.post('/auth/mfa/verify', {
-        body: { challengeId: '', code, trustDevice: false },
-        anonymous: true,
-      }),
+    mutationFn: () => authApi.postMfaVerify({ challengeId: '', code, trustDevice: false }),
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
       onSignedIn()
@@ -88,7 +75,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   /** Вход через корпоративный IdP: браузер уходит на страницу провайдера. */
   const startSso = useMutation({
-    mutationFn: () => http.post('/auth/sso/start', { anonymous: true }),
+    mutationFn: () => authApi.postSsoStart(),
     onSuccess: (result) => {
       window.location.assign(result.url)
     },
@@ -98,9 +85,9 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   /** Самостоятельный вход по ключу: вызов сервера → подпись устройства → сессия. */
   const signInWithKey = useMutation({
     mutationFn: async () => {
-      const options = await http.post('/auth/passkey/options', { anonymous: true })
+      const options = await authApi.postPasskeyOptions()
       const credential = await requestPasskey(options)
-      return http.post('/auth/passkey/verify', { body: { credential }, anonymous: true })
+      return authApi.postPasskeyVerify({ credential })
     },
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
@@ -116,9 +103,9 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   /** Подтверждение второго фактора ключом поверх входа по паролю. */
   const verifyWithKey = useMutation({
     mutationFn: async () => {
-      const options = await http.post('/auth/mfa/passkey/options', { anonymous: true })
+      const options = await authApi.postMfaPasskeyOptions()
       const credential = await requestPasskey(options)
-      return http.post('/auth/mfa/passkey/verify', { body: { credential }, anonymous: true })
+      return authApi.postMfaPasskeyVerify({ credential })
     },
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
@@ -131,7 +118,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   })
 
   const requestReset = useMutation({
-    mutationFn: () => http.post('/auth/password-reset', { body: { login }, anonymous: true }),
+    mutationFn: () => authApi.postPasswordReset({ login }),
     onSuccess: () => {
       setError(null)
       setResetSent(true)

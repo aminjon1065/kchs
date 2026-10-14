@@ -3,9 +3,9 @@ import { useMutation } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useBranding } from '~/shared/api/branding.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { authApi } from './queries.js'
 
 /**
  * Восстановление доступа по ссылке из письма (`/reset-password?token=…`).
@@ -24,8 +24,7 @@ export function PasswordResetScreen({ token }: { token: string }) {
   const translate = (message: string) => (message.startsWith('auth.') ? t(message) : message)
 
   const confirm = useMutation({
-    mutationFn: () =>
-      http.post('/auth/password-reset/confirm', { body: { token, newPassword: password } }),
+    mutationFn: () => authApi.postPasswordResetConfirm({ token, newPassword: password }),
     onSuccess: () => {
       setError(null)
       setDone(true)

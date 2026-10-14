@@ -1,12 +1,12 @@
 import { Button } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogOut, ShieldAlert } from 'lucide-react'
-import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { setCsrfToken } from '~/shared/api/session.js'
 import { useT } from '~/shared/i18n.js'
 import { forgetProfile } from '~/shared/offline/profile.js'
 import { MfaSetup } from './mfa-setup.js'
+import { authApi } from './queries.js'
 
 /**
  * Политика безопасности требует второй фактор для роли пользователя, а он не
@@ -22,7 +22,7 @@ export function MfaEnrollmentScreen() {
     // выхода нельзя (ADR-0207)
     mutationFn: async () => {
       await forgetProfile()
-      return http.post('/auth/logout')
+      return authApi.logout()
     },
     onSettled: () => {
       setCsrfToken(null)
