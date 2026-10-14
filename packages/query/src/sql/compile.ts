@@ -149,27 +149,40 @@ function analyze(text: string, tree: ParseTree, options: AnalyzeOptions): Analys
   }
 }
 
-/** Текст, параметры и дерево разбора; пустой и слишком длинный запрос — ошибка. */
-async function prepare(
-  sql: string,
-): Promise<{ text: string; placeholders: Placeholder[]; tree: ParseTree }> {
+/**
+ * Разобранный сырой SQL: текст, параметры и дерево. Разбор (WASM) — самая дорогая часть
+ * компиляции; `rawSqlTables` и `compileRawSql` принимают готовый разбор, чтобы запрос
+ * не разбирался дважды (ADR-0220). Анализ дерево не меняет.
+ */
+export interface PreparedRawSql {
+  readonly sql: string
+  readonly text: string
+  readonly placeholders: readonly Placeholder[]
+  readonly tree: ParseTree
+}
+
+/** Разбор сырого SQL; пустой и слишком длинный запрос — ошибка (`QueryCompileError`). */
+export async function prepareRawSql(sql: string): Promise<PreparedRawSql> {
   if (sql.length > MAX_SQL_LENGTH) sqlFail('Запрос длиннее 100 000 символов', MAX_SQL_LENGTH)
   const invalid = invalidCharacter(sql)
   if (invalid >= 0) sqlFail('Недопустимый символ в запросе', invalid)
   if (sql.trim() === '') sqlFail('Пустой запрос: напишите SELECT', 0)
   const { text, placeholders } = extractPlaceholders(sql)
   const tree = await parseSql(text)
-  return { text, placeholders, tree }
+  return { sql, text, placeholders, tree }
 }
+
+const prepared = (input: string | PreparedRawSql) =>
+  typeof input === 'string' ? prepareRawSql(input) : input
 
 /**
  * Имена таблиц запроса (кроме CTE) — чтобы загрузить только нужные датасеты с
  * политиками до `compileRawSql`. Запрос заодно проверяется: разбор, операторы,
  * функции, типы (ошибки — `QueryCompileError`).
  */
-export async function rawSqlTables(sql: string): Promise<string[]> {
-  const { text, placeholders, tree } = await prepare(sql)
-  return analyze(text, tree, { catalog: null, placeholders }).tables
+export async function rawSqlTables(input: string | PreparedRawSql): Promise<string[]> {
+  const { text, placeholders, tree } = await prepared(input)
+  return analyze(text, tree, { catalog: null, placeholders: [...placeholders] }).tables
 }
 
 /**
@@ -179,11 +192,14 @@ export async function rawSqlTables(sql: string): Promise<string[]> {
  * QuerySpec), подписи полей → ключи, `{{параметр}}` → `$n`. Выполнять — под ролью
  * `kchs_query` в транзакции только для чтения с тайм-аутом (как QuerySpec).
  */
-export async function compileRawSql(sql: string, ctx: RawSqlContext): Promise<CompiledRawSql> {
-  const { text, placeholders, tree } = await prepare(sql)
+export async function compileRawSql(
+  input: string | PreparedRawSql,
+  ctx: RawSqlContext,
+): Promise<CompiledRawSql> {
+  const { sql, text, placeholders, tree } = await prepared(input)
   const analysis = analyze(text, tree, {
     catalog: new DatasetCatalog(ctx.datasets),
-    placeholders,
+    placeholders: [...placeholders],
   })
   const maxRows = ctx.maxRows === undefined ? DEFAULT_MAX_ROWS : ctx.maxRows
   if (maxRows !== null && (!Number.isInteger(maxRows) || maxRows < 0)) {

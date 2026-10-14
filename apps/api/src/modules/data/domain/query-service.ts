@@ -21,6 +21,7 @@ import {
   duckdbDialect,
   type LookupRef,
   MissingReferencesError,
+  prepareRawSql,
   QueryCompileError,
   type ReferenceMap,
   type ReferenceRequest,
@@ -548,10 +549,12 @@ export const QueryService = {
         return { compiled, schemaVersions, cacheable: sources.system.length === 0 }
       } catch (error) {
         if (error instanceof MissingReferencesError && attempt === 0) {
-          for (const request of error.requests) {
-            if (request.kind !== 'lookup_label') continue
-            lookups.set(referenceKey(request), await lookupReference(ctx, request))
-          }
+          // Справочники недостающих подписей — разом, а не по одному (ADR-0220)
+          const requests = error.requests.filter((request) => request.kind === 'lookup_label')
+          const maps = await Promise.all(requests.map((request) => lookupReference(ctx, request)))
+          requests.forEach((request, index) => {
+            lookups.set(referenceKey(request), maps[index] as ReferenceMap)
+          })
           continue
         }
         if (error instanceof QueryCompileError) throw compileError(error)
@@ -697,8 +700,9 @@ export const QueryService = {
   ): Promise<CompiledRawSql> {
     requireCapability(ctx, 'data.sql')
     try {
-      const datasets = await sqlDatasets(ctx, await rawSqlTables(sqlText))
-      const compiled = await compileRawSql(sqlText, {
+      const parsed = await prepareRawSql(sqlText)
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(parsed))
+      const compiled = await compileRawSql(parsed, {
         datasets,
         user: compileUser(ctx),
         params: options.params ?? {},
@@ -749,8 +753,10 @@ export const QueryService = {
     const started = performance.now()
     let compiled: CompiledRawSql
     try {
-      const datasets = await sqlDatasets(ctx, await rawSqlTables(input.sql))
-      compiled = await compileRawSql(input.sql, {
+      // Разбор один на оба шага: имена таблиц и компиляцию (ADR-0220)
+      const parsed = await prepareRawSql(input.sql)
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(parsed))
+      compiled = await compileRawSql(parsed, {
         datasets,
         user: compileUser(ctx),
         params: input.params,
