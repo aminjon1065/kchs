@@ -1,5 +1,5 @@
 import { TAG_NAME_MAX, TAGS_PER_OBJECT_MAX, type TagColor, type TagView } from '@kchs/contracts'
-import { and, asc, eq, ilike, isNull, or, type SQL, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -127,8 +127,21 @@ export const TagService = {
       .limit(limit)
   },
 
-  /** Имена тегов объекта для поискового индекса. */
-  async names(objectId: string): Promise<string[]> {
-    return (await TagService.forObject(objectId)).map((tag) => tag.name)
+  /** Имена тегов пачки объектов для поискового индекса — одним запросом. */
+  async namesMany(objectIds: string[]): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>()
+    if (objectIds.length === 0) return result
+    const rows = await db()
+      .select({ objectId: objectTags.objectId, name: tags.name })
+      .from(objectTags)
+      .innerJoin(tags, eq(tags.id, objectTags.tagId))
+      .where(inArray(objectTags.objectId, objectIds))
+      .orderBy(asc(tags.name))
+    for (const row of rows) {
+      const names = result.get(row.objectId) ?? []
+      names.push(row.name)
+      result.set(row.objectId, names)
+    }
+    return result
   },
 }

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startFakeEmbeddings } from './fakes.js'
-import { call, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /**
  * Поиск по смыслу (ADR-0099): движок считает векторы кусков текста, pgvector
@@ -9,9 +9,11 @@ import { call, registerLifecycle, setupFixture, type TestContext } from './helpe
  */
 registerLifecycle()
 
-const { indexEmbeddings, semanticSearch, similarObjects, chunkText } = await import(
+const { indexChunks, indexEmbeddings, semanticSearch, similarObjects, chunkText } = await import(
   '../src/kernel/search/semantic.js'
 )
+const { embeddings: embeddingsTable } = await import('../src/kernel/search/schema.js')
+const { asc, eq } = await import('drizzle-orm')
 const { resetConfigCache } = await import('../src/shared/config/index.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 
@@ -94,6 +96,31 @@ describe('векторы объектов', () => {
     const again = await indexEmbeddings(id)
     expect(again).toBe(0)
     expect(embeddings.calls.length, 'второй раз движок не вызывается').toBe(before)
+  })
+
+  it('куски пишутся одним запросом: изменённый обновляется, лишний уходит', async () => {
+    const id = await createNote(`Куски ${run}`, 'Заметка для проверки записи кусков.')
+    const stored = async () =>
+      db()
+        .select({ chunkNo: embeddingsTable.chunkNo, text: embeddingsTable.text })
+        .from(embeddingsTable)
+        .where(eq(embeddingsTable.objectId, id))
+        .orderBy(asc(embeddingsTable.chunkNo))
+    expect(
+      await indexChunks(id, [{ text: 'Первый абзац' }, { text: 'Второй' }, { text: 'Третий' }]),
+    ).toBe(3)
+    expect(
+      await indexChunks(id, [{ text: 'Первый абзац' }, { text: 'Второй, исправленный' }]),
+    ).toBe(1)
+    expect(await stored()).toEqual([
+      { chunkNo: 0, text: 'Первый абзац' },
+      { chunkNo: 1, text: 'Второй, исправленный' },
+    ])
+    // Укоротили без правок оставшегося: модель не зовётся, лишний кусок всё равно уходит
+    const before = embeddings.calls.length
+    expect(await indexChunks(id, [{ text: 'Первый абзац' }])).toBe(0)
+    expect(embeddings.calls.length).toBe(before)
+    expect(await stored()).toEqual([{ chunkNo: 0, text: 'Первый абзац' }])
   })
 
   it('находят объект по смыслу и не показывают чужой', async () => {
