@@ -1,6 +1,7 @@
 import type { ChatSection } from '@kchs/contracts'
 import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /**
  * Запросы модуля «Чаты» (ADR-0090). Сообщения лежат под ключом объекта-беседы
@@ -87,3 +88,37 @@ export const peersPresenceQuery = (userIds: string[]) =>
     enabled: userIds.length > 0,
     refetchInterval: 60_000,
   })
+
+export const chatApi = {
+  create: (body: ApiBody<'POST /chats'>) => http.post('/chats', { body }),
+  postChatsInvite: (id: string, body: ApiBody<'POST /chats/:id/invite'>) =>
+    http.post('/chats/:id/invite', { params: { id }, body }),
+  patchChats: (id: string, body: ApiBody<'PATCH /chats/:id'>) =>
+    http.patch('/chats/:id', { params: { id }, body }),
+  getChats: () => http.get('/chats', { query: { section: 'all' } }),
+  postChatsForward: (body: ApiBody<'POST /chats/forward'>) => http.post('/chats/forward', { body }),
+  postChatsMessagesTask: (
+    messageId: string,
+    body: ApiBody<'POST /chats/messages/:messageId/task'>,
+  ) => http.post('/chats/messages/:messageId/task', { params: { messageId }, body }),
+  postChatsMessagesAttach: (
+    messageId: string,
+    body: ApiBody<'POST /chats/messages/:messageId/attach'>,
+  ) => http.post('/chats/messages/:messageId/attach', { params: { messageId }, body }),
+  getMePresence: () => http.get('/me/presence'),
+  putMePresence: (body: ApiBody<'PUT /me/presence'>) => http.put('/me/presence', { body }),
+  postConversationsRead: (id: string, body: ApiBody<'POST /conversations/:id/read'>) =>
+    http.post('/conversations/:id/read', { params: { id }, body }),
+  putChatsDraft: (id: string, body: ApiBody<'PUT /chats/:id/draft'>) =>
+    http.put('/chats/:id/draft', { params: { id }, body }),
+  postAiTranslate: (body: ApiBody<'POST /ai/translate'>) => http.post('/ai/translate', { body }),
+  postConversationsMessages: (id: string, body: ApiBody<'POST /conversations/:id/messages'>) =>
+    http.post('/conversations/:id/messages', { params: { id }, body }),
+  postChatsCall: (id: string) => http.post('/chats/:id/call', { params: { id }, body: {} }),
+  putChatsSettings: (id: string, body: ApiBody<'PUT /chats/:id/settings'>) =>
+    http.put('/chats/:id/settings', { params: { id }, body }),
+  putChatsPins: (id: string, body: ApiBody<'PUT /chats/:id/pins'>) =>
+    http.put('/chats/:id/pins', { params: { id }, body }),
+  postChatsLeave: (id: string) => http.post('/chats/:id/leave', { params: { id } }),
+  postChatsJoin: (id: string) => http.post('/chats/:id/join', { params: { id } }),
+}

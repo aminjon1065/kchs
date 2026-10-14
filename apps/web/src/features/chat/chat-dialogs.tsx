@@ -16,11 +16,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { chatKeys } from './queries.js'
+import { chatApi, chatKeys } from './queries.js'
 
 const useReport = () => {
   const t = useT()
@@ -50,14 +49,11 @@ export function NewChatDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/chats', {
-        body: {
-          kind,
-          ...(kind === 'direct' ? {} : { title: title.trim() }),
-          memberIds:
-            kind === 'direct' ? (peer ? [peer.id] : []) : members.map((member) => member.id),
-          ...(kind === 'channel' ? { spaceId, privacy } : {}),
-        },
+      chatApi.create({
+        kind,
+        ...(kind === 'direct' ? {} : { title: title.trim() }),
+        memberIds: kind === 'direct' ? (peer ? [peer.id] : []) : members.map((member) => member.id),
+        ...(kind === 'channel' ? { spaceId, privacy } : {}),
       }),
     onSuccess: (item) => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
@@ -176,10 +172,7 @@ export function InviteDialog({
   const [members, setMembers] = useState<PickedUser[]>([])
   const invite = useMutation({
     mutationFn: () =>
-      http.post('/chats/:id/invite', {
-        params: { id: conversationId },
-        body: { userIds: members.map((item) => item.id) },
-      }),
+      chatApi.postChatsInvite(conversationId, { userIds: members.map((item) => item.id) }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       onClose()
@@ -233,8 +226,7 @@ export function RenameDialog({
   const client = useQueryClient()
   const [title, setTitle] = useState(conversation.title)
   const rename = useMutation({
-    mutationFn: () =>
-      http.patch('/chats/:id', { params: { id: conversation.id }, body: { title: title.trim() } }),
+    mutationFn: () => chatApi.patchChats(conversation.id, { title: title.trim() }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       onClose()
@@ -296,12 +288,11 @@ export function ForwardDialog({
   const [target, setTarget] = useState('')
   const { data } = useQuery({
     queryKey: chatKeys.list('all'),
-    queryFn: () => http.get('/chats', { query: { section: 'all' } }),
+    queryFn: () => chatApi.getChats(),
   })
   const options = (data?.items ?? []).filter((item) => item.can.post)
   const forward = useMutation({
-    mutationFn: () =>
-      http.post('/chats/forward', { body: { messageIds, toConversationIds: [target] } }),
+    mutationFn: () => chatApi.postChatsForward({ messageIds, toConversationIds: [target] }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       toast.show({ title: t('chats.forwarded') })
@@ -374,13 +365,10 @@ export function MessageTaskDialog({
   const [days, setDays] = useState(3)
   const create = useMutation({
     mutationFn: () =>
-      http.post('/chats/messages/:messageId/task', {
-        params: { messageId },
-        body: {
-          title: title.trim(),
-          ...(assignee ? { assigneeId: assignee.id } : {}),
-          dueWorkingDays: days,
-        },
+      chatApi.postChatsMessagesTask(messageId, {
+        title: title.trim(),
+        ...(assignee ? { assigneeId: assignee.id } : {}),
+        dueWorkingDays: days,
       }),
     onSuccess: (result) => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
@@ -450,8 +438,7 @@ export function AttachDialog({ messageId, onClose }: { messageId: string; onClos
   const [objectId, setObjectId] = useState('')
   const { data } = useQuery(objectListQuery({ types: 'document', limit: 50 }))
   const attach = useMutation({
-    mutationFn: () =>
-      http.post('/chats/messages/:messageId/attach', { params: { messageId }, body: { objectId } }),
+    mutationFn: () => chatApi.postChatsMessagesAttach(messageId, { objectId }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['object'] })
       toast.show({ title: t('chats.attach.done') })
@@ -508,7 +495,7 @@ export function PresenceDialog({ onClose }: { onClose: () => void }) {
   const client = useQueryClient()
   const { data } = useQuery({
     queryKey: chatKeys.presence,
-    queryFn: () => http.get('/me/presence'),
+    queryFn: () => chatApi.getMePresence(),
   })
   const [status, setStatus] = useState<'online' | 'away' | 'dnd'>(data?.chosen ?? 'online')
   const [forHour, setForHour] = useState(false)
@@ -517,12 +504,10 @@ export function PresenceDialog({ onClose }: { onClose: () => void }) {
   )
   const save = useMutation({
     mutationFn: () =>
-      http.put('/me/presence', {
-        body: {
-          status,
-          untilMinutes: forHour ? 60 : null,
-          quietHours: quiet,
-        },
+      chatApi.putMePresence({
+        status,
+        untilMinutes: forHour ? 60 : null,
+        quietHours: quiet,
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.presence })
