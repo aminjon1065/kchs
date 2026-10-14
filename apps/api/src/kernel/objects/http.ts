@@ -1,4 +1,4 @@
-import { levelValue, SortQuery } from '@kchs/contracts'
+import { levelValue, type ObjectSummary, type ObjectType, SortQuery } from '@kchs/contracts'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { isGuest } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -94,7 +94,11 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
         accessMode: row.accessMode as 'inherit' | 'restricted',
         version: row.version,
         tags: tagRows,
-        breadcrumbs: breadcrumbRows.map((b) => ({ id: b.id, type: b.type, title: b.title })),
+        breadcrumbs: breadcrumbRows.map((b) => ({
+          id: b.id,
+          type: b.type as ObjectType,
+          title: b.title,
+        })),
         level: decision.level,
         allowedActions: allowedActions(row.type, decision.level, request.ctx, levelValue),
         favorite: favRow.length > 0,
@@ -204,7 +208,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     summary: 'Сводки объектов для чипов и пикеров',
     handler: async (request) => {
       const summaries = await ObjectService.summaries(request.body.ids)
-      const items: unknown[] = []
+      const items: ObjectSummary[] = []
       for (const [id, summary] of summaries) {
         const decision = await authorize(request.ctx, 'view', id, { soft: true })
         items.push(decision.allowed ? summary : hiddenSummary(summary))
@@ -303,7 +307,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
       const page = rows.slice(0, query.limit)
       const summaries = await ObjectService.summaries(page.map((r) => r.id))
-      const items = page.map((r) => summaries.get(r.id)).filter(Boolean)
+      const items = page.flatMap((r) => summaries.get(r.id) ?? [])
       return { items, nextCursor, ...(total !== undefined ? { total } : {}) }
     },
   })
@@ -378,7 +382,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
         .orderBy(desc(recentViews.viewedAt))
         .limit(request.query.limit)
       const summaries = await ObjectService.summaries(rows.map((r) => r.objectId))
-      return { items: rows.map((r) => summaries.get(r.objectId)).filter(Boolean) }
+      return { items: rows.flatMap((r) => summaries.get(r.objectId) ?? []) }
     },
   })
 

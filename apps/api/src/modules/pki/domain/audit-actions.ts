@@ -4,6 +4,8 @@
  */
 export const PKI_AUDIT = {
   initialized: 'pki.initialized',
+  rotated: 'pki.rotated',
+  reissued: 'pki.certificate_reissued',
   certificateIssued: 'pki.certificate_issued',
   certificateRevoked: 'pki.certificate_revoked',
   /** Выпуск отклонён: неверное доказательство владения ключом или второй фактор. */

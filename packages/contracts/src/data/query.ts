@@ -27,7 +27,8 @@ export const Expression = z.string().min(1).max(4000)
  * Системные датасеты — представления модулей в схеме `ds` с правами смотрящего
  * (ADR-0060); `territories` — справочник территорий с границами (ADR-0069);
  * `instructions` — поручения с состоянием контроля исполнения (ADR-0082);
- * `connections` — подключения шлюза по суткам (ADR-0206).
+ * `connections` — подключения шлюза по суткам (ADR-0206); `document_places` — документы с
+ * точкой в реквизитах для карты (ADR-0223).
  */
 export const SYSTEM_DATASETS = [
   'tasks',
@@ -37,6 +38,7 @@ export const SYSTEM_DATASETS = [
   'events',
   'territories',
   'connections',
+  'document_places',
 ] as const
 
 /**

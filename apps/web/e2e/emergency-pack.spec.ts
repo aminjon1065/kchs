@@ -331,4 +331,65 @@ test.describe('Пакет ЧС: приёмка', () => {
       }
     }
   })
+
+  test('«Донесения» на карте обстановки: место — тем, кому открыт документ (ADR-0223)', async ({
+    request,
+    browser,
+  }) => {
+    test.setTimeout(60_000)
+    const layerId = await packObject(request, 'layer', 'Донесения')
+    const layer = await (await request.get(`/api/v1/gis/layers/${layerId}`)).json()
+    expect(layer).toMatchObject({
+      datasetId: null,
+      systemSource: 'document_places',
+      geometryType: 'point',
+      editable: false,
+    })
+
+    // Черновик донесения с местом на карте: виден автору — в объектах слоя и в тайле
+    const types = (await (await request.get('/api/v1/document-types')).json()).items as Array<{
+      id: string
+      key: string
+    }>
+    const reportType = types.find((item) => item.key === 'situation_report')
+    expect(reportType, NOT_INSTALLED).toBeTruthy()
+    const subject = `Подмыв берега e2e ${Date.now().toString(36)}`
+    const created = await request.post('/api/v1/documents', {
+      headers: await csrf(request),
+      data: {
+        typeId: reportType?.id,
+        subject,
+        fields: {
+          incident_kind: 'FLOOD',
+          territory: await territoryId(request, 'Мургаб'),
+          occurred_at: new Date().toISOString(),
+          location: { type: 'Point', coordinates: [73.97, 38.17] },
+        },
+      },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const documentId = (await created.json()).id as string
+    const features = await (await request.get(`/api/v1/gis/layers/${layerId}/features`)).json()
+    const ids = (features.features as Array<{ properties: { id: string } }>).map(
+      (feature) => feature.properties.id,
+    )
+    expect(ids).toContain(documentId)
+    const tile = await request.get(`/api/v1/gis/layers/${layerId}/tiles/6/45/24.pbf`)
+    expect(tile.status()).toBe(200)
+    expect(tile.headers()['cache-control']).toBe('private, no-cache')
+
+    // Другой сотрудник без доступа к черновику его места не видит
+    const other = await signIn(browser, 'user030')
+    const foreign = await other.context.request.get(`/api/v1/gis/layers/${layerId}/features`)
+    if (foreign.ok()) {
+      const foreignIds = (
+        (await foreign.json()).features as Array<{ properties: { id: string } }>
+      ).map((feature) => feature.properties.id)
+      expect(foreignIds).not.toContain(documentId)
+    } else {
+      // Слой пространства пакета ему не открыт — тем более не открыто место документа
+      expect([403, 404]).toContain(foreign.status())
+    }
+    await other.context.close()
+  })
 })

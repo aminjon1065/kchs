@@ -1169,6 +1169,20 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     notCreated:
       'The certification authority has not been created yet. It is created once: the root key, issuing key and time-stamping key are stored encrypted in the database.',
     create: 'Create Committee CA',
+    rotate: 'Rotate key',
+    rotateTitle: 'Rotate the issuing CA key?',
+    rotateHint:
+      'The root stays. New certificates come from the new issuing CA; the previous one keeps publishing its revocation list, so earlier signatures remain verifiable.',
+    rotateMode: 'Reason for rotation',
+    modePlanned: 'Planned — the key is close to expiry',
+    modeCompromise: 'Compromise — the key may be in other hands',
+    modeCompromiseHint:
+      'The root revokes the previous issuing CA. Employee certificates are reissued automatically at the next signing.',
+    rotateReason: 'Basis (order, act, request)',
+    rotated: 'Issuing CA key rotated',
+    expiring: 'CA keys are close to expiry: {list}. Rotate the issuing CA key.',
+    kinds: { root: 'root', issuing: 'issuing', tsa: 'time-stamping service' },
+    previousIssuers: 'Previous issuing CAs',
     createTitle: 'Create the Committee certification authority?',
     createHint:
       'A 20-year root certificate, a 10-year issuing certificate and a time-stamping certificate will be created. Check the root fingerprint when installing trust.',

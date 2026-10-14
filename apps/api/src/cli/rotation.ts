@@ -8,6 +8,7 @@ import {
   mailMailboxes,
   mfaFactors,
   pkiAuthorities,
+  pkiRetiredAuthorities,
   serviceLayers,
   ssoAuthRequests,
   userFacsimiles,
@@ -80,6 +81,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     id: pkiAuthorities.kind,
     column: pkiAuthorities.keyEnc,
     label: 'Ключи УЦ Комитета',
+  },
+  {
+    table: pkiRetiredAuthorities,
+    id: pkiRetiredAuthorities.id,
+    column: pkiRetiredAuthorities.keyEnc,
+    label: 'Прежние ключи УЦ Комитета (ADR-0224)',
   },
   {
     table: userFacsimiles,

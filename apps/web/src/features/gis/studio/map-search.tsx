@@ -63,6 +63,8 @@ async function searchLayer(
   search: string,
   where: ReturnType<typeof allOf>,
 ): Promise<Array<{ rowId: string; values: Record<string, unknown> }>> {
+  // Поиск — по строкам датасета; у системного источника (ADR-0223) таблицы нет
+  if (!layer.datasetId) return []
   const result = await http.post('/datasets/:id/rows/query', {
     params: { id: layer.datasetId },
     body: {

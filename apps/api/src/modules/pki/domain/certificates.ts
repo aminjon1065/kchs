@@ -14,7 +14,7 @@ import { UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { confirmSecondFactor } from '~/kernel/second-factor/port.js'
 import { BrandingService } from '~/kernel/settings/branding.js'
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { signingKeys } from '~/shared/crypto/secrets.js'
 import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -23,6 +23,9 @@ import { pkiCertificates } from '../schema.js'
 import * as A from './asn1.js'
 import { PKI_AUDIT } from './audit-actions.js'
 import { fingerprintOf, PkiAuthority, pkiBaseUrl, subjectText } from './authority.js'
+
+/** Причина отзыва прежнего сертификата при перевыпуске (ADR-0224). */
+const REISSUED_REASON = 'Перевыпущен после смены ключа УЦ'
 
 /**
  * Сертификаты сотрудников и печати (ADR-0218). Ключ создаёт браузер (WebCrypto, RSA 2048,
@@ -144,6 +147,119 @@ async function revokeRow(tx: Tx, ctx: Ctx, row: Row, reason: string | null): Pro
   return updated
 }
 
+/** Расширения сертификата сотрудника и печати: адреса — того выпускающего, кто выпустил. */
+function personExtensions(issuerPath: string) {
+  const base = pkiBaseUrl()
+  return [
+    A.ext.basicConstraints(false),
+    A.ext.keyUsage(A.KeyUsage.digitalSignature | A.KeyUsage.nonRepudiation),
+    A.ext.extKeyUsage([A.OID.documentSigning, A.OID.emailProtection]),
+    A.ext.crlDistribution(`${base}/${issuerPath}.crl`),
+    A.ext.authorityInfo({ ocsp: `${base}/ocsp`, caIssuers: `${base}/${issuerPath}.crt` }),
+  ]
+}
+
+/** Действующий преемник перевыпущенного сертификата. */
+async function successor(row: Row): Promise<Row | null> {
+  if (!row.replacedBy) return null
+  const [next] = await db()
+    .select()
+    .from(pkiCertificates)
+    .where(eq(pkiCertificates.id, row.replacedBy))
+    .limit(1)
+  return next && state(next) === 'active' ? next : null
+}
+
+/**
+ * Перевыпуск при следующем подписании (ADR-0224): выпускающий сертификата отозван корнем
+ * после компрометации, а сам сертификат действует — тот же ключ устройства и субъект
+ * получают сертификат текущего выпускающего на оставшийся срок. Прежний отзывается с
+ * пометкой о замене. Владение ключом подтверждает сама подпись: CMS собирается из подписи
+ * устройства и проверяется по ключу нового сертификата.
+ */
+async function reissueIfCompromised(row: Row): Promise<Row | null> {
+  if (state(row) !== 'active' || !row.issuerFingerprint) return null
+  const status = await PkiAuthority.status()
+  const issuer = status.issuers.find((item) => item.fingerprint === row.issuerFingerprint)
+  if (!issuer?.revokedAt) return null
+  const old = A.parseCertificate(A.fromPem(row.certificate))
+  const current = await PkiAuthority.currentIssuer()
+  const now = new Date()
+  const serial = A.newSerial()
+  const der = await PkiAuthority.issue({
+    subject: old.subject,
+    publicKeyDer: old.publicKeyDer,
+    serial,
+    notBefore: now,
+    notAfter: new Date(row.expiresAt),
+    extensions: personExtensions(current.path),
+  })
+  const id = newId()
+  const ctx = systemCtx('pki.reissue')
+  const inserted = await db().transaction(async (tx) => {
+    // Две подписи разом: перевыпускает первая, вторая берёт её преемника
+    const [locked] = await tx
+      .select({ replacedBy: pkiCertificates.replacedBy })
+      .from(pkiCertificates)
+      .where(eq(pkiCertificates.id, row.id))
+      .for('update')
+    if (locked?.replacedBy) return null
+    const [created] = await tx
+      .insert(pkiCertificates)
+      .values({
+        id,
+        serial: serial.toString('hex'),
+        userId: row.userId,
+        purpose: row.purpose,
+        subject: subjectText(der),
+        deviceLabel: row.deviceLabel,
+        certificate: A.pem('CERTIFICATE', der),
+        fingerprint: fingerprintOf(der),
+        issuedAt: now.toISOString(),
+        expiresAt: row.expiresAt,
+        issuerFingerprint: current.fingerprint,
+      })
+      .returning()
+    await tx
+      .update(pkiCertificates)
+      .set({
+        revokedAt: now.toISOString(),
+        revocationReason: REISSUED_REASON,
+        replacedBy: id,
+      })
+      .where(eq(pkiCertificates.id, row.id))
+    await publishEvent(tx, ctx, {
+      type: 'pki.certificate_issued',
+      payload: {
+        certificateId: id,
+        userId: row.userId,
+        purpose: row.purpose as PkiPurpose,
+        serial: serial.toString('hex'),
+      },
+    })
+    await audit(
+      ctx,
+      {
+        action: PKI_AUDIT.reissued,
+        objectId: row.userId,
+        objectType: 'user',
+        severity: 'notice',
+        details: { certificateId: id, previous: row.id, purpose: row.purpose },
+      },
+      tx,
+    )
+    return created as Row
+  })
+  PkiAuthority.forgetCrl()
+  if (inserted) return inserted
+  const [refreshed] = await db()
+    .select()
+    .from(pkiCertificates)
+    .where(eq(pkiCertificates.id, row.id))
+    .limit(1)
+  return refreshed ? successor(refreshed) : null
+}
+
 export const PkiCertificates = {
   async challenge(ctx: UserCtx, purpose: PkiPurpose): Promise<PkiChallenge> {
     if (purpose === 'seal') requireCapability(ctx, 'documents.seal')
@@ -207,20 +323,14 @@ export const PkiCertificates = {
           ]
     const now = new Date()
     const serial = A.newSerial()
-    const base = pkiBaseUrl()
+    const issuer = await PkiAuthority.currentIssuer()
     const der = await PkiAuthority.issue({
       subject,
       publicKeyDer,
       serial,
       notBefore: now,
       notAfter: new Date(now.getTime() + VALIDITY_MS),
-      extensions: [
-        A.ext.basicConstraints(false),
-        A.ext.keyUsage(A.KeyUsage.digitalSignature | A.KeyUsage.nonRepudiation),
-        A.ext.extKeyUsage([A.OID.documentSigning, A.OID.emailProtection]),
-        A.ext.crlDistribution(`${base}/issuing.crl`),
-        A.ext.authorityInfo({ ocsp: `${base}/ocsp`, caIssuers: `${base}/issuing.crt` }),
-      ],
+      extensions: personExtensions(issuer.path),
     })
     const id = newId()
     const row = await db().transaction(async (tx) => {
@@ -237,6 +347,7 @@ export const PkiCertificates = {
           fingerprint: fingerprintOf(der),
           issuedAt: now.toISOString(),
           expiresAt: new Date(now.getTime() + VALIDITY_MS).toISOString(),
+          issuerFingerprint: issuer.fingerprint,
         })
         .returning()
       await publishEvent(tx, ctx, {
@@ -342,17 +453,20 @@ export const PkiCertificates = {
    */
   async owner(
     certificateDer: Buffer,
-  ): Promise<{ userId: string; purpose: PkiPurpose; active: boolean } | null> {
-    const [row] = await db()
+  ): Promise<{ userId: string; purpose: PkiPurpose; active: boolean; current?: Buffer } | null> {
+    const [found] = await db()
       .select()
       .from(pkiCertificates)
       .where(eq(pkiCertificates.fingerprint, fingerprintOf(certificateDer)))
       .limit(1)
-    if (!row) return null
+    if (!found) return null
+    // Перевыпущенный после компрометации выпускающего (ADR-0224): подпись — преемником
+    const row = (await successor(found)) ?? (await reissueIfCompromised(found)) ?? found
     return {
       userId: row.userId,
       purpose: row.purpose as PkiPurpose,
       active: state(row) === 'active',
+      ...(row.id !== found.id ? { current: A.fromPem(row.certificate) } : {}),
     }
   },
 }

@@ -74,6 +74,7 @@ describe('пакет ЧС: чистая установка', () => {
       'emergency.dataset.incidents',
       'emergency.dataset.hazard_messages',
       'emergency.map.situation',
+      'emergency.layer.situation_reports',
       'emergency.dashboard.situation',
       'emergency.metric.hq_tasks_overdue',
       'emergency.form.daily_summary',

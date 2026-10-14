@@ -13,6 +13,12 @@ import { cache } from '~/shared/redis/index.js'
 import { BUFFER, EXTENT, tileSql } from '../infra/layer-sql.js'
 import { layerConditions, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
+import {
+  layerQuerySource,
+  layerVisibleFields,
+  layerWindowSource,
+  SYSTEM_ROW_ID,
+} from './layer-source.js'
 
 /** Тайл, который не уложился, — пустой ответ с подсказкой (07-gis-engine.md §3). */
 const TILE_TIMEOUT_MS = 5000
@@ -30,6 +36,8 @@ export interface TileResult {
   /** Запрос не уложился в тайм-аут: включите кластеры или генерализацию. */
   timedOut: boolean
   sqlMs: number | null
+  /** Тайл системного источника (ADR-0223): строки — по правам смотрящего, кэшировать нельзя. */
+  personal: boolean
 }
 
 /** Границы тайла в WGS 84: [запад, юг, восток, север]. */
@@ -64,24 +72,28 @@ export const TileService = {
     const preview = tilePreview(query.p)
     const minZoom = preview?.minZoom ?? style.minZoom
     const maxZoom = preview?.maxZoom ?? style.maxZoom
+    // Системный источник (ADR-0223): строки — по правам смотрящего на свои объекты, версии
+    // данных нет — тайл не кладётся в общий кэш и не берётся из него
+    const personal = layer.systemSource !== null
     const empty = (etag: string): TileResult => ({
       body: null,
       etag,
       cached: false,
       timedOut: false,
       sqlMs: null,
+      personal,
     })
     if (z < Math.floor(minZoom) || z > Math.ceil(maxZoom)) {
       return empty(`"z-${layer.version}"`)
     }
 
-    const visible = await DatasetQueries.visibleFields(ctx, layer.datasetId)
+    const visible = await layerVisibleFields(ctx, layer)
     // Геометрия, скрытая политикой столбцов, — нет и слоя: место объекта тоже данные
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
     // Поля стиля и тайла, видимые смотрящему: скрытое политикой в тайл не попадает
     const styleFields = preview ? preview.fields : layerStyleTileFields(style)
     const fields = [...new Set([...styleFields, ...layer.tileFields])].filter(
-      (key) => key !== layer.geometryField && visible.has(key),
+      (key) => key !== layer.geometryField && key !== SYSTEM_ROW_ID && visible.has(key),
     )
     // Охват тайла с запасом по краю — пространственное окно компилятора: рамка
     // `&&` рядом с политикой строк, по индексу GIST. Для точек сравнение рамок
@@ -93,10 +105,14 @@ export const TileService = {
     const where = layerConditions(layer, query, preview)
     const spec = QuerySpec.parse({
       version: 1,
-      source: { kind: 'dataset', id: layer.datasetId },
+      source: layerQuerySource(layer),
       steps: [
         ...(where ? [{ type: 'filter', where }] : []),
-        { type: 'select', fields: [layer.geometryField, ...fields] },
+        {
+          type: 'select',
+          // У системного источника номер объекта — обычное поле `_id`
+          fields: [...(personal ? [SYSTEM_ROW_ID] : []), layer.geometryField, ...fields],
+        },
       ],
       options: { cache: false },
     })
@@ -105,7 +121,7 @@ export const TileService = {
       maxRows: null,
       rowMeta: true,
       spatialWindow: {
-        datasetId: layer.datasetId,
+        datasetId: layerWindowSource(layer),
         field: layer.geometryField,
         bbox: [
           Math.max(-180, west - padX),
@@ -130,9 +146,16 @@ export const TileService = {
       .digest('hex')
     const key = `kchs:tile:${layerId}:${hash}`
     const etag = `"${hash.slice(0, 32)}"`
-    const hit = await cache.getBuffer(key)
+    const hit = personal ? null : await cache.getBuffer(key)
     if (hit) {
-      return { body: hit.length > 0 ? hit : null, etag, cached: true, timedOut: false, sqlMs: null }
+      return {
+        body: hit.length > 0 ? hit : null,
+        etag,
+        cached: true,
+        timedOut: false,
+        sqlMs: null,
+        personal,
+      }
     }
 
     // Сетка кластеров в градусах: ячейка ≈ радиусу кластера в пикселях, по широте — с
@@ -172,7 +195,21 @@ export const TileService = {
     }
     const sqlMs = performance.now() - started
     const buffer = mvt && mvt.length > 0 ? await gzip(mvt) : Buffer.alloc(0)
-    await cache.set(key, buffer, CACHE_TTL_SECONDS)
-    return { body: buffer.length > 0 ? buffer : null, etag, cached: false, timedOut: false, sqlMs }
+    if (!personal) await cache.set(key, buffer, CACHE_TTL_SECONDS)
+    return {
+      body: buffer.length > 0 ? buffer : null,
+      // Версии данных у системного источника нет: метка — по содержимому тайла
+      etag: personal
+        ? `"${createHash('sha256')
+            .update(hash)
+            .update(mvt ?? Buffer.alloc(0))
+            .digest('hex')
+            .slice(0, 32)}"`
+        : etag,
+      cached: false,
+      timedOut: false,
+      sqlMs,
+      personal,
+    }
   },
 }

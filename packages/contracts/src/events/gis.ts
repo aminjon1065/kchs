@@ -14,7 +14,9 @@ export const GIS_EVENTS = {
 
   // ── gis (07-gis-engine.md, ADR-0064) ───────────────────────────────────────
   'layer.published': z.object({
-    datasetId: Uuid,
+    /** null — слой над системным датасетом (`systemSource`, ADR-0223). */
+    datasetId: Uuid.nullable(),
+    systemSource: z.string().optional(),
     geometryType: z.enum(['point', 'line', 'polygon', 'mixed']),
   }),
   /** Стиль, поля тайла или режим правки слоя: версия слоя сменилась — тайлы заново. */

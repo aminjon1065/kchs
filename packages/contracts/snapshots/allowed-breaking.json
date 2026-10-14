@@ -1,4 +1,7 @@
 {
   "events": {},
-  "api": {}
+  "api": {
+    "GET /gis/layers/{id}": "ADR-0223: слой над системным датасетом — datasetId null, источник в systemSource",
+    "PATCH /gis/layers/{id}": "ADR-0223: слой над системным датасетом — datasetId null, источник в systemSource"
+  }
 }

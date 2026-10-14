@@ -53,12 +53,45 @@ export function registerPkiRoutes(route: RouteRegistrar): void {
           : 'Сертификат выпускающего УЦ Комитета',
       rateLimit: { max: 60, timeWindow: '1 minute' },
       handler: async (_request, reply) => {
-        const authority = await PkiAuthority.required(kind)
+        // `issuing.crt` — первый выпускающий: его адрес вшит в выпущенные им сертификаты
+        const der =
+          kind === 'root'
+            ? (await PkiAuthority.required('root')).certificateDer
+            : await PkiAuthority.issuerCertificate('issuing')
         reply.header('content-disposition', `attachment; filename="kchs-${kind}-ca.crt"`)
-        return sendDer(reply, 'application/pkix-cert', authority.certificateDer, 3600)
+        return sendDer(reply, 'application/pkix-cert', der, 3600)
       },
     })
   }
+
+  // Выпускающие после смены ключа (ADR-0224): у каждого свои адреса сертификата и списка
+  route({
+    route: 'GET /pki/issuers/:generation.crt',
+    auth: 'public',
+    tags: ['pki'],
+    summary: 'Сертификат выпускающего УЦ Комитета после смены ключа',
+    rateLimit: { max: 60, timeWindow: '1 minute' },
+    handler: async (request, reply) => {
+      const der = await PkiAuthority.issuerCertificate(`issuers/${request.params.generation}`)
+      reply.header('content-disposition', 'attachment; filename="kchs-issuing-ca.crt"')
+      return sendDer(reply, 'application/pkix-cert', der, 3600)
+    },
+  })
+
+  route({
+    route: 'GET /pki/issuers/:generation.crl',
+    auth: 'public',
+    tags: ['pki'],
+    summary: 'Список отзыва выпускающего УЦ Комитета после смены ключа',
+    rateLimit: { max: STATUS_PER_MINUTE, timeWindow: '1 minute' },
+    handler: async (request, reply) =>
+      sendDer(
+        reply,
+        'application/pkix-crl',
+        await PkiAuthority.crl(`issuers/${request.params.generation}`),
+        300,
+      ),
+  })
 
   for (const [path, kind] of [
     ['GET /pki/root.crl', 'root'],
@@ -162,6 +195,17 @@ export function registerPkiRoutes(route: RouteRegistrar): void {
     handler: async (request) => {
       requireCapability(request.ctx, 'admin.system')
       return PkiAuthority.initialize(request.ctx)
+    },
+  })
+
+  route({
+    route: 'POST /admin/pki/rotate',
+    auth: 'session',
+    tags: ['pki'],
+    summary: 'Сменить ключ выпускающего УЦ Комитета: плановая смена или компрометация',
+    handler: async (request) => {
+      requireCapability(request.ctx, 'admin.system')
+      return PkiAuthority.rotate(request.ctx, request.body)
     },
   })
 

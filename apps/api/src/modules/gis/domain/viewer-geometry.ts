@@ -6,6 +6,7 @@ import type { Ctx } from '~/shared/context.js'
 import { readAsQueryRole } from '~/shared/db/query-role.js'
 import { cache } from '~/shared/redis/index.js'
 import { extentSql } from '../infra/layer-sql.js'
+import { type LayerSourceRef, layerQuerySource, layerWindowSource } from './layer-source.js'
 
 /** Сводка пересчитывается с новой версией данных или политикой (ключ компиляции). */
 const CACHE_TTL_SECONDS = 3600
@@ -20,15 +21,19 @@ export interface ViewerGeometry {
  * Экстент и число объектов слоя в пределах политики строк смотрящего (ADR-0064):
  * рамка и счётчик по всем строкам раскрывали бы, где лежат и сколько строк,
  * скрытых политикой. Без политики строк — null: хватает общей сводки датасета.
+ * У системного источника (ADR-0223) сводки датасета нет, а версия данных не меняется:
+ * считается всегда и без кэша.
  */
 export async function viewerGeometry(
   ctx: Ctx,
-  datasetId: string,
+  layer: LayerSourceRef,
   geometryField: string,
 ): Promise<ViewerGeometry | null> {
+  const system = layer.systemSource !== null
+  const sourceId = layerWindowSource(layer)
   const spec = QuerySpec.parse({
     version: 1,
-    source: { kind: 'dataset', id: datasetId },
+    source: layerQuerySource(layer),
     steps: [{ type: 'select', fields: [geometryField] }],
     options: { cache: false },
   })
@@ -36,14 +41,16 @@ export async function viewerGeometry(
     geometryOutput: 'raw',
     maxRows: null,
   })
-  const source = compiled.cacheKeyParts.datasets.find((item) => item.id === datasetId)
-  const policy = source ? (JSON.parse(source.policy) as { row?: { kind?: string } }) : null
-  if (!policy?.row || policy.row.kind === 'all') return null
+  if (!system) {
+    const source = compiled.cacheKeyParts.datasets.find((item) => item.id === sourceId)
+    const policy = source ? (JSON.parse(source.policy) as { row?: { kind?: string } }) : null
+    if (!policy?.row || policy.row.kind === 'all') return null
+  }
 
   const key = `kchs:geo:viewer:${createHash('sha256')
     .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}`)
     .digest('hex')}`
-  const cached = await cache.get(key)
+  const cached = system ? null : await cache.get(key)
   if (cached) return JSON.parse(cached) as ViewerGeometry
 
   const rows = await readAsQueryRole({ timeoutMs: TIMEOUT_MS }, (read) =>
@@ -65,6 +72,6 @@ export async function viewerGeometry(
         : null,
     count: Number(row?.c ?? 0),
   }
-  await cache.set(key, JSON.stringify(summary), CACHE_TTL_SECONDS)
+  if (!system) await cache.set(key, JSON.stringify(summary), CACHE_TTL_SECONDS)
   return summary
 }

@@ -11,11 +11,9 @@ import { PkiCertificates } from './certificates.js'
 export async function committeeAuthority(): Promise<QualifiedSignatureAuthority | null> {
   const status = await PkiAuthority.status()
   if (!status.initialized) return null
-  const { issuing, root } = await PkiAuthority.chain()
-  const [issuingCrl, rootCrl] = await Promise.all([
-    PkiAuthority.crl('issuing'),
-    PkiAuthority.crl('root'),
-  ])
+  const { root } = await PkiAuthority.chain()
+  // Списки отзыва всех выпускающих: сертификат прежнего (ADR-0224) проверяется своим
+  const crls = await PkiAuthority.allCrls()
   return {
     kind: 'device-key',
     integrationId: null,
@@ -26,13 +24,15 @@ export async function committeeAuthority(): Promise<QualifiedSignatureAuthority 
       trustRootsPem: [A.pem('CERTIFICATE', root)],
       revocation: 'hard-fail',
       fetchRevocation: false,
-      crls: [issuingCrl.toString('base64'), rootCrl.toString('base64')],
+      crls: crls.map((crl) => crl.toString('base64')),
       ltv: true,
     },
     device: {
       signedAttributes: (certificateDer, digest) => A.signedAttributes(certificateDer, digest),
-      assemble: async (certificateDer, digest, signature) =>
-        A.assembleCms({ certificateDer, chainDer: [issuing], digest, signature }),
+      assemble: async (certificateDer, digest, signature) => {
+        const { issuing } = await PkiAuthority.chain(certificateDer)
+        return A.assembleCms({ certificateDer, chainDer: [issuing], digest, signature })
+      },
       owner: (certificateDer) => PkiCertificates.owner(certificateDer),
     },
   }

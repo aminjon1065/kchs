@@ -440,9 +440,9 @@ async function versionPdf(executor: Executor, versionId: string) {
  * Сертификат с устройства (УЦ Комитета, ADR-0218) — того, кто подписывает: выпущен этим УЦ,
  * действует и выдан ему самому; для печати — сертификат печати у её держателя (N121).
  */
-async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<void> {
+async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<Buffer> {
   const found = await qualifiedSignature().authority()
-  if (found?.kind !== 'device-key' || !found.device) return
+  if (found?.kind !== 'device-key' || !found.device) return der
   const owner = await found.device.owner(der)
   const seal = (row.source as unknown as SessionSource).seal === 'true'
   if (
@@ -457,6 +457,8 @@ async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<vo
       { reason: 'certificate_owner' },
     )
   }
+  // Сертификат перевыпущен после смены ключа УЦ (ADR-0224): подпись — новым
+  return owner.current ?? der
 }
 
 /** CMS из подписи браузера; подпись чужим ключом или не тех атрибутов — отказ. */
@@ -703,9 +705,10 @@ export const QualifiedSignatures = {
     certificateBase64: string,
   ): Promise<QesPageState> {
     const session = await QualifiedSignatures.byTicket(sessionId, ticket)
-    const der = Buffer.from(certificateBase64, 'base64')
+    const presented = Buffer.from(certificateBase64, 'base64')
+    certificateInfo(presented)
+    const der = await assertDeviceCertificate(session, presented)
     const info = certificateInfo(der)
-    await assertDeviceCertificate(session, der)
     const ctx = systemCtx('documents.qes.certificate')
     const row = await db().transaction(async (tx) => {
       const locked = await lockSession(tx, sessionId)

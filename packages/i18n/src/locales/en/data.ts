@@ -196,6 +196,7 @@ export const data: DeepPartial<Dictionary['data']> = {
     events: 'Events',
     territories: 'Territories',
     connections: 'Connections',
+    document_places: 'Documents on map',
   },
   catalog: {
     upload: 'Upload file',

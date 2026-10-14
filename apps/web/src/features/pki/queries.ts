@@ -1,4 +1,9 @@
-import type { PkiAdminCertificateQuery, PkiEnrollInput, PkiPurpose } from '@kchs/contracts'
+import type {
+  PkiAdminCertificateQuery,
+  PkiEnrollInput,
+  PkiPurpose,
+  PkiRotateInput,
+} from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { ApiError, http } from '~/shared/api/client.js'
 import { apiUrl } from '~/shared/api/link.js'
@@ -34,6 +39,7 @@ export const pkiApi = {
       body: reason ? { reason } : {},
     }),
   init: () => http.post('/admin/pki/init', {}),
+  rotate: (body: PkiRotateInput) => http.post('/admin/pki/rotate', { body }),
 }
 
 /** Понятная причина отказа API (ошибка поля или сообщение); прочие ошибки — `null`. */
@@ -44,4 +50,10 @@ export function apiErrorMessage(error: unknown): string | null {
 
 /** Скачать корневой сертификат — установить его в доверенные (руководство сотрудника). */
 export const rootCertificateUrl = () => apiUrl('/pki/root.crt')
-export const issuingCertificateUrl = () => apiUrl('/pki/issuing.crt')
+/** Сертификат текущего выпускающего: после смены ключа — по его адресу (ADR-0224). */
+export const issuingCertificateUrl = (path = 'issuing') => {
+  const generation = /^issuers\/([0-9a-f]{16})$/.exec(path)?.[1]
+  return generation
+    ? apiUrl('/pki/issuers/:generation.crt', { params: { generation } })
+    : apiUrl('/pki/issuing.crt')
+}

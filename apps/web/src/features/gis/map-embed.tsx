@@ -25,12 +25,12 @@ import {
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { ExternalLink, List, Map as MapIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { datasetQuery } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
+import { layerDatasetQuery } from './layer-source-queries.js'
 import { useMapSlot } from './map-slots.js'
 import { layerQuery, mapQuery } from './queries.js'
 
@@ -119,7 +119,7 @@ export function MapEmbed({
     return layer ? [{ layer, visible: entry.visible, opacity: entry.opacity }] : []
   })
   const datasets = useQueries({
-    queries: drawn.map((entry) => ({ ...datasetQuery(entry.layer.datasetId), retry: false })),
+    queries: drawn.map((entry) => ({ ...layerDatasetQuery(entry.layer), retry: false })),
   })
   const filters: Record<string, FilterNode> = {}
   drawn.forEach((entry, index) => {

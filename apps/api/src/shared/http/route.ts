@@ -95,6 +95,19 @@ type Parsed<C, Part extends keyof RouteContract> =
     : unknown
 
 /**
+ * Что обработчик может вернуть по схемам ответа маршрута (ADR-0188, шаг 3): вход любой
+ * из схем по кодам — сериализатор Fastify разбирает его этой схемой. Без схем ответа —
+ * что угодно (файл, поток, ответ без описания). `FastifyReply` — обработчик ответил сам
+ * (`reply.code(201).send(…)`, поток), `void` — пустой ответ.
+ */
+type RouteResponse<C> = C extends { response: infer R }
+  ? R extends Readonly<Record<number, z.ZodType>>
+    ? // biome-ignore lint/suspicious/noConfusingVoidType: обработчик без return — пустой ответ
+      z.input<R[keyof R]> | FastifyReply | void
+    : unknown
+  : unknown
+
+/**
  * Регистрация маршрута (ADR-0188): метод, путь и схемы — запись таблицы маршрутов
  * контрактов по ключу `route`; здесь — политика доступа, обработчик и описание.
  */
@@ -128,7 +141,7 @@ export interface RouteDefinition<K extends ApiRouteKey> {
       Body: Parsed<Routes[K], 'body'>
     }> & { ctx: UserCtx },
     reply: FastifyReply,
-  ) => Promise<unknown>
+  ) => Promise<RouteResponse<Routes[K]>>
 }
 
 export type RouteRegistrar = <K extends ApiRouteKey>(definition: RouteDefinition<K>) => void

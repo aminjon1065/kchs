@@ -1,4 +1,10 @@
-import { LayerStyle, type LayerStyleInput, type MapLayerEntry, MapSpec } from '@kchs/contracts'
+import {
+  LayerStyle,
+  type LayerStyleInput,
+  type LayerSystemSource,
+  type MapLayerEntry,
+  MapSpec,
+} from '@kchs/contracts'
 import { LayerService } from '~/modules/gis/domain/layer-service.js'
 import { MapService } from '~/modules/gis/domain/map-service.js'
 import { db } from '~/shared/db/client.js'
@@ -6,7 +12,9 @@ import { findPackObject, markPackObject, type PackContext } from './context.js'
 
 interface PackLayer {
   key: string
-  dataset: string
+  /** Датасет пакета — или системный датасет с правами смотрящего (ADR-0223). */
+  dataset?: string
+  systemSource?: LayerSystemSource
   name: string
   visible: boolean
   /** Дежурный наносит объект прямо на карте обстановки (ADR-0076). */
@@ -59,7 +67,9 @@ const lastDays = (field: string, days: number) => ({
 /**
  * Слои карты обстановки (04-domain-pack-emergency.md «Дашборды и карты»): снизу вверх —
  * зоны риска, объекты защиты, ПВР, гидропосты, силы и средства, происшествия за трое
- * суток, сообщения об опасных явлениях за неделю.
+ * суток, сообщения об опасных явлениях за неделю, донесения с местом на карте. На
+ * установленном пакете недостающий слой досоздаётся, а карта не меняется (N90, N109):
+ * на карту его добавляет администратор.
  */
 const PACK_LAYERS: readonly PackLayer[] = [
   {
@@ -250,6 +260,26 @@ const PACK_LAYERS: readonly PackLayer[] = [
       },
     },
   },
+  {
+    // Донесения с местом на карте (ADR-0223, N161): строки — по правам смотрящего на
+    // документ и его грифу, поэтому слой — над системным датасетом, а не копией строк
+    key: 'layer.situation_reports',
+    systemSource: 'document_places',
+    name: 'Донесения',
+    visible: true,
+    style: {
+      geometry: 'point',
+      renderer: { kind: 'simple', color: 'warning', icon: 'megaphone' },
+      point: { shape: 'icon', size: 18 },
+      filter: { field: 'type_key', op: 'eq', value: 'situation_report' },
+      label: { field: 'reg_number', minZoom: 10 },
+      popup: {
+        title: '{{subject}}',
+        fields: ['type_name', 'reg_number', 'reg_date', 'territory', 'id'],
+        actions: [],
+      },
+    },
+  },
 ]
 
 const MAP_KEY = 'map.situation'
@@ -262,8 +292,8 @@ export async function ensureMap(
   const layers = new Map<string, string>()
   const created: string[] = []
   for (const spec of PACK_LAYERS) {
-    const datasetId = datasets.get(spec.dataset)
-    if (!datasetId) continue
+    const datasetId = spec.dataset ? datasets.get(spec.dataset) : undefined
+    if (!datasetId && !spec.systemSource) continue
     const existing = await findPackObject('layer', spec.key)
     if (existing) {
       layers.set(spec.key, existing)
@@ -273,7 +303,7 @@ export async function ensureMap(
       const layerId = await LayerService.create(tx, pack.ctx, {
         name: spec.name,
         spaceId: pack.spaceId,
-        datasetId,
+        ...(datasetId ? { datasetId } : { systemSource: spec.systemSource }),
         style: LayerStyle.parse({ version: 1, ...spec.style }),
         editable: spec.editable ?? false,
         moderated: false,

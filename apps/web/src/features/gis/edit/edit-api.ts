@@ -114,5 +114,6 @@ export function conflictOf(error: unknown): DatasetRowConflict | null {
 export function refreshAfterWrite(client: QueryClient, layer: LayerRecord): void {
   // Все слои карты: у других слоёв того же датасета тоже новая версия данных
   void client.invalidateQueries({ queryKey: ['layer'] })
-  void client.invalidateQueries({ queryKey: dataKeys.dataset(layer.datasetId) })
+  if (layer.datasetId)
+    void client.invalidateQueries({ queryKey: dataKeys.dataset(layer.datasetId) })
 }

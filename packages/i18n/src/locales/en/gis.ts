@@ -397,6 +397,7 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     notVisible: 'The feature is unavailable: hidden by a policy or deleted',
     failed: 'Could not load the feature',
     openDataset: 'Open dataset',
+    openDocument: 'Open document',
   },
   points: {
     label: 'Points on the map',
@@ -840,6 +841,8 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     close: 'Close the attribute table',
     layer: 'Table layer',
     noLayers: 'No layers with data access on the map',
+    systemSource:
+      'A system dataset layer has no row table: open objects by clicking them on the map',
     loading: 'Loading…',
     count: '{count, plural, =0 {No features} one {# feature} other {# features}}',
     capped: 'Showing the first {shown} of {count} — zoom in or refine the search',

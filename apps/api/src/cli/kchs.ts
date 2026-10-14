@@ -16,6 +16,7 @@ import {
 } from './basemaps.js'
 import { formatInitSummary, runInit } from './init.js'
 import { formatMailSync, runMailSync } from './mail.js'
+import { formatPkiRotation, runPkiRotate } from './pki.js'
 import { formatRotation, rotateSecrets } from './rotation.js'
 
 const HELP = `kchs — служебные команды установки
@@ -41,6 +42,10 @@ const HELP = `kchs — служебные команды установки
                  внешние подложки из каталога: sentinel2 (спутник), opentopomap
                    (топографическая); нужен интернет на сервере (ADR-0196)
   kchs secrets rotate [--dry-run]
+  kchs pki rotate --reason <причина> [--compromise]
+                 сменить ключ выпускающего УЦ Комитета; --compromise — прежний ключ
+                   скомпрометирован: корень отзывает его, сертификаты сотрудников
+                   перевыпускаются при следующем подписании (ADR-0224)
   kchs mail sync                  ящики сотрудников и канцелярии → почтовый сервер (ADR-0150)
                  перешифровать секреты текущим KCHS_MASTER_KEY; прежний ключ —
                    в KCHS_MASTER_KEY_PREVIOUS (порядок — infra/runbooks/secret-leak.md)
@@ -64,6 +69,8 @@ async function run(argv: string[]): Promise<number> {
       key: { type: 'string' },
       'no-register': { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
+      reason: { type: 'string' },
+      compromise: { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -183,6 +190,19 @@ async function run(argv: string[]): Promise<number> {
       const report = await rotateSecrets({ dryRun })
       process.stdout.write(formatRotation(report, dryRun))
       return report.some((line) => line.unreadable > 0) ? 1 : 0
+    }
+    case 'pki': {
+      const reason = values.reason?.trim() ?? ''
+      if (positionals[1] !== 'rotate' || reason.length < 3) {
+        process.stderr.write(`kchs pki rotate --reason <причина> [--compromise]\n\n${HELP}`)
+        return 2
+      }
+      const status = await runPkiRotate({
+        mode: values.compromise ? 'compromise' : 'planned',
+        reason,
+      })
+      process.stdout.write(formatPkiRotation(status))
+      return 0
     }
     case 'mail': {
       if (positionals[1] !== 'sync') {

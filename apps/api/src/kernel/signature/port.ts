@@ -26,10 +26,17 @@ export interface DeviceSigning {
   signedAttributes: (certificateDer: Buffer, digest: Buffer) => Buffer
   /** CMS из подписи браузера; подпись проверяется, чужая — ошибка. */
   assemble: (certificateDer: Buffer, digest: Buffer, signature: Buffer) => Promise<Buffer>
-  /** Чей сертификат: выпущен ли этим УЦ, кому и действует ли; `null` — не наш. */
-  owner: (
-    certificateDer: Buffer,
-  ) => Promise<{ userId: string; purpose: 'person' | 'seal'; active: boolean } | null>
+  /**
+   * Чей сертификат: выпущен ли этим УЦ, кому и действует ли; `null` — не наш. `current` —
+   * сертификат, которым подписывать вместо присланного (перевыпуск после смены ключа УЦ,
+   * ADR-0224).
+   */
+  owner: (certificateDer: Buffer) => Promise<{
+    userId: string
+    purpose: 'person' | 'seal'
+    active: boolean
+    current?: Buffer
+  } | null>
 }
 
 /** Подключённый удостоверяющий центр — всё, что нужно для подписи и проверки. */

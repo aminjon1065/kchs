@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -102,7 +103,9 @@ export const layers = pgTable(
       .references(() => objects.id, { onDelete: 'cascade' }),
     // Без внешнего ключа, как у графиков: слой удалённого датасета остаётся
     // объектом реестра и открывается с «нет доступа к данным»
-    datasetId: uuid('dataset_id').notNull(),
+    datasetId: uuid('dataset_id'),
+    /** Системный датасет с правами смотрящего вместо датасета (ADR-0223). */
+    systemSource: text('system_source'),
     geometryField: text('geometry_field').notNull(),
     geometryType: text('geometry_type').notNull(),
     style: jsonb('style').$type<Record<string, unknown>>().notNull(),
@@ -113,7 +116,10 @@ export const layers = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index('layers_dataset_idx').on(t.datasetId)],
+  (t) => [
+    index('layers_dataset_idx').on(t.datasetId),
+    check('layers_source_check', sql`(${t.datasetId} IS NULL) <> (${t.systemSource} IS NULL)`),
+  ],
 )
 
 /** Карта — объект реестра `map`: композиция слоёв, вид, закладки, время (MapSpec). */

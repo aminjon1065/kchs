@@ -24,6 +24,38 @@ export const PkiCertificateState = z.enum(PKI_CERTIFICATE_STATES)
 export type PkiCertificateState = z.infer<typeof PkiCertificateState>
 
 /** Состояние УЦ: создан ли он и до какой поры действуют его сертификаты. */
+/** Смена ключа выпускающего (ADR-0224): плановая или после компрометации прежнего. */
+export const PKI_ROTATION_MODES = ['planned', 'compromise'] as const
+export const PkiRotationMode = z.enum(PKI_ROTATION_MODES)
+export type PkiRotationMode = z.infer<typeof PkiRotationMode>
+
+export const PkiRotateInput = z.object({
+  mode: PkiRotationMode,
+  reason: z.string().trim().min(3).max(500),
+})
+export type PkiRotateInput = z.infer<typeof PkiRotateInput>
+
+/** Выпускающий УЦ: текущий или прежний — его список отзыва публикуется дальше. */
+export const PkiIssuer = z.object({
+  fingerprint: z.string(),
+  /** Адреса `/pki/<path>.crt` и `/pki/<path>.crl`. */
+  path: z.string(),
+  notAfter: Timestamp,
+  current: z.boolean(),
+  retiredAt: Timestamp.nullable(),
+  reason: PkiRotationMode.nullable(),
+  /** Отозван корнем — после компрометации. */
+  revokedAt: Timestamp.nullable(),
+})
+export type PkiIssuer = z.infer<typeof PkiIssuer>
+
+/** Срок ключа УЦ подходит к концу: пора сменить (`kchs pki rotate`, ADR-0224). */
+export const PkiExpiry = z.object({
+  kind: z.enum(['root', 'issuing', 'tsa']),
+  notAfter: Timestamp,
+})
+export type PkiExpiry = z.infer<typeof PkiExpiry>
+
 export const PkiStatus = z.object({
   initialized: z.boolean(),
   /** SHA-256 корневого сертификата — сверяют при установке доверия. */
@@ -33,6 +65,11 @@ export const PkiStatus = z.object({
   issuingNotAfter: Timestamp.nullable(),
   /** Действующих сертификатов сотрудников и печати. */
   active: z.number().int().nonnegative(),
+  /** Выпускающие: текущий первым, затем прежние (ADR-0224). */
+  issuers: z.array(PkiIssuer),
+  tsaNotAfter: Timestamp.nullable(),
+  /** Ключи, срок которых подходит к концу, — предупреждение администратору. */
+  expiring: z.array(PkiExpiry),
 })
 export type PkiStatus = z.infer<typeof PkiStatus>
 

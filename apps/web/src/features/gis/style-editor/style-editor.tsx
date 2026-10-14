@@ -21,11 +21,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Palette, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { datasetQuery, useFieldOptions } from '~/features/data/index.js'
+import { useFieldOptions } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { layerDatasetQuery } from '../layer-source-queries.js'
 import { gisKeys } from '../queries.js'
 import { EditorRow, type StyleEditorContextValue, StyleEditorProvider } from './controls.js'
 import { styleDirty } from './model.js'
@@ -151,7 +152,7 @@ export function LayerStylePanel({
   const [root, setRoot] = useState<HTMLElement | null>(null)
   const theme = useMapTheme(root)
   const [confirmClose, setConfirmClose] = useState(false)
-  const { data: dataset } = useQuery(datasetQuery(layer.datasetId))
+  const { data: dataset } = useQuery(layerDatasetQuery(layer))
   const { data: object } = useQuery(objectQuery(layer.id))
   const canEdit = ['edit', 'manage', 'owner'].includes(object?.level ?? 'view')
   const style = draft ?? layer.style

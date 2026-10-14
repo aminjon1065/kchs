@@ -642,6 +642,7 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM documents`,
     sql`DELETE FROM pki_certificates`,
     sql`DELETE FROM pki_authorities`,
+    sql`DELETE FROM pki_retired_authorities`,
     // Акты об уничтожении — записи операций, не объекты: номер акта — порядковый в году
     sql`DELETE FROM case_destruction_acts`,
     // Журнал подключений (ADR-0206) без внешних ключей на реестр: подключение — и токен,
