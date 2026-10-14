@@ -13,11 +13,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { PrincipalsPicker } from '~/features/documents/principals-picker.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { PrincipalsPicker } from '~/entities/access/principals-picker.js'
+import { ApiError } from '~/shared/api/errors.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
-import { knowledgeKeys } from './queries.js'
+import { knowledgeApi, knowledgeKeys } from './queries.js'
 
 const failedText = (error: unknown, fallback: string) =>
   error instanceof ApiError ? error.message : fallback
@@ -34,13 +34,12 @@ export function PageAcknowledgments({ page }: { page: PageRecord }) {
   const [sendOpen, setSendOpen] = useState(false)
   const { data } = useQuery({
     queryKey: knowledgeKeys.acknowledgments(page.id),
-    queryFn: () => http.get('/objects/:id/acknowledgments', { params: { id: page.id } }),
+    queryFn: () => knowledgeApi.getObjectsAcknowledgments(page.id),
     enabled: page.status === 'published' || page.acknowledgmentRequested,
   })
 
   const acknowledge = useMutation({
-    mutationFn: () =>
-      http.post('/objects/:id/acknowledgments/acknowledge', { params: { id: page.id }, body: {} }),
+    mutationFn: () => knowledgeApi.postObjectsAcknowledgmentsAcknowledge(page.id),
     onSuccess: (next) => {
       client.setQueryData(knowledgeKeys.acknowledgments(page.id), next)
       void client.invalidateQueries({ queryKey: ['inbox'] })
@@ -102,15 +101,12 @@ function SendDialog({ page, onClose }: { page: PageRecord; onClose: () => void }
 
   const send = useMutation({
     mutationFn: () =>
-      http.post('/pages/:id/acknowledgments', {
-        params: { id: page.id },
-        body: {
-          userIds: principals.filter((item) => item.type === 'user').map((item) => item.id),
-          unitIds: principals.filter((item) => item.type === 'unit').map((item) => item.id),
-          dueAt: due || null,
-          requireSecondFactor: secondFactor,
-          note: note || null,
-        },
+      knowledgeApi.postPagesAcknowledgments(page.id, {
+        userIds: principals.filter((item) => item.type === 'user').map((item) => item.id),
+        unitIds: principals.filter((item) => item.type === 'unit').map((item) => item.id),
+        dueAt: due || null,
+        requireSecondFactor: secondFactor,
+        note: note || null,
       }),
     onSuccess: (result) => {
       toast.show({
@@ -184,8 +180,7 @@ export function PageReview({ page }: { page: PageRecord }) {
   const [reviewAt, setReviewAt] = useState(page.reviewAt ?? '')
 
   const update = useMutation({
-    mutationFn: (patch: ApiBody<'PATCH /pages/:id'>) =>
-      http.patch('/pages/:id', { params: { id: page.id }, body: patch }),
+    mutationFn: (patch: ApiBody<'PATCH /pages/:id'>) => knowledgeApi.patchPages(page.id, patch),
     onSuccess: () => {
       toast.show({ title: t('knowledge.review.saved'), tone: 'success' })
       void client.invalidateQueries({ queryKey: knowledgeKeys.page(page.id) })
@@ -280,12 +275,9 @@ export function PublishDialog({ page, onClose }: { page: PageRecord; onClose: ()
 
   const publish = useMutation({
     mutationFn: () =>
-      http.post('/pages/:id/publish', {
-        params: { id: page.id },
-        body: {
-          note: note || null,
-          reviewAt: reviewAt || null,
-        },
+      knowledgeApi.postPagesPublish(page.id, {
+        note: note || null,
+        reviewAt: reviewAt || null,
       }),
     onSuccess: () => {
       toast.show({ title: t('knowledge.publish.done'), tone: 'success' })

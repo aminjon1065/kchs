@@ -8,10 +8,10 @@ import {
 } from '@kchs/contracts'
 import { Button, SegmentedControl } from '@kchs/ui'
 import { Crosshair } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { type CellMap, useCellValue, writeCell } from '~/entities/collab/notebook-doc.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
-import { MapEmbed } from '~/features/gis/map-embed.js'
+import { LazyMapEmbed } from '~/features/gis/index.js'
 import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
 
@@ -101,14 +101,16 @@ export function MapCell({ cell }: { cell: CellMap }) {
       </div>
       {chosen ? (
         <div className="h-[360px] overflow-hidden rounded-md border border-line">
-          <MapEmbed
-            key={chosen}
-            mapId={source === 'map' ? chosen : null}
-            layerId={source === 'layer' ? chosen : null}
-            camera={camera}
-            filter={(layer, dataset) => paramsFilter(params, layer, dataset)}
-            onCameraChange={setCurrent}
-          />
+          <Suspense fallback={null}>
+            <LazyMapEmbed
+              key={chosen}
+              mapId={source === 'map' ? chosen : null}
+              layerId={source === 'layer' ? chosen : null}
+              camera={camera}
+              filter={(layer, dataset) => paramsFilter(params, layer, dataset)}
+              onCameraChange={setCurrent}
+            />
+          </Suspense>
         </div>
       ) : (
         <p className="rounded-md border border-dashed border-line px-3 py-6 text-center text-xs text-fg-muted">

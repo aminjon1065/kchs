@@ -15,10 +15,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 import { unitOptions } from './user-management.js'
 
 export const TOP_LEVEL = '__root__'
@@ -60,18 +61,16 @@ export function CreateUnitDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/org/units', {
-        body: {
-          name: {
-            ru: form.ru.trim(),
-            ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
-            ...(form.en.trim() ? { en: form.en.trim() } : {}),
-          },
-          code: form.code.trim(),
-          kind: form.kind,
-          parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
-          createSpace: form.createSpace,
+      adminApi.postOrgUnits({
+        name: {
+          ru: form.ru.trim(),
+          ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
+          ...(form.en.trim() ? { en: form.en.trim() } : {}),
         },
+        code: form.code.trim(),
+        kind: form.kind,
+        parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
+        createSpace: form.createSpace,
       }),
     onSuccess: () => {
       onCreated()

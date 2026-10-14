@@ -4,13 +4,13 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Info, X, ZoomIn } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { FeatureCard } from '../feature-card.js'
 import { type FeatureRef, useStudio } from './context.js'
 import { formatDecimal } from './coordinates.js'
 import { isCluster, layerIdOfSource, pickableLayerIds } from './map-features.js'
+import { geocodeReverseQuery, gisStudioApi } from './queries.js'
 
 /** Допуск щелчка вокруг точки, px: тонкие линии и мелкие точки. */
 const TOLERANCE = 5
@@ -61,13 +61,10 @@ function useRowLabels(groups: readonly Group[]): ReadonlyMap<string, string> {
         queryFn: async () => {
           const datasetId = group.layer.datasetId
           if (!datasetId) return []
-          const result = await http.post('/datasets/:id/rows/query', {
-            params: { id: datasetId },
-            body: {
-              where: { field: '_id', op: 'in', value: ids.map(Number) },
-              limit: ids.length,
-              count: false,
-            },
+          const result = await gisStudioApi.postDatasetsRowsQuery(datasetId, {
+            where: { field: '_id', op: 'in', value: ids.map(Number) },
+            limit: ids.length,
+            count: false,
           })
           const names = result.fields.map((field) => field.name)
           const idIndex = names.indexOf('_id')
@@ -311,8 +308,7 @@ export function IdentifyTool() {
 function PlaceChain({ lon, lat }: { lon: number; lat: number }) {
   const locale = useLocale()
   const { data, isLoading } = useQuery({
-    queryKey: ['geocode', 'reverse', lon.toFixed(5), lat.toFixed(5)],
-    queryFn: () => http.get('/gis/geocode/reverse', { query: { lon, lat } }),
+    ...geocodeReverseQuery(lon, lat),
     staleTime: 10 * 60_000,
     retry: false,
   })

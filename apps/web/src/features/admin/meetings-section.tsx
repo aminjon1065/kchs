@@ -2,8 +2,9 @@ import type { MeetingSettings } from '@kchs/contracts'
 import { Button, Card, Field, Input, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const settingsKey = ['admin', 'meetings', 'settings'] as const
 
@@ -19,12 +20,12 @@ export function MeetingsSection() {
   const monthsId = useId()
   const { data } = useQuery({
     queryKey: settingsKey,
-    queryFn: () => http.get('/admin/meetings/settings'),
+    queryFn: () => adminApi.getMeetingsSettings(),
   })
   const [draft, setDraft] = useState<MeetingSettings | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: MeetingSettings) => http.put('/admin/meetings/settings', { body: next }),
+    mutationFn: (next: MeetingSettings) => adminApi.putMeetingsSettings(next),
     onSuccess: (saved) => {
       client.setQueryData(settingsKey, saved)
       setDraft(null)

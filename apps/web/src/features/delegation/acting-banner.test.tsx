@@ -1,8 +1,8 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getOnBehalfOf, setOnBehalfOf } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { getOnBehalfOf, setOnBehalfOf } from '~/shared/api/session.js'
 import {
   delegationFixture,
   meFixture,

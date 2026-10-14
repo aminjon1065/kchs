@@ -26,13 +26,14 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, BookCheck, Check, Send } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { PrincipalsPicker } from '../principals-picker.js'
+import { PrincipalsPicker } from '../../../entities/access/principals-picker.js'
 import { acknowledgmentsQuery, documentKeys } from '../queries.js'
 import { errorText, localToday } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 type Filter = 'all' | 'pending' | 'acknowledged'
 
@@ -59,10 +60,7 @@ export function AcknowledgmentsTab() {
 
   const acknowledge = useMutation({
     mutationFn: (code?: string) =>
-      http.post('/objects/:id/acknowledgments/acknowledge', {
-        params: { id: document.id },
-        body: code ? { code } : {},
-      }),
+      documentsCardApi.postObjectsAcknowledgmentsAcknowledge(document.id, code ? { code } : {}),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.acknowledgments(document.id), next)
       void client.invalidateQueries({ queryKey: ['inbox'] })
@@ -72,8 +70,7 @@ export function AcknowledgmentsTab() {
     onError: (failure) => toast.error(errorText(failure, t('errors.unknown'))),
   })
   const remind = useMutation({
-    mutationFn: () =>
-      http.post('/objects/:id/acknowledgments/remind', { params: { id: document.id }, body: {} }),
+    mutationFn: () => documentsCardApi.postObjectsAcknowledgmentsRemind(document.id),
     onSuccess: ({ reminded }) => {
       toast.show({
         title: t('documents.acknowledgments.reminded', { count: reminded }),
@@ -369,16 +366,13 @@ function SendDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/acknowledgments', {
-        params: { id: documentId },
-        body: {
-          userIds: ids('user'),
-          unitIds: ids('unit'),
-          groupIds: ids('group'),
-          dueDate: dueDate || null,
-          requireSecondFactor: requireCode,
-          note: note.trim() || null,
-        },
+      documentsCardApi.postAcknowledgments(documentId, {
+        userIds: ids('user'),
+        unitIds: ids('unit'),
+        groupIds: ids('group'),
+        dueDate: dueDate || null,
+        requireSecondFactor: requireCode,
+        note: note.trim() || null,
       }),
     onSuccess: (outcome) => {
       void client.invalidateQueries({ queryKey: documentKeys.acknowledgments(documentId) })

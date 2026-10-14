@@ -1,4 +1,4 @@
-import { http } from '~/shared/api/client.js'
+import { objectApi } from '~/entities/objects/queries.js'
 import { getObjectView, getScreen } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import type { ScreenKey, TabState } from '~/shared/workspace/types.js'
@@ -109,7 +109,7 @@ export async function openFromLocation(
   }
 
   try {
-    const object = await http.get('/objects/:id', { params: { id: target.objectId } })
+    const object = await objectApi.get(target.objectId)
     // Обсуждение открывается в объекте, к которому оно относится
     const parentOfConversation =
       object.type === 'conversation' && typeof object.meta?.objectId === 'string'

@@ -1,12 +1,11 @@
-import type { FieldOption, QueryResult, QuerySpec, Territory } from '@kchs/contracts'
+import type { QueryResult, QuerySpec } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
-import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
+import type { ApiBody, ApiQuery } from '~/shared/api/route-types.js'
 
-/** Ключи кэша справочника территорий, слоёв и карт. */
+/** Ключи кэша слоёв и карт. */
 export const gisKeys = {
-  territories: ['territories'] as const,
-  territory: (id: string) => ['territory', id] as const,
   layer: (id: string) => ['layer', id] as const,
   datasetLayers: (datasetId: string) => ['layers', 'dataset', datasetId] as const,
   map: (id: string) => ['map', id] as const,
@@ -50,30 +49,6 @@ export const layerFeatureQuery = (layerId: string, rowId: string) =>
     staleTime: 30_000,
   })
 
-/** Справочник территорий целиком: меняется редко — держится в кэше надолго. */
-export const territoriesQuery = () =>
-  queryOptions({
-    // Район в донесении и сводке выбирают и без сети — справочник с устройства (ADR-0212)
-    ...OFFLINE_AWARE,
-    queryKey: gisKeys.territories,
-    queryFn: () => cachedFetch('territories', async () => (await http.get('/territories')).items),
-    staleTime: 10 * 60_000,
-  })
-
-export const territoryQuery = (id: string) =>
-  queryOptions({
-    queryKey: gisKeys.territory(id),
-    queryFn: () => http.get('/territories/:id', { params: { id } }),
-  })
-
-/**
- * Единицы справочника как варианты поля-территории: грид и фильтры показывают
- * название, правка и вставка находят единицу по названию или коду.
- */
-export function territoryOptions(items: readonly Territory[]): FieldOption[] {
-  return items.map((item) => ({ value: item.id, label: item.name }))
-}
-
 /** Точки «Исследования» на карте (ADR-0217): `request` — JSON спецификации запроса. */
 export const explorePointsQuery = (request: string) =>
   queryOptions({
@@ -88,3 +63,24 @@ export const explorePointsQuery = (request: string) =>
 /** Текст ошибки сервера для показа; не ошибка API — null. */
 export const apiFailureMessage = (error: unknown): string | null =>
   error instanceof ApiError ? error.message : null
+
+export const gisApi = {
+  postLayers: (body: ApiBody<'POST /gis/layers'>) => http.post('/gis/layers', { body }),
+  getLayers: (id: string) => http.get('/gis/layers/:id', { params: { id } }),
+  patchLayers: (id: string, body: ApiBody<'PATCH /gis/layers/:id'>) =>
+    http.patch('/gis/layers/:id', { params: { id }, body }),
+  getBasemaps: () => http.get('/gis/basemaps'),
+  getBasemapsStyleJson: (id: string, query: ApiQuery<'GET /gis/basemaps/:id/style.json'>) =>
+    http.get('/gis/basemaps/:id/style.json', { params: { id }, query }),
+  postLayersStats: (id: string, body: ApiBody<'POST /gis/layers/:id/stats'>) =>
+    http.post('/gis/layers/:id/stats', { params: { id }, body }),
+  postMaps: (body: ApiBody<'POST /gis/maps'>) => http.post('/gis/maps', { body }),
+  removeObjects: (id: string) => http.delete('/objects/:id', { params: { id } }),
+  postObjectsRestore: (id: string) => http.post('/objects/:id/restore', { params: { id } }),
+  getDatasetsExportsDownload: (jobId: string) =>
+    http.get('/datasets/exports/:jobId/download', { params: { jobId } }),
+  postDatasetsExports: (id: string, body: ApiBody<'POST /datasets/:id/exports'>) =>
+    http.post('/datasets/:id/exports', { params: { id }, body }),
+  patchMaps: (id: string, body: ApiBody<'PATCH /gis/maps/:id'>) =>
+    http.patch('/gis/maps/:id', { params: { id }, body }),
+}

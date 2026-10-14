@@ -3,8 +3,8 @@ import { Button, Callout, Card, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 const mailKey = ['me', 'mail'] as const
 
@@ -19,10 +19,10 @@ export function MailCard() {
   const [issued, setIssued] = useState<MailPassword | null>(null)
   const { data: status } = useQuery({
     queryKey: mailKey,
-    queryFn: () => http.get('/me/mail'),
+    queryFn: () => profileApi.getMeMail(),
   })
   const issue = useMutation({
-    mutationFn: () => http.post('/me/mail/password'),
+    mutationFn: () => profileApi.postMeMailPassword(),
     onSuccess: (result) => {
       setIssued(result)
       void client.invalidateQueries({ queryKey: mailKey })
@@ -30,7 +30,7 @@ export function MailCard() {
     onError: () => toast.error(t('errors.unknown')),
   })
   const revoke = useMutation({
-    mutationFn: () => http.delete('/me/mail/password'),
+    mutationFn: () => profileApi.removeMeMailPassword(),
     onSuccess: (next) => {
       setIssued(null)
       client.setQueryData(mailKey, next)

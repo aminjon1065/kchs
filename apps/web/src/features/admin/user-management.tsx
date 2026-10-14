@@ -44,11 +44,12 @@ import {
   UserCog,
 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { positionsQuery } from './positions-card.js'
+import { adminApi } from './queries.js'
 import { UserFacsimileDialog } from './user-facsimile-dialog.js'
 import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
@@ -174,17 +175,15 @@ export function CreateUserDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/users', {
-        body: {
-          login: form.login.trim(),
-          lastName: form.lastName.trim(),
-          firstName: form.firstName.trim(),
-          middleName: form.middleName.trim() || null,
-          email: form.email.trim() || null,
-          unitId: form.unitId === NO_UNIT ? null : form.unitId,
-          roleKeys: form.roleKeys,
-          mustChangePassword: true,
-        },
+      adminApi.postUsers({
+        login: form.login.trim(),
+        lastName: form.lastName.trim(),
+        firstName: form.firstName.trim(),
+        middleName: form.middleName.trim() || null,
+        email: form.email.trim() || null,
+        unitId: form.unitId === NO_UNIT ? null : form.unitId,
+        roleKeys: form.roleKeys,
+        mustChangePassword: true,
       }),
     onSuccess: (result) => {
       setError(null)
@@ -338,8 +337,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const failed = (err: unknown) => toast.error(problemMessage(err, t('errors.unknown')))
 
   const saveRoles = useMutation({
-    mutationFn: () =>
-      http.patch('/users/:id', { params: { id: user.id }, body: { roleKeys: roles } }),
+    mutationFn: () => adminApi.patchUsers(user.id, { roleKeys: roles }),
     onSuccess: () => {
       setEditingRoles(false)
       setError(null)
@@ -350,8 +348,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   })
 
   const setStatus = useMutation({
-    mutationFn: (status: 'active' | 'blocked') =>
-      http.patch('/users/:id', { params: { id: user.id }, body: { status } }),
+    mutationFn: (status: 'active' | 'blocked') => adminApi.patchUsers(user.id, { status }),
     onSuccess: (_result, status) => {
       toast.show({
         title: status === 'blocked' ? t('admin.users.blocked') : t('admin.users.unblocked'),
@@ -371,7 +368,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   })
 
   const resetPassword = useMutation({
-    mutationFn: () => http.post('/users/:id/reset-password', { params: { id: user.id } }),
+    mutationFn: () => adminApi.postUsersResetPassword(user.id),
     onSuccess: (result) => {
       setConfirm(null)
       setPassword(result.temporaryPassword)
@@ -384,7 +381,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   })
 
   const resetMfa = useMutation({
-    mutationFn: () => http.post('/users/:id/reset-mfa', { params: { id: user.id } }),
+    mutationFn: () => adminApi.postUsersResetMfa(user.id),
     onSuccess: () => {
       setConfirm(null)
       toast.show({ title: t('admin.users.mfaResetDone'), tone: 'success' })
@@ -582,11 +579,7 @@ function ClearanceDialog({
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const save = useMutation({
-    mutationFn: () =>
-      http.put('/users/:id/clearance', {
-        params: { id: user.id },
-        body: { clearance, reason: reason.trim() },
-      }),
+    mutationFn: () => adminApi.putUsersClearance(user.id, { clearance, reason: reason.trim() }),
     onSuccess: () => {
       toast.show({ title: t('access.clearance.saved'), tone: 'success' })
       onSaved()
@@ -682,12 +675,9 @@ function AssignmentDialog({
   const [error, setError] = useState<string | null>(null)
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/users/:id', {
-        params: { id: user.id },
-        body: {
-          unitId: unitId === NO_UNIT ? null : unitId,
-          positionId: positionId === NO_UNIT ? null : positionId,
-        },
+      adminApi.patchUsers(user.id, {
+        unitId: unitId === NO_UNIT ? null : unitId,
+        positionId: positionId === NO_UNIT ? null : positionId,
       }),
     onSuccess: () => {
       toast.show({ title: t('admin.users.assignmentSaved'), tone: 'success' })

@@ -12,10 +12,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Copy, FileText, Reply, Sparkles } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys, documentQuery } from '../queries.js'
-import { documentAssistQuery } from './queries.js'
+import { documentAssistQuery, documentsAssistApi } from './queries.js'
 
 /**
  * Ассистент документа в контекстной панели (13-search-knowledge-ai.md §5,
@@ -83,13 +83,12 @@ function SummaryCard({ documentId, canEdit }: { documentId: string; canEdit: boo
   const toast = useToast()
   const client = useQueryClient()
   const make = useMutation({
-    mutationFn: () => http.post('/documents/:id/assist/summary', { params: { id: documentId } }),
+    mutationFn: () => documentsAssistApi.postAssistSummary(documentId),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const insert = useMutation({
-    mutationFn: (summary: string) =>
-      http.patch('/documents/:id', { params: { id: documentId }, body: { summary } }),
+    mutationFn: (summary: string) => documentsAssistApi.patch(documentId, { summary }),
     onSuccess: () => {
       toast.show({ title: t('documentAssist.panel.inserted'), tone: 'success' })
       void client.invalidateQueries({ queryKey: documentKeys.document(documentId) })
@@ -161,11 +160,8 @@ function ReplyCard({ documentId }: { documentId: string }) {
   const [instructions, setInstructions] = useState('')
   const make = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/assist/reply', {
-        params: { id: documentId },
-        body: {
-          ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
-        },
+      documentsAssistApi.postAssistReply(documentId, {
+        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
       }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

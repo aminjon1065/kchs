@@ -4,10 +4,11 @@ import { AlertDialog, Badge, Button, Card, EmptyState, Skeleton, useToast } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { adminApiTokensQuery, keys } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const STATUS_TONES: Record<ApiToken['status'], 'success' | 'neutral' | 'warning'> = {
   active: 'success',
@@ -29,7 +30,7 @@ export function ApiTokensSection() {
   const [revoking, setRevoking] = useState<ApiToken | null>(null)
 
   const revoke = useMutation({
-    mutationFn: (id: string) => http.delete('/admin/api-tokens/:id', { params: { id } }),
+    mutationFn: (id: string) => adminApi.removeApiTokens(id),
     onSuccess: () => {
       toast.show({ title: t('admin.apiTokens.revoked'), tone: 'info' })
       setRevoking(null)

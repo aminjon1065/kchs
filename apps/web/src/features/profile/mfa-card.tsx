@@ -1,11 +1,12 @@
 import { Button, Callout, Card, cn, Field, Input, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
-import { useId, useState } from 'react'
-import { MfaSetup } from '~/features/auth/mfa-setup.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { Suspense, useId, useState } from 'react'
+import { LazyMfaSetup } from '~/features/auth/index.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 /** Второй фактор в профиле: подключение с QR-кодом и отключение по коду. */
 export function MfaCard({ enabled }: { enabled: boolean }) {
@@ -20,7 +21,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.me })
 
   const disable = useMutation({
-    mutationFn: () => http.delete('/me/mfa', { body: { code: code.trim() } }),
+    mutationFn: () => profileApi.removeMeMfa({ code: code.trim() }),
     onSuccess: (result) => {
       if (!result.ok) {
         setError(t('auth.mfa.invalid'))
@@ -60,7 +61,11 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
           ) : null}
         </div>
 
-        {!enabled ? <MfaSetup onDone={refresh} /> : null}
+        {!enabled ? (
+          <Suspense fallback={null}>
+            <LazyMfaSetup onDone={refresh} />
+          </Suspense>
+        ) : null}
 
         {enabled && disabling ? (
           <form

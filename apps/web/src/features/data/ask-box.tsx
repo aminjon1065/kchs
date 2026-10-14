@@ -3,36 +3,9 @@ import { Button, Callout, Input } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
-import { aiStatusQuery } from './queries.js'
-
-/** Ошибка «Спросить данные» — по причине из ответа API, понятными словами (и в ИИ-ячейке тетради). */
-export function askError(
-  error: unknown,
-  t: ReturnType<typeof useT>,
-): { title: string; detail: string | null } {
-  if (!(error instanceof ApiError)) return { title: t('errors.unknown'), detail: null }
-  const data = error.problem.data as { reason?: string; issues?: string[] } | undefined
-  switch (data?.reason) {
-    case 'ai_not_configured':
-      return { title: t('data.ask.errors.notConfigured'), detail: null }
-    case 'ai_limit':
-      return { title: t('data.ask.errors.limit'), detail: null }
-    case 'ai_provider':
-      return { title: t('data.ask.errors.provider'), detail: null }
-    case 'ai_unanswerable':
-      return { title: t('data.ask.errors.unanswerable'), detail: error.message }
-    case 'ai_invalid':
-      return {
-        title: t('data.ask.errors.invalid'),
-        detail: data.issues?.slice(0, 3).join('; ') ?? null,
-      }
-    default:
-      if (error.status === 403) return { title: t('data.ask.errors.forbidden'), detail: null }
-      return { title: error.message, detail: null }
-  }
-}
+import { askError } from './ask-error.js'
+import { aiStatusQuery, dataApi } from './queries.js'
 
 /**
  * «Спросить данные» (P1-E09 S03, ADR-0061): вопрос на естественном языке →
@@ -54,8 +27,7 @@ export function AskBox({
   const [showQuery, setShowQuery] = useState(false)
 
   const ask = useMutation({
-    mutationFn: (text: string) =>
-      http.post('/datasets/:id/ask', { params: { id: datasetId }, body: { question: text } }),
+    mutationFn: (text: string) => dataApi.postDatasetsAsk(datasetId, { question: text }),
     onSuccess: (result) => {
       setAnswer(result)
       onAnswer(result)

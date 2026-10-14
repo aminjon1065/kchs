@@ -34,7 +34,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { Play, Settings2, Sparkles } from 'lucide-react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, Suspense, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
 import {
   type CellMap,
@@ -43,22 +43,25 @@ import {
   writeCell,
 } from '~/entities/collab/notebook-doc.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
-import { askError } from '~/features/data/ask-box.js'
 import {
+  aiStatusQuery,
+  askError,
   CHART_TYPES,
-  ExplorePlanEditor,
-  ResultTable,
+  datasetQuery,
+  LazyExplorePlanEditor,
+  LazyResultTable,
+  sqlSchemaQuery,
   updatePlan,
   useExploreLabels,
   withChannelLabels,
-} from '~/features/data/explore-builder.js'
-import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+} from '~/features/data/index.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { cellSpec, notebookKeys, sqlParams } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
 import { BindingsControl } from './notebook-params.js'
+import { notebooksApi } from './queries.js'
 
 const AUTO = '__auto'
 const RESULT_HEIGHT = 320
@@ -131,8 +134,7 @@ function VisualBody({
   const settled = useMemo((): typeof spec => (specKey ? JSON.parse(specKey) : null), [specKey])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn:
-      specKey && settled ? () => http.post('/queries/run', { body: { spec: settled } }) : skipToken,
+    queryFn: specKey && settled ? () => notebooksApi.postQueriesRun({ spec: settled }) : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })
@@ -219,13 +221,15 @@ function VisualBody({
         <div className="flex flex-col gap-3 rounded-md border border-line bg-surface-2 p-3">
           <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
             <legend className="sr-only">{t('data.notebook.query.configure')}</legend>
-            <ExplorePlanEditor
-              fields={fields}
-              plan={plan}
-              columnLabel={columnLabel}
-              compact
-              onChange={(patch) => writeCell(cell, { plan: updatePlan(plan, patch) })}
-            />
+            <Suspense fallback={null}>
+              <LazyExplorePlanEditor
+                fields={fields}
+                plan={plan}
+                columnLabel={columnLabel}
+                compact
+                onChange={(patch) => writeCell(cell, { plan: updatePlan(plan, patch) })}
+              />
+            </Suspense>
           </fieldset>
           <BindingsControl
             fields={fields}
@@ -253,7 +257,9 @@ function VisualBody({
               timezone={timezone}
             />
           ) : (
-            <ResultTable result={labelled} className="h-80 flex-none" />
+            <Suspense fallback={null}>
+              <LazyResultTable result={labelled} className="h-80 flex-none" />
+            </Suspense>
           )
         ) : null}
       </CellResult>
@@ -288,7 +294,7 @@ function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { sql: submitted, values }),
-    queryFn: () => http.post('/sql/run', { body: { sql: submitted, params: values } }),
+    queryFn: () => notebooksApi.postSqlRun({ sql: submitted, params: values }),
     enabled: canSql && Boolean(submitted.trim()),
     placeholderData: keepPreviousData,
     retry: false,
@@ -346,7 +352,11 @@ function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
         result={result.data}
         raw={result.data}
       >
-        {result.data ? <ResultTable result={result.data} className="h-80 flex-none" /> : null}
+        {result.data ? (
+          <Suspense fallback={null}>
+            <LazyResultTable result={result.data} className="h-80 flex-none" />
+          </Suspense>
+        ) : null}
       </CellResult>
     </div>
   )
@@ -374,8 +384,7 @@ export function AiCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   }
 
   const ask = useMutation({
-    mutationFn: (text: string) =>
-      http.post('/datasets/:id/ask', { params: { id: datasetId! }, body: { question: text } }),
+    mutationFn: (text: string) => notebooksApi.postDatasetsAsk(datasetId!, { question: text }),
     onSuccess: (result, text) => {
       writeCell(cell, {
         // Подпись ячейки (оглавление) — название ответа, если своей нет

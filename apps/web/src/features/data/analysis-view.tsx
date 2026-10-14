@@ -21,20 +21,17 @@ import {
 } from '@kchs/ui'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Share2, Trash2 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, Suspense, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import {
-  ChoroplethMapButton,
-  choroplethParamItems,
-} from '~/features/gis/choropleth/choropleth-summary.js'
-import { territoriesQuery } from '~/features/gis/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { territoriesQuery } from '~/entities/territory/queries.js'
+import { choroplethParamItems, LazyChoroplethMapButton } from '~/features/gis/index.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { datasetQuery, exportJobQuery } from './queries.js'
+import { dataApi, datasetQuery, exportJobQuery } from './queries.js'
 
 const ACTIVE = new Set<AnalysisStatus>(['queued', 'running'])
 const STATUS_TONES: Record<AnalysisStatus, BadgeProps['tone']> = {
@@ -61,7 +58,7 @@ const PARAM_LABELS: Record<string, string> = {
 const analysisQuery = (id: string) =>
   queryOptions({
     queryKey: ['analysis', id] as const,
-    queryFn: () => http.get('/analyses/:id', { params: { id } }),
+    queryFn: () => dataApi.getAnalyses(id),
     refetchInterval: (query) =>
       query.state.data && ACTIVE.has(query.state.data.status) ? 1500 : false,
   })
@@ -162,8 +159,7 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => dataApi.patchObjects(objectId, { title }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -172,7 +168,7 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const rerun = useMutation({
-    mutationFn: () => http.post('/analyses/:id/run', { params: { id: objectId } }),
+    mutationFn: () => dataApi.postAnalysesRun(objectId),
     onSuccess: () => {
       toast.show({ title: t('data.analysis.rerunStarted'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['analysis', objectId] })
@@ -185,14 +181,14 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => dataApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void dataApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -339,7 +335,9 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
                   ) : null}
                   {output && analysis.choropleth && analysis.status === 'succeeded' ? (
                     <span className="ml-auto">
-                      <ChoroplethMapButton analysis={analysis} />
+                      <Suspense fallback={null}>
+                        <LazyChoroplethMapButton analysis={analysis} />
+                      </Suspense>
                     </span>
                   ) : null}
                   {output ? (

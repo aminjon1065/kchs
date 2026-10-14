@@ -40,10 +40,10 @@ import {
   presetPeriod,
 } from '~/entities/data/metric-format.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { MapSlotsProvider } from '~/features/gis/map-slots.js'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
+import { MapSlotsProvider } from '~/features/gis/index.js'
 import { dashboardPrintPath } from '~/features/reports/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -61,7 +61,7 @@ import {
 } from './dashboard-layout.js'
 import { TileCard } from './dashboard-tile.js'
 import { DashboardTv } from './dashboard-tv.js'
-import { dashboardDataQuery, dashboardQuery, dataKeys } from './queries.js'
+import { dashboardDataQuery, dashboardQuery, dataApi, dataKeys } from './queries.js'
 
 const AS_METRIC = '__metric'
 const COMPARISONS: MetricComparison[] = ['none', 'previous_period', 'previous_year', 'target']
@@ -97,8 +97,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/dashboards/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => dataApi.patchDashboards(objectId, { name }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -107,11 +106,8 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   })
   const save = useMutation({
     mutationFn: (spec: DashboardSpec) =>
-      http.patch('/dashboards/:id', {
-        params: { id: objectId },
-        body: {
-          spec: { ...spec, tiles: packTiles(orderedTiles(spec.tiles)) },
-        },
+      dataApi.patchDashboards(objectId, {
+        spec: { ...spec, tiles: packTiles(orderedTiles(spec.tiles)) },
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dashboard.saved'), tone: 'success' })
@@ -123,14 +119,14 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => dataApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void dataApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

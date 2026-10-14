@@ -2,7 +2,7 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/pro
 import { useEffect, useState } from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
-import { getCsrfToken } from '~/shared/api/client.js'
+import { getCsrfToken } from '~/shared/api/session.js'
 
 /**
  * Клиент совместного редактирования (ADR-0070): один сокет `/collab/ws` на

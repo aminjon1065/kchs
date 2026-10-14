@@ -28,8 +28,8 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Link2, Plus, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { useTerritoryFilterEditor } from '~/entities/territory/territory-filter.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -43,7 +43,7 @@ import {
 import { ExportDialog } from './export-dialog.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf } from './field-types.js'
-import { dataKeys } from './queries.js'
+import { dataApi, dataKeys } from './queries.js'
 import { NewRowDialog, RowCard } from './row-card.js'
 
 /** Строк в странице таблицы: грид просит окна, страницы грузятся по мере прокрутки. */
@@ -184,10 +184,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         count: page === 0,
       }
       try {
-        const result = await http.post('/datasets/:id/rows/query', {
-          params: { id: dataset.id },
-          body,
-        })
+        const result = await dataApi.postDatasetsRowsQuery(dataset.id, body)
         if (current !== generation.current) return
         const loaded = toRows(result)
         for (const [id, ver] of loaded.versions) versions.current.set(id, ver)
@@ -269,12 +266,9 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
       for (const [rowId, rowChanges] of byRow) {
         const values = Object.fromEntries(rowChanges.map((change) => [change.key, change.value]))
         try {
-          const row = await http.patch('/datasets/:id/rows/:rowId', {
-            params: { id: dataset.id, rowId },
-            body: {
-              values,
-              ver: versions.current.get(rowId) ?? 1,
-            },
+          const row = await dataApi.patchDatasetsRows(dataset.id, rowId, {
+            values,
+            ver: versions.current.get(rowId) ?? 1,
           })
           replaceRow(row)
         } catch (error) {
@@ -307,11 +301,8 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const onAppendRows = useCallback(
     async (rows: Array<Record<string, unknown>>): Promise<DataGridAppendResult> => {
       try {
-        await http.post('/datasets/:id/rows', {
-          params: { id: dataset.id },
-          body: {
-            rows: rows.map((values) => ({ values })),
-          },
+        await dataApi.postDatasetsRows(dataset.id, {
+          rows: rows.map((values) => ({ values })),
         })
       } catch (error) {
         const index = error instanceof ApiError ? Number(error.problem.data?.row ?? 0) : 0

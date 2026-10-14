@@ -13,8 +13,9 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { FileJson } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi, configSectionsQuery } from './queries.js'
 
 const STATUS_TONES: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   new: 'success',
@@ -38,14 +39,10 @@ export function ConfigPackageSection() {
   const [overwrite, setOverwrite] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const sections = useQuery({
-    queryKey: ['config', 'sections'],
-    queryFn: () => http.get('/config/sections'),
-    select: (data) => data.items,
-  })
+  const sections = useQuery({ ...configSectionsQuery(), select: (data) => data.items })
 
   const exportPackage = useMutation({
-    mutationFn: () => http.post('/config/export', { body: { sections: selected } }),
+    mutationFn: () => adminApi.postConfigExport({ sections: selected }),
     onSuccess: (pkg) => {
       setText(JSON.stringify(pkg, null, 2))
       setPreview(null)
@@ -63,7 +60,7 @@ export function ConfigPackageSection() {
   }
 
   const check = useMutation({
-    mutationFn: () => http.post('/config/import/preview', { body: { package: parsePackage() } }),
+    mutationFn: () => adminApi.postConfigImportPreview({ package: parsePackage() }),
     onSuccess: (result) => {
       setPreview(result)
       setError(null)
@@ -76,11 +73,9 @@ export function ConfigPackageSection() {
 
   const apply = useMutation({
     mutationFn: () =>
-      http.post('/config/import', {
-        body: {
-          package: parsePackage(),
-          overwriteConflicts: overwrite,
-        },
+      adminApi.postConfigImport({
+        package: parsePackage(),
+        overwriteConflicts: overwrite,
       }),
     onSuccess: (result) => {
       toast.show({

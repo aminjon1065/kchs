@@ -21,15 +21,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, History, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { fieldLabel, rowHistoryQuery } from '~/features/data/index.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useStudio } from '../studio/context.js'
-import { conflictOf, editApi, editKeys, refreshAfterWrite } from './edit-api.js'
 import { editStore } from './edit-store.js'
 import { useFieldText } from './field-text.js'
 import { splitParts } from './geometry.js'
+import { conflictOf, editApi, editKeys, refreshAfterWrite } from './queries.js'
 
 const asGeometry = (value: unknown): FeatureGeometry | null =>
   value && typeof value === 'object' && 'type' in value ? (value as FeatureGeometry) : null

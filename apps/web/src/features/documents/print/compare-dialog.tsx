@@ -18,10 +18,9 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { ScanViewer } from '../scan-viewer.js'
-import { renderKeys } from './renders.js'
+import { documentsPrintApi, renderKeys } from './queries.js'
 
 /**
  * Сравнение версий документа (08-documents.md §8, ADR-0085): «Текст» — по
@@ -118,11 +117,7 @@ function TextDiff({
   const t = useT()
   const { data, isLoading } = useQuery({
     queryKey: renderKeys.compare(documentId, fromId, toId),
-    queryFn: () =>
-      http.get('/documents/:id/versions/compare', {
-        params: { id: documentId },
-        query: { from: fromId, to: toId },
-      }),
+    queryFn: () => documentsPrintApi.getVersionsCompare(documentId, { from: fromId, to: toId }),
     refetchInterval: (query) => (query.state.data?.status === 'pending' ? 4000 : false),
   })
   if (isLoading || !data) return <Skeleton className="h-64 w-full" />

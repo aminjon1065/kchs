@@ -50,7 +50,7 @@ import {
 } from '~/entities/data/metric-format.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { alertEventsQuery } from '~/features/alerts/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   keys,
   meQuery,
@@ -65,6 +65,7 @@ import { AddToDashboardDialog } from './dashboard-dialogs.js'
 import { filterFieldsOf } from './field-types.js'
 import { MetricEditor } from './metric-editor.js'
 import {
+  dataApi,
   dataKeys,
   datasetQuery,
   metricQuery,
@@ -170,8 +171,7 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/metrics/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => dataApi.patchMetrics(objectId, { name }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -179,14 +179,14 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => dataApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void dataApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -434,7 +434,7 @@ function useValueLabels(type: FieldType | undefined, values: string[]) {
   const users = useQueries({
     queries: people.map((id) => ({
       queryKey: ['user-ref', id] as const,
-      queryFn: () => http.get('/users/:id', { params: { id } }),
+      queryFn: () => dataApi.getUsers(id),
       staleTime: 5 * 60_000,
     })),
   })

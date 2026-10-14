@@ -33,7 +33,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Upload, Zap } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

@@ -17,14 +17,14 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import { UserPicker } from '~/entities/people/user-picker.js'
-import { RunAsSelect } from '~/features/admin/run-as-select.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { LazyRunAsSelect } from '~/features/admin/index.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { orgUnitsQuery, principalRefsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { askable } from './askable.js'
-import { formKeys, formsApi } from './queries.js'
+import { formDatasetQuery, formKeys, formsApi } from './queries.js'
 
 /**
  * Настройка формы (ADR-0103, ADR-0129): вид (одна запись или таблица), поля
@@ -44,10 +44,7 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
   const [draft, setDraft] = useState<FormDefinition>(form.definition)
   const [runAs, setRunAs] = useState<string | null>(form.runAs)
 
-  const { data: dataset } = useQuery({
-    queryKey: ['forms', 'dataset', form.datasetId],
-    queryFn: () => http.get('/datasets/:id', { params: { id: form.datasetId } }),
-  })
+  const { data: dataset } = useQuery(formDatasetQuery(form.datasetId))
   const { data: units = [] } = useQuery(orgUnitsQuery())
 
   const save = useMutation({
@@ -122,7 +119,14 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
           htmlFor={runAsId}
           hint={t('forms.settings.runAsHint')}
         >
-          <RunAsSelect id={runAsId} value={runAs} onChange={setRunAs} disabled={!form.canManage} />
+          <Suspense fallback={null}>
+            <LazyRunAsSelect
+              id={runAsId}
+              value={runAs}
+              onChange={setRunAs}
+              disabled={!form.canManage}
+            />
+          </Suspense>
         </Field>
       </Card>
       <Card title={t('forms.settings.layout')}>

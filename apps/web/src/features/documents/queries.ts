@@ -2,6 +2,7 @@ import type { CaseListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /**
@@ -286,3 +287,13 @@ export const recheckSignature = (documentId: string, signatureId: string) =>
   http.post('/documents/:id/signatures/:signatureId/verify', {
     params: { id: documentId, signatureId },
   })
+
+export const documentsApi = {
+  postBulk: (body: ApiBody<'POST /documents/bulk'>) => http.post('/documents/bulk', { body }),
+  postCorrespondents: (body: ApiBody<'POST /correspondents'>) =>
+    http.post('/correspondents', { body }),
+  postFromTemplate: (body: ApiBody<'POST /documents/from-template'>) =>
+    http.post('/documents/from-template', { body }),
+  post: (body: ApiBody<'POST /documents'>) => http.post('/documents', { body }),
+  getFilesPreviews: (id: string) => http.get('/files/:id/previews', { params: { id } }),
+}

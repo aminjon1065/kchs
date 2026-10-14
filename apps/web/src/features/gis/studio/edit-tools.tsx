@@ -32,7 +32,6 @@ import { datasetQuery } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
 import { CoordinatesDialog, locate, locateErrorKey } from '../edit/coordinates-dialog.js'
 import type { DrawController, DrawTool } from '../edit/draw-controller.js'
-import { editApi, layerEditingQuery, snapFeaturesQuery } from '../edit/edit-api.js'
 import { disposeEditStore, type EditTarget, editStore } from '../edit/edit-store.js'
 import {
   bboxOf,
@@ -45,6 +44,7 @@ import {
   splitParts,
 } from '../edit/geometry.js'
 import { useEditLayersOnTop, useGhostOverlay } from '../edit/ghost-overlay.js'
+import { editApi, layerEditingQuery, snapFeaturesQuery } from '../edit/queries.js'
 import { SnapIndex } from '../edit/snap.js'
 import { EDIT_TOOL, useStudio } from './context.js'
 

@@ -18,10 +18,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldAlert } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const DURATIONS = [15, ADMIN_MODE_MINUTES.default, 60, ADMIN_MODE_MINUTES.max]
 
@@ -48,7 +49,7 @@ function useExitAdminMode() {
   const toast = useToast()
   const client = useQueryClient()
   return useMutation({
-    mutationFn: () => http.delete('/me/admin-mode'),
+    mutationFn: () => adminApi.removeMeAdminMode(),
     onSuccess: () => {
       toast.show({ title: t('access.adminMode.exited'), tone: 'info' })
       void client.invalidateQueries()
@@ -146,11 +147,9 @@ function EnterAdminModeDialog({ onClose }: { onClose: () => void }) {
   const [failure, setFailure] = useState<string | null>(null)
   const enter = useMutation({
     mutationFn: () =>
-      http.post('/me/admin-mode', {
-        body: {
-          reason: reason.trim(),
-          minutes: Number(minutes),
-        },
+      adminApi.postMeAdminMode({
+        reason: reason.trim(),
+        minutes: Number(minutes),
       }),
     onSuccess: () => {
       toast.show({ title: t('access.adminMode.entered'), tone: 'warning' })

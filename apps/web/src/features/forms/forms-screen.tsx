@@ -23,13 +23,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardPen, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { askable } from './askable.js'
-import { formDutiesQuery, formKeys, formsApi, formsQuery } from './queries.js'
+import { formDutiesQuery, formKeys, formsApi, formsQuery, newFormDatasetQuery } from './queries.js'
 
 /**
  * Поля, которые форма спрашивать не может: вычисляемые и требующие особых
@@ -263,8 +263,7 @@ function CreateFormDialog({
   const { data: spaces = [] } = useQuery(spacesQuery())
   const { data: datasets } = useQuery(objectListQuery({ type: 'dataset', limit: 100 }))
   const { data: dataset } = useQuery({
-    queryKey: ['forms', 'new-dataset', datasetId],
-    queryFn: () => http.get('/datasets/:id', { params: { id: datasetId } }),
+    ...newFormDatasetQuery(datasetId),
     enabled: datasetId.length > 0,
   })
 

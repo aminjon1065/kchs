@@ -1,7 +1,15 @@
-import type { ControlListQuery, ControlQuery, TaskListQuery, WorkloadQuery } from '@kchs/contracts'
+import type {
+  ControlListQuery,
+  ControlQuery,
+  TaskListQuery,
+  TaskRecord,
+  TaskStatus,
+  WorkloadQuery,
+} from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
-import type { ApiBody } from '~/shared/api/route-types.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
+import type { ApiBody, ApiQuery } from '~/shared/api/route-types.js'
 
 /**
  * Ключи кэша задач. Карточка — под `['object', id, …]`: realtime ядра
@@ -144,7 +152,53 @@ export const decideExtension = (id: string, body: ApiBody<'POST /tasks/:id/exten
 export const reassignTask = (id: string, body: ApiBody<'POST /tasks/:id/reassign'>) =>
   http.post('/tasks/:id/reassign', { params: { id }, body })
 
+/** Шаг без формы: статус задачи или действие поручения без текста. */
+export type TaskStep =
+  | { kind: 'status'; status: TaskStatus }
+  | { kind: 'start' }
+  | { kind: 'accept' }
+  | { kind: 'cancel' }
+
+export function postTaskStep(taskId: string, step: TaskStep): Promise<TaskRecord> {
+  if (step.kind === 'status') {
+    return http.post('/tasks/:id/status', { params: { id: taskId }, body: { status: step.status } })
+  }
+  if (step.kind === 'cancel')
+    return http.post('/tasks/:id/cancel', { params: { id: taskId }, body: {} })
+  return http.post(`/tasks/:id/${step.kind}` as const, { params: { id: taskId } })
+}
+
 /** Ошибки полей из ответа сервера — подсветка формы; иной сбой — без полей. */
 export function fieldErrorsOf(error: unknown): Record<string, string> {
   return error instanceof ApiError ? error.fieldErrors() : {}
+}
+
+export const tasksApi = {
+  /** Приостановить, возобновить или остановить серию поручений. */
+  postTaskSeriesAction: (id: string, action: 'pause' | 'resume' | 'stop') =>
+    http.post(`/task-series/:id/${action}` as const, { params: { id } }),
+  getBusinessCalendarDeadline: (query: ApiQuery<'GET /business-calendar/deadline'>) =>
+    http.get('/business-calendar/deadline', { query }),
+  updateProject: (id: string, body: ApiBody<'PATCH /projects/:id'>) =>
+    http.patch('/projects/:id', { params: { id }, body }),
+  postBulk: (body: ApiBody<'POST /tasks/bulk'>) => http.post('/tasks/bulk', { body }),
+  postChecklist: (id: string, body: ApiBody<'POST /tasks/:id/checklist'>) =>
+    http.post('/tasks/:id/checklist', { params: { id }, body }),
+  patchChecklist: (
+    id: string,
+    itemId: string,
+    body: ApiBody<'PATCH /tasks/:id/checklist/:itemId'>,
+  ) => http.patch('/tasks/:id/checklist/:itemId', { params: { id, itemId }, body }),
+  removeChecklist: (id: string, itemId: string) =>
+    http.delete('/tasks/:id/checklist/:itemId', { params: { id, itemId } }),
+  postSubtasks: (id: string, body: ApiBody<'POST /tasks/:id/subtasks'>) =>
+    http.post('/tasks/:id/subtasks', { params: { id }, body }),
+  postTaskSeries: (body: ApiBody<'POST /task-series'>) => http.post('/task-series', { body }),
+  create: (body: ApiBody<'POST /tasks'>) => http.post('/tasks', { body }),
+  update: (id: string, body: ApiBody<'PATCH /tasks/:id'>) =>
+    http.patch('/tasks/:id', { params: { id }, body }),
+  createProject: (body: ApiBody<'POST /projects'>) => http.post('/projects', { body }),
+  getTaskSeries: () => http.get('/task-series'),
+  patchTaskSeries: (id: string, body: ApiBody<'PATCH /task-series/:id'>) =>
+    http.patch('/task-series/:id', { params: { id }, body }),
 }

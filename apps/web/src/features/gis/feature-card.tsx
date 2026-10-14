@@ -3,13 +3,14 @@ import { formatValue } from '@kchs/fields'
 import { Button, Callout, IconButton, KeyValueList, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { FileText, Landmark, Table2, X } from 'lucide-react'
-import { ApiError } from '~/shared/api/client.js'
+import { territoriesQuery } from '~/entities/territory/queries.js'
+import { useOpenPassport } from '~/entities/territory/territory-link.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { layerDatasetQuery } from './layer-source-queries.js'
-import { layerFeatureQuery, territoriesQuery } from './queries.js'
-import { useOpenPassport } from './territory-link.js'
+import { layerFeatureQuery } from './queries.js'
 
 /** Полей в карточке без настроенной карточки слоя: заголовок и ещё четыре. */
 const DEFAULT_FIELDS = 5

@@ -19,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
@@ -28,6 +28,7 @@ import { useObjectCollection } from '~/shared/collections/use-object-collection.
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { gisApi } from './queries.js'
 
 const TYPES = ['map', 'layer']
 
@@ -201,7 +202,7 @@ function CreateMapDialog({ spaceId, onClose }: { spaceId: string; onClose: () =>
   const [name, setName] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
-    mutationFn: () => http.post('/gis/maps', { body: { name: name.trim(), spaceId } }),
+    mutationFn: () => gisApi.postMaps({ name: name.trim(), spaceId }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('gis.maps.created'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })

@@ -17,14 +17,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Link2, Settings2, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { CalendarSettingsDialog, FeedDialog } from './calendar-dialogs.js'
 import { calendarName } from './calendar-sidebar.js'
 import { useCalendarFormat } from './format.js'
-import { calendarKeys, calendarQuery, calendarSettingsQuery, rangeQuery } from './queries.js'
+import {
+  calendarApi,
+  calendarKeys,
+  calendarQuery,
+  calendarSettingsQuery,
+  rangeQuery,
+} from './queries.js'
 import { addDays, instantAt, todayIn } from './time.js'
 
 /**
@@ -61,15 +67,13 @@ export function CalendarView({ objectId, tabId }: { objectId: string; tabId: str
 
   const show = useMutation({
     mutationFn: () =>
-      http.put('/calendar/settings', {
-        body: {
-          ...(calendar?.mine
-            ? {}
-            : {
-                addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), objectId])],
-              }),
-          shown: { ...(settings?.shown ?? {}), [objectId]: true },
-        },
+      calendarApi.putSettings({
+        ...(calendar?.mine
+          ? {}
+          : {
+              addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), objectId])],
+            }),
+        shown: { ...(settings?.shown ?? {}), [objectId]: true },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })

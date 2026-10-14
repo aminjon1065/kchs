@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody, ApiQuery } from '~/shared/api/route-types.js'
 
 /** Ключи кэша отчёта: снимок, запуски, расписание. */
 export const reportKeys = {
@@ -52,4 +53,26 @@ export const reportLibraryApi = {
     http.post('/reports/:id/versions/:versionId/restore', { params: { id, versionId } }),
   setTemplate: (id: string, template: boolean) =>
     http.post('/reports/:id/template', { params: { id }, body: { template } }),
+}
+
+export const reportsApi = {
+  create: (body: ApiBody<'POST /reports'>) => http.post('/reports', { body }),
+  getImages: (id: string, fileId: string) =>
+    http.get('/reports/:id/images/:fileId', { params: { id, fileId } }),
+  getFiles: (id: string, query: ApiQuery<'GET /reports/:id/files'>) =>
+    http.get('/reports/:id/files', { params: { id }, query }),
+  getRunsDownload: (runId: string, query: ApiQuery<'GET /reports/runs/:runId/download'>) =>
+    http.get('/reports/runs/:runId/download', { params: { runId }, query }),
+  patchObjects: (id: string, body: ApiBody<'PATCH /objects/:id'>) =>
+    http.patch('/objects/:id', { params: { id }, body }),
+  removeObjects: (id: string) => http.delete('/objects/:id', { params: { id } }),
+  postObjectsRestore: (id: string) => http.post('/objects/:id/restore', { params: { id } }),
+  postRuns: (id: string, body: ApiBody<'POST /reports/:id/runs'>) =>
+    http.post('/reports/:id/runs', { params: { id }, body }),
+  postDocument: (id: string, body: ApiBody<'POST /reports/:id/document'>) =>
+    http.post('/reports/:id/document', { params: { id }, body }),
+  putSchedule: (id: string, body: ApiBody<'PUT /reports/:id/schedule'>) =>
+    http.put('/reports/:id/schedule', { params: { id }, body }),
+  removeSchedule: (id: string) => http.delete('/reports/:id/schedule', { params: { id } }),
+  postScheduleRun: (id: string) => http.post('/reports/:id/schedule/run', { params: { id } }),
 }

@@ -109,3 +109,8 @@ export const principalRefsQuery = (keys: readonly string[]) =>
     enabled: keys.length > 0,
     staleTime: 60_000,
   })
+
+export const processesApi = {
+  postProcessDefinitions: (body: ApiBody<'POST /process-definitions'>) =>
+    http.post('/process-definitions', { body }),
+}

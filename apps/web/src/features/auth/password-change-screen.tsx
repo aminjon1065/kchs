@@ -2,10 +2,12 @@ import { Button, Callout, Field, PasswordInput } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, LogOut } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
+import { setCsrfToken } from '~/shared/api/session.js'
 import { useT } from '~/shared/i18n.js'
 import { forgetProfile } from '~/shared/offline/profile.js'
+import { authApi } from './queries.js'
 
 /**
  * Вход по временному паролю (выдан администратором): пока пароль не сменён,
@@ -24,9 +26,7 @@ export function PasswordChangeScreen() {
 
   const change = useMutation({
     mutationFn: () =>
-      http.post('/me/password', {
-        body: { currentPassword, newPassword, revokeOtherSessions: true },
-      }),
+      authApi.postMePassword({ currentPassword, newPassword, revokeOtherSessions: true }),
     onSuccess: () => {
       setError(null)
       void client.invalidateQueries({ queryKey: keys.me })
@@ -44,7 +44,7 @@ export function PasswordChangeScreen() {
     // выхода нельзя (ADR-0207)
     mutationFn: async () => {
       await forgetProfile()
-      return http.post('/auth/logout')
+      return authApi.logout()
     },
     onSettled: () => {
       setCsrfToken(null)

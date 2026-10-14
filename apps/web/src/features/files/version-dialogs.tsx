@@ -13,9 +13,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { filesApi } from './queries.js'
 
 /**
  * Новая версия файла с примечанием — что изменилось (ADR-0151). Прерванная
@@ -128,11 +129,8 @@ export function RestoreVersionDialog({
   const [error, setError] = useState<string | null>(null)
   const restore = useMutation({
     mutationFn: () =>
-      http.post('/files/:id/versions/:versionId/restore', {
-        params: { id: fileId, versionId: version.id },
-        body: {
-          ...(note.trim() ? { note: note.trim() } : {}),
-        },
+      filesApi.postVersionsRestore(fileId, version.id, {
+        ...(note.trim() ? { note: note.trim() } : {}),
       }),
     onSuccess: () => {
       toast.show({

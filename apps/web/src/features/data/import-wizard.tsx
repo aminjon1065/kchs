@@ -18,7 +18,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import {
@@ -34,7 +34,7 @@ import {
 import { MappingStep } from './import-mapping-step.js'
 import { ImportProgress, ReviewStep } from './import-review-step.js'
 import { StructureStep } from './import-structure-step.js'
-import { dataKeys } from './queries.js'
+import { dataApi, dataKeys } from './queries.js'
 
 const STEPS = ['file', 'structure', 'mapping', 'review'] as const
 const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xls,.json,.ndjson,.geojson,.zip,.gpkg,.kml,.kmz,.gpx'
@@ -87,7 +87,7 @@ export function ImportWizard({
 
   const analyze = useMutation({
     mutationFn: (input: { fileId: string; options: ImportOptions }) =>
-      http.post('/datasets/imports/analyze', { body: input }),
+      dataApi.postDatasetsImportsAnalyze(input),
     onSuccess: (result) => {
       setFailure(null)
       setAnalysis(result)
@@ -130,8 +130,8 @@ export function ImportWizard({
   const start = useMutation({
     mutationFn: () => {
       if (!file || !analysis) throw new Error(t('data.import.file.analyzeFailed'))
-      return http.post('/datasets/imports', {
-        body: buildRunInput({
+      return dataApi.postDatasetsImports(
+        buildRunInput({
           fileId: file.id,
           options,
           rows,
@@ -140,7 +140,7 @@ export function ImportWizard({
           onError,
           review,
         }),
-      })
+      )
     },
     onSuccess: (record) => {
       setFailure(null)

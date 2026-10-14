@@ -10,8 +10,9 @@ import { formatDate, formatDateTime, relativeRange } from '@kchs/fields'
 import { ErrorState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { territoriesQuery } from '~/features/gis/index.js'
-import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { territoriesQuery } from '~/entities/territory/queries.js'
+import { ApiError } from '~/shared/api/errors.js'
+import { setCsrfToken } from '~/shared/api/session.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { DashboardPrint } from './dashboard-print.js'
@@ -27,6 +28,7 @@ import { type PrintContextValue, PrintProvider, setPrintState, settleDom } from 
 import { PrintDashboard, PrintFiles, PrintImage } from './print-library.js'
 import { reportSections, tocModel } from './print-sections.js'
 import type { PrintTarget } from './print-target.js'
+import { reportsPrintApi } from './queries.js'
 
 declare global {
   interface Window {
@@ -237,7 +239,7 @@ function ReportPrint({ target }: { target: Exclude<PrintTarget, { kind: 'dashboa
   // у браузера движка сессии нет, и /me ему недоступен — это не ошибка
   const me = useQuery({
     queryKey: ['print', 'me'],
-    queryFn: () => http.get('/me', { anonymous: true }).catch(() => null),
+    queryFn: () => reportsPrintApi.getMe().catch(() => null),
     retry: false,
   })
   useEffect(() => {
@@ -248,11 +250,8 @@ function ReportPrint({ target }: { target: Exclude<PrintTarget, { kind: 'dashboa
     queryKey: ['print', 'payload', target],
     queryFn: () =>
       target.kind === 'run'
-        ? http.get('/print/report-runs/:runId', {
-            params: { runId: target.runId },
-            anonymous: true,
-          })
-        : http.get('/print/reports/:id', { params: { id: target.reportId }, anonymous: true }),
+        ? reportsPrintApi.getPrintReportRuns(target.runId)
+        : reportsPrintApi.getPrintReports(target.reportId),
     enabled: !me.isLoading,
     retry: false,
   })

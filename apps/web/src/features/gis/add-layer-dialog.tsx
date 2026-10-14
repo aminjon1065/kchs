@@ -23,11 +23,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { datasetQuery, fieldLabel, useFieldOptions } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { datasetLayersQuery, gisKeys } from './queries.js'
+import { datasetLayersQuery, gisApi, gisKeys } from './queries.js'
 import { loadCategoryValues } from './style-editor/categories.js'
 import { sameStyle } from './style-editor/model.js'
 import { presetLabel, styleWithPreset } from './style-editor/presets-section.js'
@@ -89,24 +89,22 @@ export function AddLayerDialog({
     mutationFn: async () => {
       if (!dataset.data) throw new Error('no dataset')
       if (choice !== NEW) return choice
-      const created = await http.post('/gis/layers', {
-        body: {
-          name: dataset.data.name,
-          spaceId,
-          datasetId: dataset.data.id,
-        },
+      const created = await gisApi.postLayers({
+        name: dataset.data.name,
+        spaceId,
+        datasetId: dataset.data.id,
       })
       // Пресет — поверх стиля, который сервер выбрал по геометрии данных
       const preset = presets.find((item) => item.id === presetId)
       if (preset && preset.id !== SIMPLE) {
-        const record = await http.get('/gis/layers/:id', { params: { id: created.id } })
+        const record = await gisApi.getLayers(created.id)
         const values =
           preset.kind === 'categorized' && preset.field
             ? await loadCategoryValues({ kind: 'dataset', id: dataset.data.id }, preset.field, null)
             : null
         const style = styleWithPreset(record.style, preset, fields, options, values)
         if (!sameStyle(style, record.style)) {
-          await http.patch('/gis/layers/:id', { params: { id: created.id }, body: { style } })
+          await gisApi.patchLayers(created.id, { style })
         }
       }
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(dataset.data.id) })

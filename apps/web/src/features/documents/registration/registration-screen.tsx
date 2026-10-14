@@ -18,7 +18,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Save, Stamp } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -32,6 +32,7 @@ import {
 import { documentKeys, documentTypesQuery } from '../queries.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { errorText, fieldErrors, localToday } from '../status.js'
+import { documentsRegistrationApi } from './queries.js'
 import {
   assistOverlay,
   RegistrationAssist,
@@ -94,13 +95,11 @@ export function RegistrationScreen() {
   /** Черновик — с первым сканом или сохранением: к нему прикрепляются файлы. */
   const ensureDraft = async (current: DocumentTypeRecord): Promise<Draft> => {
     if (draft) return draft
-    const created = await http.post('/documents', {
-      body: {
-        typeId: current.id,
-        ...cardPayload(value),
-      },
+    const created = await documentsRegistrationApi.post({
+      typeId: current.id,
+      ...cardPayload(value),
     })
-    const record = await http.get('/documents/:id', { params: { id: created.id } })
+    const record = await documentsRegistrationApi.get(created.id)
     const next = { id: record.id, spaceId: record.spaceId }
     setDraft(next)
     return next
@@ -117,10 +116,7 @@ export function RegistrationScreen() {
         attachToObjectId: target.id,
         onProgress: setProgress,
       })
-      await http.post('/documents/:id/versions', {
-        params: { id: target.id },
-        body: { mainFileId: uploaded.id },
-      })
+      await documentsRegistrationApi.postVersions(target.id, { mainFileId: uploaded.id })
       setScanFileId(uploaded.id)
     },
     onSettled: () => setProgress(null),
@@ -131,7 +127,7 @@ export function RegistrationScreen() {
     mutationFn: async () => {
       if (!type) return
       const target = await ensureDraft(type)
-      await http.patch('/documents/:id', { params: { id: target.id }, body: cardPayload(value) })
+      await documentsRegistrationApi.patch(target.id, cardPayload(value))
     },
     onSuccess: () => {
       setErrors({})
@@ -148,8 +144,8 @@ export function RegistrationScreen() {
     mutationFn: async () => {
       if (!type) throw new Error(t('documents.register.noType'))
       const target = await ensureDraft(type)
-      await http.patch('/documents/:id', { params: { id: target.id }, body: cardPayload(value) })
-      return http.post('/documents/:id/register', { params: { id: target.id }, body: {} })
+      await documentsRegistrationApi.patch(target.id, cardPayload(value))
+      return documentsRegistrationApi.postRegister(target.id)
     },
     onSuccess: (record) => {
       toast.show({

@@ -1,9 +1,10 @@
 import type { FeatureFlag } from '@kchs/contracts'
 import { Callout, Card, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 /**
  * Возможности установки (15-admin-operations.md §1): организация выключает то,
@@ -18,12 +19,12 @@ export function FeaturesSection() {
 
   const { data } = useQuery({
     queryKey: keys.features,
-    queryFn: () => http.get('/admin/features'),
+    queryFn: () => adminApi.getFeatures(),
   })
 
   const save = useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
-      http.patch('/admin/features/:key', { params: { key }, body: { enabled } }),
+      adminApi.patchFeatures(key, { enabled }),
     onSuccess: (list) => {
       client.setQueryData(keys.features, list)
       // Оболочка прячет и показывает экраны по `/me`

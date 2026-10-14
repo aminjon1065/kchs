@@ -26,16 +26,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Eye, EyeOff, Inbox, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { fieldLabel } from '~/features/data/index.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useStudio } from '../studio/context.js'
 import { ConflictDialog } from './conflict-dialog.js'
-import { conflictOf, editApi, editKeys, featureEditsQuery, refreshAfterWrite } from './edit-api.js'
 import { editStore } from './edit-store.js'
 import { useFieldText } from './field-text.js'
 import { bboxOf } from './geometry.js'
+import { conflictOf, editApi, editKeys, featureEditsQuery, refreshAfterWrite } from './queries.js'
 
 const STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' } as const
 

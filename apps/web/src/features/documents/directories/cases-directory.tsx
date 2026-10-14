@@ -52,7 +52,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
-import { http } from '~/shared/api/client.js'
 import { meQuery, objectListQuery, orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -67,6 +66,7 @@ import {
 } from '../queries.js'
 import { DOCUMENT_STATUS_TONE, errorText, localToday } from '../status.js'
 import { CaseImportDialog } from './case-import-dialog.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 /** Цвет состояния дела — ключ `STATUS_TONES` дизайн-системы. */
 const CASE_STATUS_TONE: Record<CaseStatus, string> = {
@@ -147,7 +147,7 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 5]
 
   const closeYear = useMutation({
-    mutationFn: () => http.post('/cases/close-year', { body: { year: Number(year) } }),
+    mutationFn: () => documentsDirectoriesApi.postCasesCloseYear({ year: Number(year) }),
     onSuccess: async ({ closed }) => {
       toast.show({ title: t('documents.cases.closeYear.done', { count: closed }), tone: 'success' })
       setClosingYear(false)
@@ -369,12 +369,9 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
   const refresh = () => refreshCases(client, record.id)
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/cases/:id', {
-        params: { id: record.id },
-        body: {
-          title: title.trim(),
-          note: note.trim() || null,
-        },
+      documentsDirectoriesApi.patchCases(record.id, {
+        title: title.trim(),
+        note: note.trim() || null,
       }),
     onSuccess: async () => {
       toast.show({ title: t('documents.cases.saved'), tone: 'success' })
@@ -384,7 +381,7 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
   })
   const act = useMutation({
     mutationFn: (action: 'close' | 'reopen' | 'archive') =>
-      http.post(`/cases/:id/${action}` as const, { params: { id: record.id } }),
+      documentsDirectoriesApi.postCasesAction(record.id, action),
     onSuccess: async (_result, action) => {
       toast.show({ title: t(`documents.cases.done.${action}`), tone: 'success' })
       setConfirm(null)
@@ -661,15 +658,13 @@ function CreateCaseDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/cases', {
-        body: {
-          index: index.trim(),
-          title: title.trim(),
-          year: Number(caseYear),
-          unitId: unitId || null,
-          retentionYears: permanent ? null : retentionYears,
-          documentTypeIds: typeIds,
-        },
+      documentsDirectoriesApi.postCases({
+        index: index.trim(),
+        title: title.trim(),
+        year: Number(caseYear),
+        unitId: unitId || null,
+        retentionYears: permanent ? null : retentionYears,
+        documentTypeIds: typeIds,
       }),
     onSuccess: async (record) => {
       await refreshCases(client)
@@ -813,11 +808,9 @@ function DestructionDialog({ onClose }: { onClose: () => void }) {
 
   const destroy = useMutation({
     mutationFn: () =>
-      http.post('/cases/destruction-acts', {
-        body: {
-          caseIds: chosen,
-          basis: basis.trim(),
-        },
+      documentsDirectoriesApi.postCasesDestructionActs({
+        caseIds: chosen,
+        basis: basis.trim(),
       }),
     onSuccess: async () => {
       toast.show({ title: t('documents.cases.destruction.done'), tone: 'success' })

@@ -2,40 +2,10 @@ import { formatDate } from '@kchs/fields'
 import { Field, Input, SegmentedControl } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { dueFromDate } from './task-status.js'
-
-/** Срок в форме: дата или «N рабочих дней» по производственному календарю (ADR-0082). */
-export interface DueValue {
-  mode: 'date' | 'working'
-  /** `ГГГГ-ММ-ДД` для режима даты. */
-  date: string
-  /** Число рабочих дней строкой — как в поле ввода. */
-  days: string
-}
-
-export const emptyDue = (date = ''): DueValue => ({ mode: 'date', date, days: '' })
-
-const workingDays = (value: DueValue): number | null => {
-  if (value.days.trim() === '') return null
-  const days = Number(value.days)
-  return Number.isInteger(days) && days >= 0 && days <= 366 ? days : null
-}
-
-/** Заполнен ли срок. */
-export const hasDue = (value: DueValue): boolean =>
-  value.mode === 'date' ? value.date !== '' : workingDays(value) !== null
-
-/** Поля запроса: `dueAt` — конец выбранного дня, или `dueWorkingDays`. */
-export function dueFields(value: DueValue): { dueAt?: string; dueWorkingDays?: number } {
-  if (value.mode === 'working') {
-    const days = workingDays(value)
-    return days === null ? {} : { dueWorkingDays: days }
-  }
-  return value.date ? { dueAt: dueFromDate(value.date) } : {}
-}
+import { type DueValue, workingDays } from './due-value.js'
+import { tasksApi } from './queries.js'
 
 /**
  * Срок поручения: дата или рабочие дни. Для рабочих дней сервер считает день
@@ -62,7 +32,7 @@ export function DueInput({
   const days = value.mode === 'working' ? workingDays(value) : null
   const { data: preview } = useQuery({
     queryKey: ['business-calendar', 'deadline', days],
-    queryFn: () => http.get('/business-calendar/deadline', { query: { workingDays: days ?? 0 } }),
+    queryFn: () => tasksApi.getBusinessCalendarDeadline({ workingDays: days ?? 0 }),
     enabled: days !== null,
     staleTime: 60_000,
   })

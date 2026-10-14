@@ -19,10 +19,11 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Table2 } from 'lucide-react'
 import { datasetQuery, useFieldOptions } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { gisPassportApi } from './queries.js'
 
 /** Строк таблицы в паспорте: остальное — в датасете или «Исследовании». */
 const PREVIEW_ROWS = 100
@@ -56,13 +57,10 @@ function RowsTable({ dataset, territoryId }: { dataset: DatasetRecord; territory
   const rows = useQuery({
     queryKey: ['territory', territoryId, 'passport-rows', dataset.id, dataset.currentVersion],
     queryFn: () =>
-      http.post('/datasets/:id/rows/query', {
-        params: { id: dataset.id },
-        body: {
-          where: withinTerritory(field, territoryId),
-          limit: PREVIEW_ROWS,
-          count: true,
-        },
+      gisPassportApi.postDatasetsRowsQuery(dataset.id, {
+        where: withinTerritory(field, territoryId),
+        limit: PREVIEW_ROWS,
+        count: true,
       }),
     retry: false,
   })

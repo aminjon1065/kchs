@@ -17,15 +17,9 @@ import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/reac
 import { Plus } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { type PickedUser, UsersPicker } from '~/entities/people/user-picker.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
-
-const groupsKey = ['groups'] as const
-
-export const groupsQuery = () => ({
-  queryKey: groupsKey,
-  queryFn: async () => (await http.get('/groups')).items,
-})
+import { adminApi, groupsKey, groupsQuery } from './queries.js'
 
 const picked = (user: UserRef): PickedUser => ({
   id: user.id,
@@ -125,9 +119,7 @@ function GroupDialog({ group, onClose }: { group: Group | null; onClose: () => v
   const [error, setError] = useState<string | null>(null)
   const { data: current } = useQuery({
     queryKey: ['groups', group?.id, 'members'],
-    queryFn: group
-      ? async () => (await http.get('/groups/:id/members', { params: { id: group.id } })).items
-      : skipToken,
+    queryFn: group ? async () => (await adminApi.getGroupsMembers(group.id)).items : skipToken,
   })
   useEffect(() => {
     if (current) setMembers(current.map(picked))
@@ -138,29 +130,21 @@ function GroupDialog({ group, onClose }: { group: Group | null; onClose: () => v
       let id = group?.id ?? null
       if (!id) {
         id = (
-          await http.post('/groups', {
-            body: {
-              name: name.trim(),
-              description: description.trim() || null,
-            },
+          await adminApi.postGroups({
+            name: name.trim(),
+            description: description.trim() || null,
           })
         ).id
       } else if (
         name.trim() !== group?.name ||
         (description.trim() || null) !== group?.description
       ) {
-        await http.patch('/groups/:id', {
-          params: { id },
-          body: {
-            name: name.trim(),
-            description: description.trim() || null,
-          },
+        await adminApi.patchGroups(id, {
+          name: name.trim(),
+          description: description.trim() || null,
         })
       }
-      await http.put('/groups/:id/members', {
-        params: { id },
-        body: { userIds: members.map((user) => user.id) },
-      })
+      await adminApi.putGroupsMembers(id, { userIds: members.map((user) => user.id) })
     },
     onSuccess: () => {
       toast.show({ title: t('admin.groups.saved'), tone: 'success' })

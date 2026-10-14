@@ -15,12 +15,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { nextId, orderedTiles, packTiles } from './dashboard-layout.js'
-import { dataKeys } from './queries.js'
+import { dataApi, dataKeys } from './queries.js'
 
 const NEW = '__new'
 
@@ -39,7 +39,7 @@ export function CreateDashboardDialog({
   const [name, setName] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
-    mutationFn: () => http.post('/dashboards', { body: { name: name.trim(), spaceId } }),
+    mutationFn: () => dataApi.postDashboards({ name: name.trim(), spaceId }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.dashboard.created'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -136,22 +136,17 @@ export function AddToDashboardDialog({
   const add = useMutation({
     mutationFn: async (): Promise<{ id: string; title: string }> => {
       if (target === NEW) {
-        const created = await http.post('/dashboards', {
-          body: {
-            name: name.trim(),
-            spaceId: source.spaceId,
-            spec: { tiles: [tileFor([])] },
-          },
+        const created = await dataApi.postDashboards({
+          name: name.trim(),
+          spaceId: source.spaceId,
+          spec: { tiles: [tileFor([])] },
         })
         return { id: created.id, title: name.trim() }
       }
-      const dashboard = await http.get('/dashboards/:id', { params: { id: target } })
+      const dashboard = await dataApi.getDashboards(target)
       const tiles = orderedTiles(dashboard.spec.tiles)
-      await http.patch('/dashboards/:id', {
-        params: { id: target },
-        body: {
-          spec: { ...dashboard.spec, tiles: packTiles([...tiles, tileFor(tiles)]) },
-        },
+      await dataApi.patchDashboards(target, {
+        spec: { ...dashboard.spec, tiles: packTiles([...tiles, tileFor(tiles)]) },
       })
       return { id: target, title: dashboard.name }
     },

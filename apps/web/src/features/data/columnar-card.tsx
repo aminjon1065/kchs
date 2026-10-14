@@ -4,10 +4,10 @@ import { Badge, Button, Card, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Columns3 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { columnarCopyQuery, dataKeys } from './queries.js'
+import { columnarCopyQuery, dataApi, dataKeys } from './queries.js'
 
 /** Состояние копии → тон значка. */
 const TONE: Record<ColumnarCopy['status'], 'success' | 'warning' | 'danger' | 'neutral'> = {
@@ -30,7 +30,7 @@ export function ColumnarCard({ datasetId, canManage }: { datasetId: string; canM
   const { data, isLoading } = useQuery(columnarCopyQuery(datasetId))
 
   const build = useMutation({
-    mutationFn: () => http.post('/datasets/:id/columnar/build', { params: { id: datasetId } }),
+    mutationFn: () => dataApi.postDatasetsColumnarBuild(datasetId),
     onSuccess: (next) => {
       client.setQueryData(dataKeys.columnar(datasetId), next)
       toast.show({ title: t('data.columnar.buildStarted'), tone: 'success' })

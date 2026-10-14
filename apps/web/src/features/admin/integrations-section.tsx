@@ -30,7 +30,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cable, Plus, Webhook as WebhookIcon } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   integrationsQuery,
   keys,
@@ -39,6 +39,7 @@ import {
 } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const STATUS_TONES: Record<Integration['status'], 'success' | 'danger' | 'neutral'> = {
   ok: 'success',
@@ -131,8 +132,8 @@ function IntegrationsList() {
   const check = useMutation({
     mutationFn: (item: Integration) =>
       item.source === 'env'
-        ? http.post('/integrations/builtin/:key/check', { params: { key: item.key } })
-        : http.post('/integrations/:id/check', { params: { id: item.id } }),
+        ? adminApi.postIntegrationsBuiltinCheck(item.key)
+        : adminApi.postIntegrationsCheck(item.id),
     onSuccess: (result) =>
       toast.show({ title: result.message, tone: result.ok ? 'success' : 'danger' }),
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
@@ -140,7 +141,7 @@ function IntegrationsList() {
   })
 
   const issueInbound = useMutation({
-    mutationFn: (id: string) => http.post('/integrations/:id/inbound-secret', { params: { id } }),
+    mutationFn: (id: string) => adminApi.postIntegrationsInboundSecret(id),
     onSuccess: (result) => {
       setInbound({ url: result.url })
       refresh()
@@ -307,14 +308,12 @@ function CreateIntegrationDialog({
         string,
         string
       >
-      return http.post('/integrations', {
-        body: {
-          key,
-          kind,
-          name,
-          config: parsed,
-          secrets: parsedSecrets,
-        },
+      return adminApi.postIntegrations({
+        key,
+        kind,
+        name,
+        config: parsed,
+        secrets: parsedSecrets,
       })
     },
     onSuccess: () => {
@@ -453,10 +452,7 @@ function EditIntegrationDialog({
 
   const { data: syncs = [] } = useQuery({
     queryKey: [...keys.integrations, integration.id, 'syncs'],
-    queryFn: () =>
-      http
-        .get('/integrations/:id/syncs', { params: { id: integration.id }, query: { limit: 10 } })
-        .then((result) => result.items),
+    queryFn: () => adminApi.getIntegrationsSyncs(integration.id).then((result) => result.items),
   })
 
   const save = useMutation({
@@ -466,13 +462,10 @@ function EditIntegrationDialog({
         string,
         string
       >
-      return http.patch('/integrations/:id', {
-        params: { id: integration.id },
-        body: {
-          config: parsed,
-          enabled,
-          ...(Object.keys(parsedSecrets).length > 0 ? { secrets: parsedSecrets } : {}),
-        },
+      return adminApi.patchIntegrations(integration.id, {
+        config: parsed,
+        enabled,
+        ...(Object.keys(parsedSecrets).length > 0 ? { secrets: parsedSecrets } : {}),
       })
     },
     onSuccess: () => onSaved(),
@@ -583,18 +576,15 @@ function WebhooksList() {
 
   const toggle = useMutation({
     mutationFn: (item: Webhook) =>
-      http.patch('/webhooks/:id', {
-        params: { id: item.id },
-        body: {
-          status: item.status === 'active' ? 'paused' : 'active',
-        },
+      adminApi.patchWebhooks(item.id, {
+        status: item.status === 'active' ? 'paused' : 'active',
       }),
     onSuccess: refresh,
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete('/webhooks/:id', { params: { id } }),
+    mutationFn: (id: string) => adminApi.removeWebhooks(id),
     onSuccess: () => {
       setRemoving(null)
       refresh()
@@ -732,15 +722,13 @@ function CreateWebhookDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/webhooks', {
-        body: {
-          name,
-          url,
-          eventTypes: types
-            .split(',')
-            .map((item) => item.trim())
-            .filter((item) => item.length > 0),
-        },
+      adminApi.postWebhooks({
+        name,
+        url,
+        eventTypes: types
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0),
       }),
     onSuccess: (result) => {
       setName('')
@@ -808,9 +796,7 @@ function DeliveriesDialog({ webhook, onClose }: { webhook: Webhook | null; onClo
 
   const retry = useMutation({
     mutationFn: (deliveryId: string) =>
-      http.post('/webhooks/:id/deliveries/:deliveryId/retry', {
-        params: { id: webhook!.id, deliveryId },
-      }),
+      adminApi.postWebhooksDeliveriesRetry(webhook!.id, deliveryId),
     onSuccess: () => {
       toast.show({ title: t('admin.webhooks.retried'), tone: 'info' })
       if (webhook) {

@@ -19,9 +19,9 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, FileText, Pencil, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
-import { recordingKeys } from './queries.js'
+import { meetingsRecordingApi, recordingKeys } from './queries.js'
 
 /** Значение выбора «говорящий не сопоставлен» — у Select не бывает пустого значения. */
 const NOBODY = '__nobody'
@@ -268,11 +268,8 @@ function SegmentEditor({
   const [error, setError] = useState<string | null>(null)
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/recordings/:id/transcript/segments/:index', {
-        params: { id: recordingId, index },
-        body: {
-          text: draft.trim(),
-        },
+      meetingsRecordingApi.patchRecordingsTranscriptSegments(recordingId, index, {
+        text: draft.trim(),
       }),
     onSuccess: (next) => {
       client.setQueryData(recordingKeys.transcript(recordingId), next)
@@ -342,10 +339,7 @@ function SpeakerMapping({
   const client = useQueryClient()
   const assign = useMutation({
     mutationFn: (input: { label: string; userId: string | null }) =>
-      http.put('/recordings/:id/transcript/speakers', {
-        params: { id: transcript.recordingId },
-        body: input,
-      }),
+      meetingsRecordingApi.putRecordingsTranscriptSpeakers(transcript.recordingId, input),
     onSuccess: (next) =>
       client.setQueryData(recordingKeys.transcript(transcript.recordingId), next),
     onError: (failure) =>

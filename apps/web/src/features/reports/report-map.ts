@@ -8,7 +8,7 @@ import {
   type RenderedLayers,
   useRenderedLayers,
 } from '~/features/gis/layer-render.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 
 /** Вид по умолчанию — Таджикистан целиком (как у новой карты). */
 export const DEFAULT_REPORT_CAMERA: MapCamera = {

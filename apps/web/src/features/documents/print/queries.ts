@@ -1,6 +1,7 @@
 import type { DocumentRenderRecord } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody, ApiQuery } from '~/shared/api/route-types.js'
 
 const ACTIVE = new Set(['queued', 'running'])
 
@@ -64,13 +65,10 @@ export async function waitForRender(
   return render
 }
 
-/** Скачивание по подписанной ссылке: имя файла задаёт сервер. */
-export function saveLink(result: { url: string; name: string }): void {
-  const link = window.document.createElement('a')
-  link.href = result.url
-  link.download = result.name
-  link.rel = 'noopener'
-  window.document.body.appendChild(link)
-  link.click()
-  link.remove()
+export const documentsPrintApi = {
+  getVersionsCompare: (id: string, query: ApiQuery<'GET /documents/:id/versions/compare'>) =>
+    http.get('/documents/:id/versions/compare', { params: { id }, query }),
+  postPrints: (body: ApiBody<'POST /documents/prints'>) => http.post('/documents/prints', { body }),
+  postFill: (id: string, body: ApiBody<'POST /documents/:id/fill'>) =>
+    http.post('/documents/:id/fill', { params: { id }, body }),
 }

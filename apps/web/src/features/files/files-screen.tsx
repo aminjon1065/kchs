@@ -43,7 +43,6 @@ import {
   RenameDialog,
 } from '~/features/files/move-dialog.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
-import { http } from '~/shared/api/client.js'
 import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
@@ -57,6 +56,7 @@ import {
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { filesApi } from './queries.js'
 
 const TYPES = ['folder', 'file']
 /** Тип данных перетаскивания объектов списка: отличает их от файлов с диска. */
@@ -161,12 +161,10 @@ export function FilesScreen({
 
   const createFolder = useMutation({
     mutationFn: () =>
-      http.post('/folders', {
-        body: {
-          name: folderName.trim(),
-          spaceId: effectiveSpaceId!,
-          parentId: parentId ?? null,
-        },
+      filesApi.postFolders({
+        name: folderName.trim(),
+        spaceId: effectiveSpaceId!,
+        parentId: parentId ?? null,
       }),
     onSuccess: () => {
       setCreateFolderOpen(false)
@@ -178,7 +176,7 @@ export function FilesScreen({
   })
 
   const trash = useMutation({
-    mutationFn: (objectId: string) => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: (objectId: string) => filesApi.removeObject(objectId),
     onSuccess: (_result, objectId) => {
       refresh()
       toast.show({
@@ -187,7 +185,7 @@ export function FilesScreen({
         action: {
           label: t('common.actions.undo'),
           onClick: () => {
-            void http.post('/objects/:id/restore', { params: { id: objectId } }).then(refresh)
+            void filesApi.restoreObject(objectId).then(refresh)
           },
         },
       })

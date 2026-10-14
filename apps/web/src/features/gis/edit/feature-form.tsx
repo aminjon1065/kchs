@@ -29,21 +29,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useFieldOptions } from '~/features/data/index.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { TerritoryField } from '../../../entities/territory/territory-field.js'
 import { useStudio } from '../studio/context.js'
 import { ConflictDialog } from './conflict-dialog.js'
-import {
-  conflictOf,
-  editApi,
-  editKeys,
-  refreshAfterWrite,
-  reverseGeocodeQuery,
-} from './edit-api.js'
 import { editStore } from './edit-store.js'
 import { representativePoint, sameGeometry, splitParts } from './geometry.js'
-import { TerritoryField } from './territory-field.js'
+import { conflictOf, editApi, editKeys, refreshAfterWrite, reverseGeocodeQuery } from './queries.js'
 
 /** Типы, которые форма не правит: вычисляемые и геометрия (она — на карте). */
 const NOT_IN_FORM = new Set(['geometry', 'formula', 'lookup', 'rollup'])

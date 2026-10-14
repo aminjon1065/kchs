@@ -32,13 +32,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, Plus, Share2, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { PrintMenu } from '../print/print-menu.js'
 import { documentKeys, journalReservationsQuery, journalsQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 /**
  * Справочник журналов регистрации (08-documents.md §5): шаблон номера с
@@ -183,16 +183,13 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/journals/:id', {
-        params: { id: journal.id },
-        body: {
-          name: name.trim(),
-          ...(key !== journal.key ? { key: key.trim() } : {}),
-          prefix: prefix.trim(),
-          format,
-          reset,
-          isActive: active,
-        },
+      documentsDirectoriesApi.patchJournals(journal.id, {
+        name: name.trim(),
+        ...(key !== journal.key ? { key: key.trim() } : {}),
+        prefix: prefix.trim(),
+        format,
+        reset,
+        isActive: active,
       }),
     onSuccess: () => {
       toast.show({ title: t('documents.journals.saved'), tone: 'success' })
@@ -330,12 +327,9 @@ function Reservations({ journal }: { journal: JournalRecord }) {
   }
   const reserve = useMutation({
     mutationFn: () =>
-      http.post('/journals/:id/reservations', {
-        params: { id: journal.id },
-        body: {
-          count: Number(count),
-          note: note.trim(),
-        },
+      documentsDirectoriesApi.postJournalsReservations(journal.id, {
+        count: Number(count),
+        note: note.trim(),
       }),
     onSuccess: ({ items }) => {
       setNote('')
@@ -351,10 +345,7 @@ function Reservations({ journal }: { journal: JournalRecord }) {
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
   const cancel = useMutation({
-    mutationFn: (id: string) =>
-      http.delete('/journals/:id/reservations/:reservationId', {
-        params: { id: journal.id, reservationId: id },
-      }),
+    mutationFn: (id: string) => documentsDirectoriesApi.removeJournalsReservations(journal.id, id),
     onSuccess: refresh,
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
@@ -443,13 +434,11 @@ function CreateJournalDialog({
   const keyValid = key.trim() === '' || DirectoryKey.safeParse(key).success
   const create = useMutation({
     mutationFn: () =>
-      http.post('/journals', {
-        body: {
-          name: name.trim(),
-          ...(key.trim() ? { key: key.trim() } : {}),
-          prefix: prefix.trim(),
-          format,
-        },
+      documentsDirectoriesApi.postJournals({
+        name: name.trim(),
+        ...(key.trim() ? { key: key.trim() } : {}),
+        prefix: prefix.trim(),
+        format,
       }),
     onSuccess: (journal) => {
       void client.invalidateQueries({ queryKey: documentKeys.all })

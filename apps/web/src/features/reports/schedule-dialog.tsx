@@ -37,13 +37,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { UserPicker } from '~/entities/people/user-picker.js'
-import { groupsQuery } from '~/features/admin/groups-section.js'
+import { groupsQuery } from '~/features/admin/index.js'
 import { PERIOD_PRESETS, type PeriodPreset, periodValue } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { reportKeys, reportScheduleQuery } from './queries.js'
+import { reportKeys, reportScheduleQuery, reportsApi } from './queries.js'
 
 const AS_REPORT = '__report'
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
@@ -159,12 +159,9 @@ export function ReportScheduleDialog({
 
   const save = useMutation({
     mutationFn: (value: Draft) =>
-      http.put('/reports/:id/schedule', {
-        params: { id: reportId },
-        body: {
-          ...value,
-          recipients: value.recipients.map((recipient) => recipient.id),
-        },
+      reportsApi.putSchedule(reportId, {
+        ...value,
+        recipients: value.recipients.map((recipient) => recipient.id),
       }),
     onSuccess: (saved) => {
       toast.show({ title: t('data.report.schedule.saved'), tone: 'success' })
@@ -175,7 +172,7 @@ export function ReportScheduleDialog({
     onError: fail,
   })
   const remove = useMutation({
-    mutationFn: () => http.delete('/reports/:id/schedule', { params: { id: reportId } }),
+    mutationFn: () => reportsApi.removeSchedule(reportId),
     onSuccess: () => {
       toast.show({ title: t('data.report.schedule.removed'), tone: 'info' })
       refresh()
@@ -184,7 +181,7 @@ export function ReportScheduleDialog({
     onError: fail,
   })
   const sendNow = useMutation({
-    mutationFn: () => http.post('/reports/:id/schedule/run', { params: { id: reportId } }),
+    mutationFn: () => reportsApi.postScheduleRun(reportId),
     onSuccess: (result) => {
       toast.show({ title: t('data.report.schedule.sent', { count: result.runs }), tone: 'success' })
       refresh()

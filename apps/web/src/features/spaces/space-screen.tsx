@@ -17,8 +17,8 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { FolderPlus, UserPlus } from 'lucide-react'
-import { useState } from 'react'
-import { FilesScreen } from '~/features/files/files-screen.js'
+import { Suspense, useState } from 'react'
+import { LazyFilesScreen } from '~/features/files/index.js'
 import {
   objectListQuery,
   objectQuery,
@@ -170,7 +170,9 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
         </TabsContent>
 
         <TabsContent value="files" className="min-h-0 flex-1">
-          <FilesScreen spaceId={spaceId} />
+          <Suspense fallback={null}>
+            <LazyFilesScreen spaceId={spaceId} />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="members" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">

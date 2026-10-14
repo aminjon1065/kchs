@@ -1,8 +1,8 @@
 import { Button } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { LayoutDashboard } from 'lucide-react'
-import { useState } from 'react'
-import { AddToDashboardDialog } from '~/features/data/dashboard-dialogs.js'
+import { Suspense, useState } from 'react'
+import { LazyAddToDashboardDialog } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
 import { mapQuery } from '../queries.js'
 import { useStudio } from './context.js'
@@ -27,10 +27,12 @@ export function AddMapToDashboard() {
         {t('data.dashboard.addToDashboard')}
       </Button>
       {open ? (
-        <AddToDashboardDialog
-          source={{ kind: 'map', id: mapId, name: record?.name ?? '', spaceId }}
-          onClose={() => setOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <LazyAddToDashboardDialog
+            source={{ kind: 'map', id: mapId, name: record?.name ?? '', spaceId }}
+            onClose={() => setOpen(false)}
+          />
+        </Suspense>
       ) : null}
     </>
   )

@@ -16,3 +16,27 @@ export const LazyChoroplethPreview = lazy(() =>
 export const LazyPointsPreview = lazy(() =>
   import('./points-preview.js').then((module) => ({ default: module.PointsPreview })),
 )
+
+export const LazyMapEmbed = lazy(() =>
+  import('./map-embed.js').then((module) => ({ default: module.MapEmbed })),
+)
+
+export const LazyChoroplethButton = lazy(() =>
+  import('./choropleth/choropleth-button.js').then((module) => ({
+    default: module.ChoroplethButton,
+  })),
+)
+
+export const LazyShowOnMapButton = lazy(() =>
+  import('./show-on-map.js').then((module) => ({ default: module.ShowOnMapButton })),
+)
+
+export const LazyPointField = lazy(() =>
+  import('./edit/point-field.js').then((module) => ({ default: module.PointField })),
+)
+
+export const LazyChoroplethMapButton = lazy(() =>
+  import('./choropleth/choropleth-summary.js').then((module) => ({
+    default: module.ChoroplethMapButton,
+  })),
+)

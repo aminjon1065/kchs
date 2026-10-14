@@ -20,9 +20,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, principalsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { spacesApi } from './queries.js'
 
 function useRefreshMembers(spaceId: string) {
   const client = useQueryClient()
@@ -69,11 +70,7 @@ export function AddMemberDialog({
   }
 
   const add = useMutation({
-    mutationFn: () =>
-      http.post('/spaces/:id/members', {
-        params: { id: spaceId },
-        body: { userId: picked!.id, role },
-      }),
+    mutationFn: () => spacesApi.postMembers(spaceId, { userId: picked!.id, role }),
     onSuccess: () => {
       toast.show({
         title: t('spaces.members.added', { name: picked?.title ?? '' }),
@@ -200,19 +197,12 @@ export function MemberControls({ spaceId, member }: { spaceId: string; member: S
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const change = useMutation({
-    mutationFn: (role: SpaceRole) =>
-      http.put('/spaces/:id/members/:userId', {
-        params: { id: spaceId, userId: member.userId },
-        body: { role },
-      }),
+    mutationFn: (role: SpaceRole) => spacesApi.putMembers(spaceId, member.userId, { role }),
     onSuccess: refresh,
     onError: failed,
   })
   const remove = useMutation({
-    mutationFn: () =>
-      http.delete('/spaces/:id/members/:userId', {
-        params: { id: spaceId, userId: member.userId },
-      }),
+    mutationFn: () => spacesApi.removeMembers(spaceId, member.userId),
     onSuccess: () => {
       toast.show({ title: t('spaces.members.removed', { name: member.displayName }), tone: 'info' })
       refresh()

@@ -4,8 +4,9 @@ import { AlertDialog, Badge, Button, Callout, Dialog, DialogContent, useToast } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fingerprint } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 /**
  * Ключи входа сотрудника в консоли (N45): список перед отзывом и «Отозвать все» —
@@ -26,10 +27,10 @@ export function UserPasskeysDialog({
   const key = ['users', user.id, 'passkeys'] as const
   const { data: items = [], isLoading } = useQuery({
     queryKey: key,
-    queryFn: async () => (await http.get('/users/:id/passkeys', { params: { id: user.id } })).items,
+    queryFn: async () => (await adminApi.getUsersPasskeys(user.id)).items,
   })
   const revoke = useMutation({
-    mutationFn: () => http.delete('/users/:id/passkeys', { params: { id: user.id } }),
+    mutationFn: () => adminApi.removeUsersPasskeys(user.id),
     onSuccess: (result) => {
       setConfirming(false)
       toast.show({

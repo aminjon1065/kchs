@@ -20,11 +20,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, FileUp, KeyRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { apiUrl } from '~/shared/api/link.js'
 import { keys, meQuery, usersImportQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 /** Строк с ошибками на экране; полный список — в отчёте CSV. */
 const SHOWN_ROWS = 200
@@ -92,8 +93,7 @@ export function UsersImportDialog({
   })
 
   const start = useMutation({
-    mutationFn: (mode: UsersImportMode) =>
-      http.post('/admin/users/import', { body: { fileId: file!.id, mode } }),
+    mutationFn: (mode: UsersImportMode) => adminApi.postUsersImport({ fileId: file!.id, mode }),
     onSuccess: (result) => {
       setCredentialsTaken(false)
       setImportId(result.importId)

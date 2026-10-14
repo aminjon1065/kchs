@@ -19,15 +19,16 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
-import { projectsQuery, taskKeys } from './queries.js'
+import { DueInput } from './due-input.js'
+import { type DueValue, dueFields, emptyDue, hasDue } from './due-value.js'
+import { projectsQuery, taskKeys, tasksApi } from './queries.js'
 import { errorText, useTaskInvalidation } from './task-actions.js'
 import {
   emptyRepeat,
@@ -114,22 +115,20 @@ export function CreateTaskDialog({
 
   const createSeries = useMutation({
     mutationFn: () =>
-      http.post('/task-series', {
-        body: {
-          template: {
-            kind,
-            title: title.trim(),
-            priority: Number(priority),
-            ...(description.trim() ? { description: description.trim() } : {}),
-            ...(projectId !== NO_PROJECT ? { projectId } : {}),
-            ...(assignee ? { assigneeId: assignee.id } : {}),
-            ...(instruction && coAssignees.length > 0
-              ? { coAssigneeIds: coAssignees.map((user) => user.id) }
-              : {}),
-            ...(instruction && controller ? { controllerId: controller.id } : {}),
-          },
-          ...repeatFields(repeat),
+      tasksApi.postTaskSeries({
+        template: {
+          kind,
+          title: title.trim(),
+          priority: Number(priority),
+          ...(description.trim() ? { description: description.trim() } : {}),
+          ...(projectId !== NO_PROJECT ? { projectId } : {}),
+          ...(assignee ? { assigneeId: assignee.id } : {}),
+          ...(instruction && coAssignees.length > 0
+            ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+            : {}),
+          ...(instruction && controller ? { controllerId: controller.id } : {}),
         },
+        ...repeatFields(repeat),
       }),
     onSuccess: (series) => {
       toast.show({
@@ -149,22 +148,20 @@ export function CreateTaskDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/tasks', {
-        body: {
-          kind,
-          title: title.trim(),
-          priority: Number(priority),
-          ...(description.trim() ? { description: description.trim() } : {}),
-          ...(projectId !== NO_PROJECT ? { projectId } : {}),
-          ...(assignee ? { assigneeId: assignee.id } : {}),
-          ...(instruction && coAssignees.length > 0
-            ? { coAssigneeIds: coAssignees.map((user) => user.id) }
-            : {}),
-          ...(instruction && controller ? { controllerId: controller.id } : {}),
-          ...dueFields(due),
-          ...(draft.source ? { source: draft.source } : {}),
-          ...(territoryId ? { territoryId } : {}),
-        },
+      tasksApi.create({
+        kind,
+        title: title.trim(),
+        priority: Number(priority),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(projectId !== NO_PROJECT ? { projectId } : {}),
+        ...(assignee ? { assigneeId: assignee.id } : {}),
+        ...(instruction && coAssignees.length > 0
+          ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+          : {}),
+        ...(instruction && controller ? { controllerId: controller.id } : {}),
+        ...dueFields(due),
+        ...(draft.source ? { source: draft.source } : {}),
+        ...(territoryId ? { territoryId } : {}),
       }),
     onSuccess: ({ id }) => {
       const created = title.trim()
@@ -404,7 +401,7 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
   }
 
   const save = useMutation({
-    mutationFn: () => http.patch('/tasks/:id', { params: { id: task.id }, body: patch() }),
+    mutationFn: () => tasksApi.update(task.id, patch()),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
       toast.show({ title: t('common.states.saved'), tone: 'success' })
@@ -555,13 +552,11 @@ export function CreateProjectDialog({ onClose }: { onClose: () => void }) {
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/projects', {
-        body: {
-          key: key.trim(),
-          name: name.trim(),
-          spaceId: space,
-          ...(description.trim() ? { description: description.trim() } : {}),
-        },
+      tasksApi.createProject({
+        key: key.trim(),
+        name: name.trim(),
+        spaceId: space,
+        ...(description.trim() ? { description: description.trim() } : {}),
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('tasks.projects.created'), tone: 'success' })

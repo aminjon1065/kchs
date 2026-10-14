@@ -3,13 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { WifiOff } from 'lucide-react'
 import { Suspense, useEffect, useState } from 'react'
 import { useBranding } from '~/shared/api/branding.js'
+import { ApiError } from '~/shared/api/errors.js'
+import { keys, meQuery } from '~/shared/api/queries.js'
 import {
-  ApiError,
   setCsrfToken,
   setSetupRequiredHandler,
   setUnauthorizedHandler,
-} from '~/shared/api/client.js'
-import { keys, meQuery } from '~/shared/api/queries.js'
+} from '~/shared/api/session.js'
 import { initAppearance } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { forgetProfile } from '~/shared/offline/profile.js'

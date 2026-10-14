@@ -50,7 +50,7 @@ import {
   Share2,
   Trash2,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, Suspense, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { useCollabDocument } from '~/entities/collab/collab.js'
@@ -71,19 +71,19 @@ import {
 } from '~/entities/collab/notebook-doc.js'
 import { documentTypesQuery } from '~/features/documents/index.js'
 import {
+  LazyNotebookParamsBar,
   type NotebookContextValue,
   NotebookProvider,
   useNotebook,
   usePeers,
-} from '~/features/notebooks/notebook-context.js'
-import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
-import { ApiError, http } from '~/shared/api/client.js'
+} from '~/features/notebooks/index.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { reportPreviewPath } from './print/print-target.js'
-import { reportKeys } from './queries.js'
+import { reportKeys, reportsApi } from './queries.js'
 import {
   ChartBlock,
   DashboardBlock,
@@ -151,8 +151,7 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
   const collab = useCollabDocument(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => reportsApi.patchObjects(objectId, { title }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -160,14 +159,14 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => reportsApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void reportsApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -175,8 +174,7 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
     },
   })
   const render = useMutation({
-    mutationFn: (formats: ReportFormat[]) =>
-      http.post('/reports/:id/runs', { params: { id: objectId }, body: { formats } }),
+    mutationFn: (formats: ReportFormat[]) => reportsApi.postRuns(objectId, { formats }),
     onSuccess: () => {
       toast.show({ title: t('data.report.run.started'), tone: 'info' })
       setRunsOpen(true)
@@ -380,8 +378,7 @@ function ReportToDocumentDialog({
   const outgoing = types.filter((type) => type.direction === 'outgoing')
 
   const create = useMutation({
-    mutationFn: () =>
-      http.post('/reports/:id/document', { params: { id: reportId }, body: { typeId } }),
+    mutationFn: () => reportsApi.postDocument(reportId, { typeId }),
     onSuccess: ({ documentId }) => {
       onOpenChange(false)
       toast.show({ title: t('data.report.toDocument.created'), tone: 'success' })
@@ -474,7 +471,9 @@ function ReportScreen({
     <NotebookProvider value={context}>
       <div className="flex h-full min-h-0 flex-col">
         {toolbar(settings)}
-        <NotebookParamsBar label={t('data.report.params')} />
+        <Suspense fallback={null}>
+          <LazyNotebookParamsBar label={t('data.report.params')} />
+        </Suspense>
         <SettingsBar report={report} />
         <div className="flex min-h-0 flex-1">
           <div className="min-h-0 flex-1 overflow-y-auto bg-canvas">

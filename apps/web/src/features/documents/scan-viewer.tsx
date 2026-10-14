@@ -3,9 +3,9 @@ import { skipToken, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { WatermarkLayer } from '~/entities/files/watermark-layer.js'
-import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { documentsApi } from './queries.js'
 
 const PENDING = new Set(['queued', 'processing'])
 const ZOOMS = [50, 75, 100, 125, 150, 200, 300] as const
@@ -29,7 +29,7 @@ export function ScanViewer({
   const [zoom, setZoom] = useState<number | 'fit'>('fit')
   const previews = useQuery({
     queryKey: fileId ? keys.filePreviews(fileId) : ['object', 'none', 'previews'],
-    queryFn: fileId ? () => http.get('/files/:id/previews', { params: { id: fileId } }) : skipToken,
+    queryFn: fileId ? () => documentsApi.getFilesPreviews(fileId) : skipToken,
     staleTime: 5 * 60_000,
     refetchInterval: (query) =>
       query.state.data && PENDING.has(query.state.data.previewStatus) ? 4000 : false,

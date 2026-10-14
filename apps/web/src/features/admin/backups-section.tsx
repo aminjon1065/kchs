@@ -2,9 +2,10 @@ import { formatDateTime, formatFileSize } from '@kchs/fields'
 import { Badge, Button, Callout, Card, EmptyState, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database } from 'lucide-react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const KEY = ['admin', 'backups'] as const
 const CHECKS_KEY = ['admin', 'backups', 'restore-checks'] as const
@@ -22,13 +23,13 @@ export function BackupsSection() {
 
   const { data } = useQuery({
     queryKey: KEY,
-    queryFn: () => http.get('/admin/backups'),
+    queryFn: () => adminApi.getBackups(),
     refetchInterval: (query) =>
       query.state.data?.items.some((item) => item.status === 'running') ? 5_000 : false,
   })
 
   const run = useMutation({
-    mutationFn: () => http.post('/admin/backups'),
+    mutationFn: () => adminApi.postBackups(),
     onSuccess: (record) => {
       void client.invalidateQueries({ queryKey: KEY })
       if (record.status === 'failed') toast.error(record.error ?? t('errors.unknown'))
@@ -39,8 +40,7 @@ export function BackupsSection() {
   })
 
   const verify = useMutation({
-    mutationFn: (id: string) =>
-      http.post('/admin/backups/:id/verified', { params: { id }, body: { note: '' } }),
+    mutationFn: (id: string) => adminApi.postBackupsVerified(id),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: KEY })
       toast.show({ title: t('admin.backups.verified'), tone: 'success' })
@@ -51,11 +51,11 @@ export function BackupsSection() {
   // сообщает итог токеном служебной записи — здесь только история
   const { data: checks } = useQuery({
     queryKey: CHECKS_KEY,
-    queryFn: () => http.get('/admin/backups/restore-checks'),
+    queryFn: () => adminApi.getBackupsRestoreChecks(),
   })
 
   const reindex = useMutation({
-    mutationFn: () => http.post('/admin/maintenance/reindex'),
+    mutationFn: () => adminApi.postMaintenanceReindex(),
     onSuccess: () => toast.show({ title: t('admin.maintenance.reindexStarted'), tone: 'success' }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

@@ -17,11 +17,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { errorText, localToday } from '../status.js'
-import { printFormsQuery, renderKeys, waitForRender } from './renders.js'
+import { documentsPrintApi, printFormsQuery, renderKeys, waitForRender } from './queries.js'
 
 /** Первый день текущего месяца — период реестра по умолчанию. */
 function monthStart(today: string): string {
@@ -44,12 +43,10 @@ export function PrintMenu({ subjectId }: { subjectId: string }) {
 
   const print = useMutation({
     mutationFn: async (input: { form: PrintFormInfo; period?: { from: string; to: string } }) => {
-      const render = await http.post('/documents/prints', {
-        body: {
-          subjectId,
-          form: input.form.key,
-          params: input.period ? { period: input.period } : {},
-        },
+      const render = await documentsPrintApi.postPrints({
+        subjectId,
+        form: input.form.key,
+        params: input.period ? { period: input.period } : {},
       })
       return waitForRender(render.id)
     },

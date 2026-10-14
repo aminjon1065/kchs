@@ -23,14 +23,14 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { analysisStep, NEGATABLE, TARGET_OPS } from './analysis-step.js'
-import { datasetQuery } from './queries.js'
+import { dataApi, datasetQuery } from './queries.js'
 
 const NONE = '__none'
 
@@ -114,18 +114,16 @@ export function AnalysisDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/analyses', {
-        body: {
-          name: title,
-          spaceId: dataset.spaceId,
-          ...(outputName.trim() ? { outputName: outputName.trim() } : {}),
-          query: {
-            version: 1,
-            source: { kind: 'dataset', id: dataset.id },
-            steps: step ? [step] : [],
-          },
-          run: true,
+      dataApi.postAnalyses({
+        name: title,
+        spaceId: dataset.spaceId,
+        ...(outputName.trim() ? { outputName: outputName.trim() } : {}),
+        query: {
+          version: 1,
+          source: { kind: 'dataset', id: dataset.id },
+          steps: step ? [step] : [],
         },
+        run: true,
       }),
     onSuccess: (record) => {
       toast.show({ title: t('data.analysis.started'), tone: 'success' })

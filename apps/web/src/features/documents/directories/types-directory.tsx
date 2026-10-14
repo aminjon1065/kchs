@@ -31,13 +31,13 @@ import { FileCog, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { pickedOf } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { PrincipalsPicker } from '../principals-picker.js'
+import { PrincipalsPicker } from '../../../entities/access/principals-picker.js'
 import { documentKeys, documentTypesQuery, journalsQuery } from '../queries.js'
 import { errorText } from '../status.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 const NO_JOURNAL = '__none__'
 
@@ -215,7 +215,7 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
         settings: { ...form.settings, defaultDeadlineDays: days, ackDueWorkingDays: ackDays },
         isActive: form.active,
       }
-      return http.patch('/document-types/:id', { params: { id: type.id }, body })
+      return documentsDirectoriesApi.patchDocumentTypes(type.id, body)
     },
     onSuccess: () => {
       toast.show({ title: t('documents.types.saved'), tone: 'success' })

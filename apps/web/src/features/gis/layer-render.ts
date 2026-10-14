@@ -23,10 +23,10 @@ import type {
 } from '@kchs/ui'
 import { queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { http } from '~/shared/api/client.js'
 import { tileUrl } from '~/shared/api/link.js'
 import { useLocale } from '~/shared/appearance.js'
 import { layerDatasetQuery } from './layer-source-queries.js'
+import { gisApi } from './queries.js'
 import type { DeckEntry } from './studio/deck-overlay.js'
 import { deckDrawable } from './studio/deck-roles.js'
 import { selectionLayers } from './studio/selection-layers.js'
@@ -78,7 +78,7 @@ export const layerSourceId = (layerId: string) => `layer-${layerId}`
 export const layerStatsQuery = (layer: LayerRecord, request: StatsRequest) =>
   queryOptions({
     queryKey: ['layer', layer.id, 'stats', layer.datasetVersion, request] as const,
-    queryFn: () => http.post('/gis/layers/:id/stats', { params: { id: layer.id }, body: request }),
+    queryFn: () => gisApi.postLayersStats(layer.id, request),
     staleTime: 5 * 60_000,
     retry: false,
     // Смена метода или числа классов — прежние границы того же поля, пока не пришли

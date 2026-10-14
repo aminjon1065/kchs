@@ -44,13 +44,13 @@ import {
   periodText,
   presetPeriod,
 } from '~/entities/data/metric-format.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { fieldLabel, filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
-import { dataKeys, datasetQuery } from './queries.js'
+import { dataApi, dataKeys, datasetQuery } from './queries.js'
 
 const DATASET_TIME = '__dataset'
 /** Количество строк — мера без поля. */
@@ -253,10 +253,10 @@ export function MetricEditor({
         })),
       }
       if (metric) {
-        await http.patch('/metrics/:id', { params: { id: metric.id }, body })
+        await dataApi.patchMetrics(metric.id, body)
         return { id: metric.id }
       }
-      return http.post('/metrics', { body: { ...body, spaceId } })
+      return dataApi.postMetrics({ ...body, spaceId })
     },
     onSuccess: ({ id }) => {
       toast.show({

@@ -8,7 +8,9 @@ import type {
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import { dataKeys } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import type { Position } from './geometry.js'
 
 /** Ключи кэша правки объектов слоя (ADR-0076). */
@@ -98,6 +100,9 @@ export const editApi = {
     }),
   feature: (layerId: string, rowId: string) =>
     http.get('/gis/layers/:id/features/:rowId', { params: { id: layerId, rowId } }),
+  /** Настройки редактирования слоя: поля, проверка правок. */
+  updateLayer: (layerId: string, body: ApiBody<'PATCH /gis/layers/:id'>) =>
+    http.patch('/gis/layers/:id', { params: { id: layerId }, body }),
 }
 
 /** 409 правки строки: текущее состояние и поля, изменённые с тех пор. */

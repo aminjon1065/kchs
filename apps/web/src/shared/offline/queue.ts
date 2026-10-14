@@ -6,7 +6,8 @@ import type {
   FormSubmissionSubmitInput,
 } from '@kchs/contracts'
 import { useSyncExternalStore } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { forgetPhotos, resolvePhotos, sweepPhotos, uploadDocumentPhotos } from './photos.js'
 import { CACHE_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
 

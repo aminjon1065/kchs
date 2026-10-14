@@ -3,5 +3,8 @@
  * модули — запросы, ключи, подписи, форматы. Компоненты сюда не попадают, чтобы
  * не тянуть их в чанк потребителя.
  */
+
+export * from './due-value.js'
+export * from './lazy.js'
 export * from './queries.js'
 export * from './task-status.js'

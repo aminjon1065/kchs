@@ -3,9 +3,10 @@ import { Chart, NumberTile } from '@kchs/ui'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { metricTileModel } from '~/entities/data/metric-format.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { usePrint, useReportReady } from './print-context.js'
+import { reportsPrintApi } from './queries.js'
 
 type BlockOf<K extends ReportBlock['kind']> = Extract<ReportBlock, { kind: K }>
 
@@ -43,9 +44,7 @@ export function PrintImage({ block, reportId }: { block: BlockOf<'image'>; repor
   const fileId = block.fileId
   const image = useQuery({
     queryKey: ['report', reportId, 'image', fileId],
-    queryFn: fileId
-      ? () => http.get('/reports/:id/images/:fileId', { params: { id: reportId, fileId } })
-      : skipToken,
+    queryFn: fileId ? () => reportsPrintApi.getImages(reportId, fileId) : skipToken,
     retry: false,
   })
   const model = useMemo<ReportPrintBlock[] | null>(
@@ -78,11 +77,7 @@ export function PrintFiles({ block, reportId }: { block: BlockOf<'file'>; report
   const t = useT()
   const files = useQuery({
     queryKey: ['report', reportId, 'files', block.fileIds],
-    queryFn: () =>
-      http.get('/reports/:id/files', {
-        params: { id: reportId },
-        query: { ids: block.fileIds.join(',') },
-      }),
+    queryFn: () => reportsPrintApi.getFiles(reportId, { ids: block.fileIds.join(',') }),
     enabled: block.fileIds.length > 0,
     retry: false,
   })
@@ -151,17 +146,12 @@ export function PrintDashboard({ block }: { block: BlockOf<'dashboard'> }) {
   const dashboardId = block.dashboardId
   const dashboard = useQuery({
     queryKey: ['dashboard', dashboardId],
-    queryFn: dashboardId
-      ? () => http.get('/dashboards/:id', { params: { id: dashboardId } })
-      : skipToken,
+    queryFn: dashboardId ? () => reportsPrintApi.getDashboards(dashboardId) : skipToken,
     retry: false,
   })
   const data = useQuery({
     queryKey: ['dashboard', dashboardId, 'print-data'],
-    queryFn: dashboardId
-      ? () =>
-          http.post('/dashboards/:id/data', { params: { id: dashboardId }, body: { filters: {} } })
-      : skipToken,
+    queryFn: dashboardId ? () => reportsPrintApi.postData(dashboardId) : skipToken,
     retry: false,
   })
   const model = useMemo<ReportPrintBlock[] | null>(

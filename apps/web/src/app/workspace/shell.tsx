@@ -2,7 +2,6 @@ import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@k
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { t as translate, useT } from '~/shared/i18n.js'
 import { startOfflineQueue } from '~/shared/offline/queue.js'
@@ -13,6 +12,7 @@ import {
   subscribeRooms,
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
+import { workspaceApi } from '~/shared/workspace/queries.js'
 import { getShellDialog, listShellSlots } from '~/shared/workspace/registry.js'
 import {
   forgetUnsavedWorkspace,
@@ -76,8 +76,8 @@ export function WorkspaceShell() {
     let cancelled = false
     let unsubscribe: (() => void) | null = null
     // Оболочка показывается после загрузки профиля (app.tsx): сотрудник уже известен
-    void http
-      .get('/me/workspace-state')
+    void workspaceApi
+      .state()
       .then((result) => {
         // Снимок, оставленный при перезагрузке этой вкладки, свежее серверного: запрос
         // keepalive с ним мог ещё не дойти

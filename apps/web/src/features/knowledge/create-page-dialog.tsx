@@ -14,9 +14,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { knowledgeApi } from './queries.js'
 
 /**
  * Новая страница базы знаний (ADR-0095): название, шаблон (инструкция,
@@ -42,13 +43,11 @@ export function CreatePageDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/pages', {
-        body: {
-          title: title.trim(),
-          spaceId,
-          template,
-          ...(parentId ? { parentId } : {}),
-        },
+      knowledgeApi.postPages({
+        title: title.trim(),
+        spaceId,
+        template,
+        ...(parentId ? { parentId } : {}),
       }),
     onSuccess: (created) => {
       toast.show({ title: t('knowledge.create.done'), tone: 'success' })

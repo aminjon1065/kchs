@@ -22,11 +22,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, FileUp } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
-import { http } from '~/shared/api/client.js'
 import { apiUrl } from '~/shared/api/link.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { errorText } from '../status.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 const STATUS_TONES: Record<CaseImportRowStatus, BadgeProps['tone']> = {
   ready: 'accent',
@@ -75,12 +75,10 @@ export function CaseImportDialog({
 
   const run = useMutation({
     mutationFn: (mode: CaseImportMode) =>
-      http.post('/cases/import', {
-        body: {
-          fileId: file!.id,
-          mode,
-          ...(/^\d{4}$/.test(year) ? { year: Number(year) } : {}),
-        },
+      documentsDirectoriesApi.postCasesImport({
+        fileId: file!.id,
+        mode,
+        ...(/^\d{4}$/.test(year) ? { year: Number(year) } : {}),
       }),
     onSuccess: (result) => {
       setReport(result)

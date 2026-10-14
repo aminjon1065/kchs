@@ -1,6 +1,6 @@
 import type { DocumentPhoto } from '@kchs/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 
 /**
  * Донесение без сети (ADR-0212): создание документа со снимками и отправка на регистрацию

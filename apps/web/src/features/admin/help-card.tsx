@@ -5,8 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { helpQuery } from '~/features/knowledge/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const pagesKey = ['knowledge', 'help', 'pages'] as const
 
@@ -21,12 +22,12 @@ export function HelpCard() {
   const client = useQueryClient()
   const { data } = useQuery({
     queryKey: pagesKey,
-    queryFn: () => http.get('/knowledge/help/pages'),
+    queryFn: () => adminApi.getKnowledgeHelpPages(),
   })
   const [draft, setDraft] = useState<HelpPages | null>(null)
   const value = draft ?? data
   const save = useMutation({
-    mutationFn: (next: HelpPages) => http.put('/knowledge/help/pages', { body: next }),
+    mutationFn: (next: HelpPages) => adminApi.putKnowledgeHelpPages(next),
     onSuccess: (saved) => {
       client.setQueryData(pagesKey, saved)
       void client.invalidateQueries({ queryKey: helpQuery().queryKey })

@@ -25,7 +25,7 @@ import { Map as MapIcon, Palette, Scan, Share2, Table2, Trash2 } from 'lucide-re
 import { useEffect, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -35,7 +35,7 @@ import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { LayerEditSettings } from './edit/layer-edit-settings.js'
 import { FeatureCard } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
-import { gisKeys, layerQuery } from './queries.js'
+import { gisApi, gisKeys, layerQuery } from './queries.js'
 import { LayerStylePanel } from './style-editor/style-editor.js'
 
 /** Вид по умолчанию до загрузки экстента — Таджикистан (как у новой карты). */
@@ -93,8 +93,7 @@ export function LayerView({
   }, [extent, savedState?.camera])
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/gis/layers/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => gisApi.patchLayers(objectId, { name }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -105,14 +104,12 @@ export function LayerView({
   const toMap = useMutation({
     mutationFn: async () => {
       if (!layer) throw new Error('no layer')
-      return http.post('/gis/maps', {
-        body: {
-          name: layer.name,
-          spaceId: layer.spaceId,
-          spec: {
-            layers: [{ layerId: layer.id, visible: true, opacity: 1, group: null }],
-            ...(camera ? { camera } : {}),
-          },
+      return gisApi.postMaps({
+        name: layer.name,
+        spaceId: layer.spaceId,
+        spec: {
+          layers: [{ layerId: layer.id, visible: true, opacity: 1, group: null }],
+          ...(camera ? { camera } : {}),
         },
       })
     },
@@ -134,14 +131,14 @@ export function LayerView({
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => gisApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void gisApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

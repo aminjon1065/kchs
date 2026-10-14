@@ -1,9 +1,10 @@
 import { Button, Callout, Dialog, DialogContent, Field, Input, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { notebooksApi } from './queries.js'
 
 /**
  * Новая тетрадь в пространстве (06-analytics-engine.md §11): с пустой
@@ -24,12 +25,10 @@ export function CreateNotebookDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
     mutationFn: () =>
-      http.post('/notebooks', {
-        body: {
-          name: name.trim(),
-          spaceId,
-          cells: [{ id: 'intro', kind: 'text' }],
-        },
+      notebooksApi.create({
+        name: name.trim(),
+        spaceId,
+        cells: [{ id: 'intro', kind: 'text' }],
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.notebook.created'), tone: 'success' })

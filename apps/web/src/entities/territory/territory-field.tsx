@@ -5,8 +5,8 @@ import { MapPin, X } from 'lucide-react'
 import { useState } from 'react'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { territoriesQuery } from '../queries.js'
-import { TerritoryTree } from '../territory-tree.js'
+import { territoriesQuery } from './queries.js'
+import { TerritoryTree } from './territory-tree.js'
 
 const nameOf = (territory: Territory, locale: Locale) => territory.name[locale] ?? territory.name.ru
 

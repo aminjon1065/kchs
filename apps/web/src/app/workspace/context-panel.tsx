@@ -41,7 +41,8 @@ import {
   MessageMenu,
 } from '~/entities/discussion/message-item.js'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { lineageQuery, objectApi, similarObjectsQuery } from '~/entities/objects/queries.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   discussionQuery,
   discussionThreadQuery,
@@ -174,8 +175,8 @@ function InfoTab({ objectId }: { objectId: string }) {
 
   const favorite = useMutation({
     mutationFn: async (next: boolean) => {
-      if (next) await http.put('/objects/:id/favorite', { params: { id: objectId } })
-      else await http.delete('/objects/:id/favorite', { params: { id: objectId } })
+      if (next) await objectApi.addFavorite(objectId)
+      else await objectApi.removeFavorite(objectId)
     },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -277,12 +278,7 @@ function InfoTab({ objectId }: { objectId: string }) {
 function SimilarObjectsSection({ objectId }: { objectId: string }) {
   const t = useT()
   const openTab = useWorkspace((s) => s.openTab)
-  const { data } = useQuery({
-    queryKey: ['object', objectId, 'similar'],
-    queryFn: () =>
-      http.get('/objects/:id/similar', { params: { id: objectId }, query: { limit: 6 } }),
-    staleTime: 5 * 60_000,
-  })
+  const { data } = useQuery({ ...similarObjectsQuery(objectId), staleTime: 5 * 60_000 })
   if (!data?.enabled || data.items.length === 0) return null
 
   return (
@@ -345,14 +341,12 @@ function ObjectTags({ object }: { object: ObjectRecord }) {
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const add = useMutation({
-    mutationFn: (name: string) =>
-      http.post('/objects/:id/tags', { params: { id: object.id }, body: { name } }),
+    mutationFn: (name: string) => objectApi.addTag(object.id, { name }),
     onSuccess: (data) => apply(data.items),
     onError: failed,
   })
   const remove = useMutation({
-    mutationFn: (tagId: string) =>
-      http.delete('/objects/:id/tags/:tagId', { params: { id: object.id, tagId } }),
+    mutationFn: (tagId: string) => objectApi.removeTag(object.id, tagId),
     onSuccess: (data) => apply(data.items),
     onError: failed,
   })
@@ -425,10 +419,7 @@ function LinksTab({ objectId }: { objectId: string }) {
   }
 
   const detach = useMutation({
-    mutationFn: (fileId: string) =>
-      http.delete('/objects/:id/links/:targetId/:kind', {
-        params: { id: objectId, targetId: fileId, kind: 'attachment' },
-      }),
+    mutationFn: (fileId: string) => objectApi.removeAttachment(objectId, fileId),
     onSuccess: () => {
       toast.show({ title: t('objects.attachments.detached'), tone: 'success' })
       refresh()
@@ -522,12 +513,7 @@ function LinksTab({ objectId }: { objectId: string }) {
 function LineageSection({ objectId }: { objectId: string }) {
   const t = useT()
   const openTab = useWorkspace((s) => s.openTab)
-  const { data } = useQuery({
-    queryKey: ['object', objectId, 'lineage'],
-    queryFn: () =>
-      http.get('/objects/:id/lineage', { params: { id: objectId }, query: { depth: 3 } }),
-    staleTime: 60_000,
-  })
+  const { data } = useQuery({ ...lineageQuery(objectId), staleTime: 60_000 })
   const sources = (data?.nodes ?? []).filter((node) => node.depth < 0)
   const consumers = (data?.nodes ?? []).filter((node) => node.depth > 0)
   if (sources.length === 0 && consumers.length === 0) return null
@@ -606,16 +592,13 @@ function DiscussionTab({ objectId }: { objectId: string }) {
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
-      http.post('/objects/:id/discussion/messages', {
-        params: { id: objectId },
-        body: {
-          body: message.body,
-          text: message.text,
-          attachments: message.attachments.map((fileId) => ({ fileId })),
-          mentions: message.mentions,
-          mentionedObjectIds: [],
-          ...(threadRootId ? { threadRootId } : { anchor }),
-        },
+      objectApi.postMessage(objectId, {
+        body: message.body,
+        text: message.text,
+        attachments: message.attachments.map((fileId) => ({ fileId })),
+        mentions: message.mentions,
+        mentionedObjectIds: [],
+        ...(threadRootId ? { threadRootId } : { anchor }),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })

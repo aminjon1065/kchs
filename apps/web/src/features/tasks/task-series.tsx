@@ -22,9 +22,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Repeat } from 'lucide-react'
 import { useId, useState } from 'react'
 import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { tasksApi } from './queries.js'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -273,11 +274,11 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
   const locale = useLocale()
   const { data, isLoading } = useQuery({
     queryKey: seriesKey,
-    queryFn: () => http.get('/task-series'),
+    queryFn: () => tasksApi.getTaskSeries(),
   })
   const act = useMutation({
     mutationFn: (input: { id: string; action: 'pause' | 'resume' | 'stop' }) =>
-      http.post(`/task-series/:id/${input.action}` as const, { params: { id: input.id } }),
+      tasksApi.postTaskSeriesAction(input.id, input.action),
     onSuccess: () => void client.invalidateQueries({ queryKey: seriesKey }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
@@ -405,15 +406,12 @@ function SeriesEditForm({ series, onDone }: { series: TaskSeriesRecord; onDone: 
   })
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/task-series/:id', {
-        params: { id: series.id },
-        body: {
-          title: title.trim(),
-          assigneeId: assignee?.id ?? null,
-          rule: repeat.rule,
-          dueWorkingDays: Math.max(1, Number.parseInt(repeat.dueWorkingDays, 10) || 1),
-          endsOn: repeat.endsOn || null,
-        },
+      tasksApi.patchTaskSeries(series.id, {
+        title: title.trim(),
+        assigneeId: assignee?.id ?? null,
+        rule: repeat.rule,
+        dueWorkingDays: Math.max(1, Number.parseInt(repeat.dueWorkingDays, 10) || 1),
+        endsOn: repeat.endsOn || null,
       }),
     onSuccess: () => {
       toast.show({ title: t('tasks.series.saved'), tone: 'success' })

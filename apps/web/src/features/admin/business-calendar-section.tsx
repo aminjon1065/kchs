@@ -25,9 +25,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { businessYearQuery, calendarKeys } from '~/features/calendar/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { adminApi } from './queries.js'
 
 const KIND_TONES: Record<BusinessDayKind, 'danger' | 'warning' | 'success' | 'neutral'> = {
   holiday: 'danger',
@@ -86,7 +87,7 @@ export function BusinessCalendarSection() {
   }
 
   const remove = useMutation({
-    mutationFn: (day: string) => http.delete('/admin/business-calendar/:day', { params: { day } }),
+    mutationFn: (day: string) => adminApi.removeBusinessCalendar(day),
     onSuccess: () => {
       toast.show({ title: t('admin.businessCalendar.removed'), tone: 'info' })
       setRemoving(null)
@@ -239,18 +240,15 @@ function BusinessDayDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.put('/admin/business-calendar/:day', {
-        params: { day: date },
-        body: {
-          kind,
-          note: note.ru.trim()
-            ? {
-                ru: note.ru.trim(),
-                ...(note.tg.trim() ? { tg: note.tg.trim() } : {}),
-                ...(note.en.trim() ? { en: note.en.trim() } : {}),
-              }
-            : null,
-        },
+      adminApi.putBusinessCalendar(date, {
+        kind,
+        note: note.ru.trim()
+          ? {
+              ru: note.ru.trim(),
+              ...(note.tg.trim() ? { tg: note.tg.trim() } : {}),
+              ...(note.en.trim() ? { en: note.en.trim() } : {}),
+            }
+          : null,
       }),
     onSuccess: () => {
       toast.show({ title: t('admin.businessCalendar.saved'), tone: 'success' })

@@ -13,12 +13,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { templatesQuery } from './print/renders.js'
-import { documentKeys, documentTypesQuery } from './queries.js'
+import { templatesQuery } from './print/queries.js'
+import { documentKeys, documentsApi, documentTypesQuery } from './queries.js'
 import { errorText } from './status.js'
 
 const NO_TEMPLATE = '__none__'
@@ -57,15 +56,13 @@ export function CreateDocumentDialog({ onClose }: { onClose: () => void }) {
   const create = useMutation({
     mutationFn: async () => {
       if (templateId !== NO_TEMPLATE) {
-        return http.post('/documents/from-template', {
-          body: {
-            templateId,
-            typeId,
-            ...(subject.trim() ? { subject: subject.trim() } : {}),
-          },
+        return documentsApi.postFromTemplate({
+          templateId,
+          typeId,
+          ...(subject.trim() ? { subject: subject.trim() } : {}),
         })
       }
-      return http.post('/documents', { body: { typeId, subject: subject.trim() } })
+      return documentsApi.post({ typeId, subject: subject.trim() })
     },
     onSuccess: ({ id }) => {
       void client.invalidateQueries({ queryKey: ['objects'] })

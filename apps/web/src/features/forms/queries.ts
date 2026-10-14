@@ -115,3 +115,17 @@ export const formsApi = {
   review: (sid: string, input: FormReviewInput) =>
     http.post('/forms/submissions/:sid/review', { params: { sid }, body: input }),
 }
+
+/** Датасет формы: поля для настройки. */
+export const formDatasetQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['forms', 'dataset', id],
+    queryFn: () => http.get('/datasets/:id', { params: { id } }),
+  })
+
+/** Датасет новой формы: поля для первого вопроса. */
+export const newFormDatasetQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['forms', 'new-dataset', id],
+    queryFn: () => http.get('/datasets/:id', { params: { id } }),
+  })

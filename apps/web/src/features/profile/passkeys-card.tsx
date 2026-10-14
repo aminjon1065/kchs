@@ -4,10 +4,11 @@ import { AlertDialog, Badge, Button, Callout, Card, Field, Input, useToast } fro
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fingerprint, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { createPasskey, passkeysSupported } from '~/shared/auth/webauthn.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 const passkeysKey = ['me', 'passkeys'] as const
 
@@ -27,7 +28,7 @@ export function PasskeysCard() {
   const supported = passkeysSupported()
   const { data: items = [] } = useQuery({
     queryKey: passkeysKey,
-    queryFn: () => http.get('/me/passkeys'),
+    queryFn: () => profileApi.getMePasskeys(),
     select: (data) => data.items,
     enabled: supported,
   })
@@ -39,13 +40,11 @@ export function PasskeysCard() {
 
   const add = useMutation({
     mutationFn: async () => {
-      const options = await http.post('/me/passkeys/options')
+      const options = await profileApi.postMePasskeysOptions()
       const credential = await createPasskey(options)
-      return http.post('/me/passkeys', {
-        body: {
-          name: name.trim() || t('profile.passkeys.defaultName'),
-          credential,
-        },
+      return profileApi.postMePasskeys({
+        name: name.trim() || t('profile.passkeys.defaultName'),
+        credential,
       })
     },
     onSuccess: () => {
@@ -63,7 +62,7 @@ export function PasskeysCard() {
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete('/me/passkeys/:keyId', { params: { keyId: id } }),
+    mutationFn: (id: string) => profileApi.removeMePasskeys(id),
     onSuccess: () => {
       setRemoving(null)
       toast.show({ title: t('profile.passkeys.removed'), tone: 'info' })

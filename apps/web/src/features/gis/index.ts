@@ -4,7 +4,8 @@
  * не тянуть их в чанк потребителя.
  */
 export * from './basemaps.js'
+export * from './choropleth/param-items.js'
 export * from './lazy.js'
+export * from './map-slots.js'
 export * from './queries.js'
-export * from './result-labels.js'
-export * from './service-layers.js'
+export * from './service-layer-queries.js'

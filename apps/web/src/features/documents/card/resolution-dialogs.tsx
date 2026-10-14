@@ -23,15 +23,14 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { DueInput, type DueValue, emptyDue } from '~/features/tasks/due-input.js'
-import { pickedOf } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
+import { type DueValue, emptyDue, LazyDueInput, pickedOf } from '~/features/tasks/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys, resolutionTemplatesQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
+import { documentsCardApi } from './queries.js'
 
 const NO_TEMPLATE = '__none'
 
@@ -110,7 +109,7 @@ export function ResolutionDialog({
         parentId: parent?.id ?? null,
         ...(onBehalf && author ? { authorId: author.id } : {}),
       }
-      return http.post('/documents/:id/resolutions', { params: { id: document.id }, body })
+      return documentsCardApi.postResolutions(document.id, body)
     },
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
@@ -219,17 +218,19 @@ export function ResolutionDialog({
               exclude={responsible ? [responsible.id] : []}
             />
           </Field>
-          <DueInput
-            value={due}
-            onChange={setDue}
-            label={t('documents.resolutions.due')}
-            required
-            error={
-              due.mode === 'working' && due.days.trim() !== '' && !dueInput
-                ? t('documents.resolutions.workingDaysMin')
-                : undefined
-            }
-          />
+          <Suspense fallback={null}>
+            <LazyDueInput
+              value={due}
+              onChange={setDue}
+              label={t('documents.resolutions.due')}
+              required
+              error={
+                due.mode === 'working' && due.days.trim() !== '' && !dueInput
+                  ? t('documents.resolutions.workingDaysMin')
+                  : undefined
+              }
+            />
+          </Suspense>
           <Switch
             label={t('documents.resolutions.control')}
             checked={control}
@@ -272,13 +273,10 @@ export function ResolutionRequestDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/resolution-requests', {
-        params: { id: document.id },
-        body: {
-          userId: user?.id ?? '',
-          dueDate: dueDate || null,
-          note: note.trim() || null,
-        },
+      documentsCardApi.postResolutionRequests(document.id, {
+        userId: user?.id ?? '',
+        dueDate: dueDate || null,
+        note: note.trim() || null,
       }),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
@@ -360,11 +358,8 @@ export function NoExecutionDialog({
 
   const done = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/no-execution', {
-        params: { id: document.id },
-        body: {
-          comment: comment.trim() || null,
-        },
+      documentsCardApi.postNoExecution(document.id, {
+        comment: comment.trim() || null,
       }),
     onSuccess: (record) => {
       client.setQueryData(documentKeys.document(record.id), record)

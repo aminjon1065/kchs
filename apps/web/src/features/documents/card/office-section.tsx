@@ -2,13 +2,13 @@ import type { DocumentEmail, DocumentEmailStatus } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Badge, Button, Callout, KeyValueList, ObjectChip, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { dispatchesQuery, documentKeys, emailsQuery } from '../queries.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 /**
  * Дело и отправка на вкладке «Карточка» (ADR-0086): в какое дело подшит
@@ -175,10 +175,7 @@ function DocumentEmails({
   const locale = useLocale()
   const client = useQueryClient()
   const retry = useMutation({
-    mutationFn: (emailId: string) =>
-      http.post('/documents/:id/emails/:emailId/retry', {
-        params: { id: documentId, emailId },
-      }),
+    mutationFn: (emailId: string) => documentsCardApi.postEmailsRetry(documentId, emailId),
     onSuccess: () => {
       toast.show({ title: t('documents.email.retried'), tone: 'success' })
       void client.invalidateQueries({ queryKey: documentKeys.emails(documentId) })

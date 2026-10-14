@@ -21,7 +21,7 @@ import {
   govEdmsPackage,
   govEdmsTransferred,
 } from '../gov-edms/queries.js'
-import { saveLink } from '../print/renders.js'
+import { saveLink } from '../print/save-link.js'
 import { documentKeys } from '../queries.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'

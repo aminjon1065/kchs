@@ -1,8 +1,8 @@
 import type { LayerRecord, QueryStep } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { layerQuerySource } from '../layer-source-queries.js'
+import { gisStudioApi } from './queries.js'
 import { type TimeDomain, wallFromValue } from './time-model.js'
 
 /** Пояс пользователя (профиль), пока профиль не загружен — пояс браузера. */
@@ -35,10 +35,8 @@ async function loadDomain(layer: LayerRecord): Promise<RawDomain> {
       { alias: 'tmax', agg: 'max', field },
     ],
   })
-  const result = await http.post('/queries/run', {
-    body: {
-      spec: { version: 1, source: layerQuerySource(layer), steps },
-    },
+  const result = await gisStudioApi.postQueriesRun({
+    spec: { version: 1, source: layerQuerySource(layer), steps },
   })
   const row = result.rows[0] ?? []
   const index = (name: string) => result.fields.findIndex((item) => item.name === name)

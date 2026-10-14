@@ -13,7 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
 import { type RefObject, useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { saveBlob } from '~/shared/files.js'

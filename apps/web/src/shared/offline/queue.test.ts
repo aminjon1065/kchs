@@ -1,6 +1,6 @@
 import type { FormPhoto, FormSubmission } from '@kchs/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 
 /**
  * Очередь отправок без сети (ADR-0204): IndexedDB в node нет — очередь работает в

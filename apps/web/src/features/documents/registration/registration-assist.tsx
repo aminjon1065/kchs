@@ -9,11 +9,12 @@ import { Badge, Button, Callout, Card, cn, Spinner, useToast } from '@kchs/ui'
 import { skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { Check, Sparkles } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { confidenceTone, documentAssistQuery } from '../assist/queries.js'
 import type { CardValue } from '../card/requisites-form.js'
+import { documentsRegistrationApi } from './queries.js'
 
 /**
  * Слот помощника регистрации (08-documents.md §5; вторая волна P3-E02 S02):
@@ -98,21 +99,18 @@ export function RegistrationAssist({
   // Схема полей типа — своим ключом: кэш карточки после регистрации не должен остаться черновиком
   const doc = useQuery({
     queryKey: ['object', documentId ?? '', 'document-assist-card'],
-    queryFn:
-      enabled && documentId
-        ? () => http.get('/documents/:id', { params: { id: documentId } })
-        : skipToken,
+    queryFn: enabled && documentId ? () => documentsRegistrationApi.get(documentId) : skipToken,
   })
   // Вид документа по тексту скана (ADR-0126): ключ из заведённых в установке
   const [kind, setKind] = useState<DocumentClassification | null>(null)
   const classify = useMutation({
-    mutationFn: () => http.post('/documents/:id/assist/classify', { params: { id: documentId! } }),
+    mutationFn: () => documentsRegistrationApi.postAssistClassify(documentId!),
     onSuccess: (data) => setKind(data),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const extract = useMutation({
-    mutationFn: () => http.post('/documents/:id/assist/extract', { params: { id: documentId! } }),
+    mutationFn: () => documentsRegistrationApi.postAssistExtract(documentId!),
     onSuccess: (data) => {
       setResult(data)
       setAccepted(new Set())

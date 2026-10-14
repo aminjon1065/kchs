@@ -17,13 +17,18 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, FileInput } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { documentKeys } from '../queries.js'
 import { errorText } from '../status.js'
-import { renderKeys, rendersQuery, templatesQuery, waitForRender } from './renders.js'
+import {
+  documentsPrintApi,
+  renderKeys,
+  rendersQuery,
+  templatesQuery,
+  waitForRender,
+} from './queries.js'
 
 /**
  * Печатные формы и заполнения шаблонов документа (ADR-0085) во вкладке «Файлы
@@ -122,11 +127,8 @@ function FillFromTemplate({ document }: { document: DocumentRecord }) {
 
   const fill = useMutation({
     mutationFn: async () => {
-      const render = await http.post('/documents/:id/fill', {
-        params: { id: document.id },
-        body: {
-          templateId: chosen,
-        },
+      const render = await documentsPrintApi.postFill(document.id, {
+        templateId: chosen,
       })
       void client.invalidateQueries({ queryKey: renderKeys.renders(document.id) })
       return waitForRender(render.id)

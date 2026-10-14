@@ -23,10 +23,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { delegationsQuery, keys, meQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 const SCOPES = ['all', 'approvals', 'instructions', 'documents', 'meetings'] as const
 type Scope = (typeof SCOPES)[number]
@@ -53,7 +54,7 @@ export function DelegationCard() {
   }
 
   const stop = useMutation({
-    mutationFn: (id: string) => http.delete('/me/delegations/:id', { params: { id } }),
+    mutationFn: (id: string) => profileApi.removeMeDelegations(id),
     onSuccess: () => {
       toast.show({ title: t('admin.delegation.stopped'), tone: 'info' })
       refresh()
@@ -163,15 +164,13 @@ function CreateDelegationDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/me/delegations', {
-        body: {
-          toUserId: form.deputy!.id,
-          scope: form.scope,
-          // Период — с начала первого дня до конца последнего, в поясе браузера
-          startsAt: new Date(`${form.from}T00:00:00`).toISOString(),
-          endsAt: new Date(`${form.to}T23:59:59`).toISOString(),
-          note: form.note.trim() || null,
-        },
+      profileApi.postMeDelegations({
+        toUserId: form.deputy!.id,
+        scope: form.scope,
+        // Период — с начала первого дня до конца последнего, в поясе браузера
+        startsAt: new Date(`${form.from}T00:00:00`).toISOString(),
+        endsAt: new Date(`${form.to}T23:59:59`).toISOString(),
+        note: form.note.trim() || null,
       }),
     onSuccess: () => {
       onCreated(form.deputy?.title ?? '')

@@ -16,7 +16,8 @@ import { useId, useState } from 'react'
 import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
+import { DueInput } from './due-input.js'
+import { type DueValue, dueFields, emptyDue, hasDue } from './due-value.js'
 import {
   decideExtension,
   fieldErrorsOf,

@@ -34,12 +34,13 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { inboxCountsQuery, keys } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useObjectActions } from '~/shared/workspace/object-actions.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { inboxApi } from './queries.js'
 
 type Scope = 'all' | 'mine' | 'delegated'
 type Due = 'any' | 'overdue' | 'today' | 'week'
@@ -78,7 +79,7 @@ export function InboxScreen() {
     queryKey: keys.inbox(filters),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      http.get('/inbox', { query: { ...filters, ...(pageParam ? { cursor: pageParam } : {}) } }),
+      inboxApi.list({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
   const { data: counts } = useQuery(inboxCountsQuery())
@@ -136,11 +137,8 @@ export function InboxScreen() {
 
   const snooze = useMutation({
     mutationFn: (itemId: string) =>
-      http.post('/inbox/:id/snooze', {
-        params: { id: itemId },
-        body: {
-          until: new Date(Date.now() + 24 * 3600_000).toISOString(),
-        },
+      inboxApi.postSnooze(itemId, {
+        until: new Date(Date.now() + 24 * 3600_000).toISOString(),
       }),
     onSuccess: () => {
       toast.show({ title: t('inbox.snoozedUntilTomorrow'), tone: 'info' })
@@ -150,7 +148,7 @@ export function InboxScreen() {
 
   const bulk = useMutation({
     mutationFn: (operation: InboxBulkOperation) =>
-      http.post('/inbox/bulk', { body: { ids: [...checked], operation } }),
+      inboxApi.postBulk({ ids: [...checked], operation }),
     onSuccess: (result) => {
       toast.show({
         title: t('inbox.bulk.result', { done: result.done, skipped: result.skipped }),
@@ -484,7 +482,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   // Действие выполняет модуль элемента (POST /inbox/{id}/act): он же закрывает дело
   const act = useMutation({
     mutationFn: (input: { action: string; comment?: string; payload?: Record<string, unknown> }) =>
-      http.post('/inbox/:id/act', { params: { id: item.id }, body: input }),
+      inboxApi.postAct(item.id, input),
     onSuccess: () => {
       toast.show({ title: t('inbox.resolved'), tone: 'success' })
       setCommenting(null)

@@ -18,10 +18,10 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
-import { type ReactNode, useId, useMemo, useState } from 'react'
+import { type ReactNode, Suspense, useId, useMemo, useState } from 'react'
 import { PrincipalLine } from '~/entities/access/principal-picker.js'
-import { PointField } from '~/features/gis/edit/point-field.js'
-import { TerritoryField } from '~/features/gis/edit/territory-field.js'
+import { TerritoryField } from '~/entities/territory/territory-field.js'
+import { LazyPointField } from '~/features/gis/index.js'
 import { objectListQuery, principalRefsQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -72,7 +72,12 @@ export function useFieldControls(
       )
     }
     // Точка — на карте или координатами (ADR-0157)
-    if (field.type === 'geometry') return <PointField {...control} />
+    if (field.type === 'geometry')
+      return (
+        <Suspense fallback={null}>
+          <LazyPointField {...control} />
+        </Suspense>
+      )
     if (field.type === 'user' || field.type === 'unit') {
       return <PrincipalValueField kind={field.type} {...control} />
     }

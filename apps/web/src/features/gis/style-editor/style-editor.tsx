@@ -22,7 +22,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Palette, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldOptions } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -31,6 +31,7 @@ import { gisKeys } from '../queries.js'
 import { EditorRow, type StyleEditorContextValue, StyleEditorProvider } from './controls.js'
 import { styleDirty } from './model.js'
 import { PresetsSection } from './presets-section.js'
+import { gisStyleEditorApi } from './queries.js'
 import { RendererSection } from './renderer-section.js'
 import {
   ClusterSection,
@@ -167,10 +168,7 @@ export function LayerStylePanel({
     mutationFn: async () => {
       const parsed = LayerStyle.safeParse(style)
       if (!parsed.success) throw new Error('invalid-style')
-      return http.patch('/gis/layers/:id', {
-        params: { id: layer.id },
-        body: { style: parsed.data },
-      })
+      return gisStyleEditorApi.patchLayers(layer.id, { style: parsed.data })
     },
     onSuccess: (record) => {
       client.setQueryData(gisKeys.layer(layer.id), record)

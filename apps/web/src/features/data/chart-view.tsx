@@ -19,9 +19,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Link2, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { useLabelledResult } from '~/entities/data/result-labels.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { useLabelledResult } from '~/features/gis/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -30,7 +30,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { useLinkSource, usePaneLinkGroup, useViewContext } from '~/shared/workspace/view-context.js'
 import { brushFilter, brushLabel } from './brush-filter.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
-import { chartDataQuery, chartQuery, dataKeys, datasetQuery } from './queries.js'
+import { chartDataQuery, chartQuery, dataApi, dataKeys, datasetQuery } from './queries.js'
 import { chartHasImage, ResultExportMenu } from './result-export.js'
 
 /**
@@ -69,8 +69,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const linkable = Boolean(group && dataset)
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/charts/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => dataApi.patchCharts(objectId, { name }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -79,14 +78,14 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => dataApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void dataApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

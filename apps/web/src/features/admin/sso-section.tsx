@@ -21,11 +21,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plug, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { authProviderKeys, ssoQuery } from './auth-providers.js'
+import { authProviderKeys, ssoQuery } from './auth-provider-queries.js'
+import { adminApi } from './queries.js'
 
 type Draft = SsoSettingsInput
 
@@ -61,7 +62,7 @@ export function SsoSection() {
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const save = useMutation({
-    mutationFn: (next: Draft) => http.put('/admin/sso', { body: next }),
+    mutationFn: (next: Draft) => adminApi.putSso(next),
     onSuccess: (saved) => {
       client.setQueryData(authProviderKeys.sso, saved)
       setDraft(null)
@@ -71,7 +72,7 @@ export function SsoSection() {
   })
 
   const test = useMutation({
-    mutationFn: () => http.post('/admin/sso/test'),
+    mutationFn: () => adminApi.postSsoTest(),
     onSuccess: setTested,
     onError: failed,
   })

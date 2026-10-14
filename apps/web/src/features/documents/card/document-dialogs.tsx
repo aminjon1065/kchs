@@ -15,7 +15,6 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import {
   caseSuggestionsQuery,
@@ -24,6 +23,7 @@ import {
   numberPreviewQuery,
 } from '../queries.js'
 import { errorText } from '../status.js'
+import { documentsCardApi } from './queries.js'
 
 const NO_RESERVATION = '__none'
 /** Дело не выбрано — номер без индекса дела. */
@@ -78,13 +78,10 @@ export function RegisterDialog({
 
   const register = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/register', {
-        params: { id: document.id },
-        body: {
-          journalId,
-          ...(reserved ? { reservationId } : {}),
-          ...(usesCase && caseId ? { caseId: caseId === NO_CASE ? null : caseId } : {}),
-        },
+      documentsCardApi.postRegister(document.id, {
+        journalId,
+        ...(reserved ? { reservationId } : {}),
+        ...(usesCase && caseId ? { caseId: caseId === NO_CASE ? null : caseId } : {}),
       }),
     onSuccess: (record) => {
       toast.show({
@@ -215,11 +212,7 @@ export function CancelDialog({
   const [reason, setReason] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
   const cancel = useMutation({
-    mutationFn: () =>
-      http.post('/documents/:id/cancel', {
-        params: { id: document.id },
-        body: { reason: reason.trim() },
-      }),
+    mutationFn: () => documentsCardApi.postCancel(document.id, { reason: reason.trim() }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.cancel.done'), tone: 'info' })
       onDone(record)

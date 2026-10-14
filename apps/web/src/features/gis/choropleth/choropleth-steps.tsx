@@ -33,7 +33,7 @@ import { useState } from 'react'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { TerritorySelect } from '../territory-select.js'
+import { TerritorySelect } from '../../../entities/territory/territory-select.js'
 import {
   type ChoroplethForm,
   choroplethParams,

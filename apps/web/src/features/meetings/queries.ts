@@ -1,6 +1,7 @@
 import type { MeetingGuestJoinInput } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /** Ключи кэша встреч (01-project-structure.md §apps/web). */
 export const meetingKeys = {
@@ -55,3 +56,11 @@ export const guestPreview = (token: string) =>
 
 export const guestJoin = (token: string, input: MeetingGuestJoinInput) =>
   http.post('/meetings/guest/:token/join', { params: { token }, body: input, anonymous: true })
+
+export const meetingsApi = {
+  putSecretary: (id: string, body: ApiBody<'PUT /meetings/:id/secretary'>) =>
+    http.put('/meetings/:id/secretary', { params: { id }, body }),
+  getRecordings: (id: string) => http.get('/meetings/:id/recordings', { params: { id } }),
+  postGuestLink: (id: string, body: ApiBody<'POST /meetings/:id/guest-link'>) =>
+    http.post('/meetings/:id/guest-link', { params: { id }, body }),
+}

@@ -1,7 +1,7 @@
 import type { MapServiceEntry, ServiceLayerRecord } from '@kchs/contracts'
 import type { MapLayerSpecification, MapSourceSpecification } from '@kchs/ui'
 import { useMemo } from 'react'
-import { serviceFeaturesUrl, serviceTileUrl } from './service-layers.js'
+import { serviceFeaturesUrl, serviceTileUrl } from './service-layer-queries.js'
 
 /**
  * Слои-ссылки на внешние ГИС-службы на карте (ADR-0108): растровые рисуются

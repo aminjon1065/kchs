@@ -23,9 +23,9 @@ import { ArrowDown, ArrowUp, ListRestart, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { filterFieldsOf } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
+import { useTerritoryFilterEditor } from '../../../entities/territory/territory-filter.js'
 import { useLayerFieldStats } from '../layer-render.js'
 import { layerQuerySource } from '../layer-source-queries.js'
-import { useTerritoryFilterEditor } from '../territory-filter.js'
 import { categoriesWithLabels, loadCategoryValues, typedCategoryValue } from './categories.js'
 import {
   ChoiceSelect,

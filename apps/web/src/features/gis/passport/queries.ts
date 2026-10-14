@@ -1,6 +1,7 @@
 import type { PassportPeriod } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { type GeoCollection, resultFeatures } from '../choropleth/geojson.js'
 
 /** Ключи кэша паспорта: под `territory`, как карточка, — обновляются вместе. */
@@ -60,3 +61,14 @@ export const childShapesQuery = (id: string) =>
     },
     staleTime: 10 * 60_000,
   })
+
+export const gisPassportApi = {
+  postDatasetsRowsQuery: (id: string, body: ApiBody<'POST /datasets/:id/rows/query'>) =>
+    http.post('/datasets/:id/rows/query', { params: { id }, body }),
+  postObjectsLinks: (id: string, body: ApiBody<'POST /objects/:id/links'>) =>
+    http.post('/objects/:id/links', { params: { id }, body }),
+  removeObjectsLinks: (id: string, targetId: string) =>
+    http.delete('/objects/:id/links/:targetId/:kind', {
+      params: { id, targetId, kind: 'about_territory' },
+    }),
+}
