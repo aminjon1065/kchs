@@ -32,6 +32,8 @@ export const INBOX_KINDS = [
   'review_page',
   /** Сводка формы сдана: принять или вернуть с комментарием (ADR-0103). */
   'review_form',
+  /** Исходящий адресату госЭДО: собрать пакет, загрузить в госсистему, отметить (ADR-0219). */
+  'edms_transfer',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>
@@ -44,7 +46,14 @@ export const INBOX_GROUPS = ['decide', 'acknowledge', 'instructions', 'invites',
 export const InboxGroup = z.enum(INBOX_GROUPS)
 export type InboxGroup = z.infer<typeof InboxGroup>
 
-const DECIDE_KINDS: readonly string[] = ['approve', 'sign', 'resolve', 'register', 'revise']
+const DECIDE_KINDS: readonly string[] = [
+  'approve',
+  'sign',
+  'resolve',
+  'register',
+  'revise',
+  'edms_transfer',
+]
 const INSTRUCTION_KINDS: readonly string[] = [
   'accept_instruction',
   'report_instruction',

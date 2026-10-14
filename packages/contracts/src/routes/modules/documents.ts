@@ -68,6 +68,20 @@ import {
   DocumentTypeUpdateInput,
 } from '../../documents/document-type.js'
 import {
+  GovEdmsCheck,
+  GovEdmsCheckInput,
+  GovEdmsIntakeCompleteInput,
+  GovEdmsIntakeCreated,
+  GovEdmsIntakeInput,
+  GovEdmsIntakeList,
+  GovEdmsIntakeListQuery,
+  GovEdmsIntakeRecord,
+  GovEdmsOutgoingState,
+  GovEdmsPackage,
+  GovEdmsTransferInput,
+  GovEdmsTransferResult,
+} from '../../documents/gov-edms.js'
+import {
   JournalCreateInput,
   JournalRecord,
   JournalReservation,
@@ -162,6 +176,34 @@ export const documentsRoutes = defineRoutes({
   'POST /documents/mail/poll': {
     query: z.object({ integrationId: z.uuid().optional() }),
     response: { 200: MailPollReport },
+  },
+  // Обмен с государственной системой ЭДО — ручной (ADR-0219)
+  'POST /documents/gov-edms/check': {
+    body: GovEdmsCheckInput,
+    response: { 200: GovEdmsCheck },
+  },
+  'GET /documents/gov-edms/intake': {
+    query: GovEdmsIntakeListQuery,
+    response: { 200: GovEdmsIntakeList },
+  },
+  'POST /documents/gov-edms/intake': {
+    body: GovEdmsIntakeInput,
+    response: { 200: GovEdmsIntakeCreated },
+  },
+  'POST /documents/gov-edms/intake/:id/complete': {
+    params: IdParam,
+    body: GovEdmsIntakeCompleteInput,
+    response: { 200: GovEdmsIntakeRecord },
+  },
+  'GET /documents/:id/gov-edms': { params: IdParam, response: { 200: GovEdmsOutgoingState } },
+  'POST /documents/:id/gov-edms/package': {
+    params: IdParam,
+    response: { 200: GovEdmsPackage },
+  },
+  'POST /documents/:id/gov-edms/transferred': {
+    params: IdParam,
+    body: GovEdmsTransferInput,
+    response: { 200: GovEdmsTransferResult },
   },
   'GET /documents/print-forms': { query: SubjectQuery, response: { 200: PrintFormList } },
   'POST /documents/prints': { body: PrintRequestInput, response: { 200: DocumentRenderRecord } },

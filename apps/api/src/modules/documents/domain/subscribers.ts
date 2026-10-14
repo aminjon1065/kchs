@@ -9,6 +9,8 @@ import { indexObject } from '~/kernel/search/index-service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { documents } from '../schema.js'
+import { GovEdmsIntake } from './gov-edms/intake.js'
+import { GovEdmsOutgoing } from './gov-edms/outgoing.js'
 import { MailIntake } from './mail/mail-service.js'
 import { refreshJournalViewers, refreshViewers } from './participants.js'
 import { prepareReplyReports } from './reply-report.js'
@@ -253,6 +255,27 @@ async function dismissTrashed(event: EventEnvelope): Promise<void> {
 }
 
 /** Черновик из письма зарегистрирован: письмо больше не ждёт решения. */
+/** Исходящий адресату госЭДО зарегистрирован — дело «Передать в госЭДО» (ADR-0219). */
+async function govEdmsRegistered(event: EventEnvelope): Promise<void> {
+  const documentId = event.object?.id
+  if (!documentId || event.object?.type !== 'document') return
+  await GovEdmsOutgoing.onRegistered(documentId, event.actor.userId ?? null)
+}
+
+/** Передача в госЭДО отмечена — отправка в очереди и дело закрываются (ADR-0219). */
+async function govEdmsDispatched(event: EventEnvelope): Promise<void> {
+  const documentId = event.object?.id
+  if (!documentId) return
+  await GovEdmsOutgoing.onDispatched(documentId, event.payload, event.actor.userId ?? null)
+}
+
+/** Текст основного файла черновика из госЭДО извлечён — реквизиты в пустые поля. */
+async function govEdmsTextExtracted(event: EventEnvelope): Promise<void> {
+  const fileId = event.object?.id
+  if (!fileId) return
+  await GovEdmsIntake.prefillByFile(fileId)
+}
+
 async function mailRegistered(event: EventEnvelope): Promise<void> {
   const documentId = event.object?.id
   if (!documentId) return
@@ -296,6 +319,10 @@ export const documentSubscribers: Subscriber[] = [
   // Очередь «Из почты» (ADR-0113): письмо уходит из неё, когда его черновик
   // зарегистрирован — очередь узнаёт об этом из события, а не опросом
   { name: 'documents-mail-queue', types: ['document.registered'], handle: mailRegistered },
+  // Ручной обмен с госЭДО (ADR-0219): дело на передачу, его закрытие, реквизиты из текста
+  { name: 'documents-gov-edms-out', types: ['document.registered'], handle: govEdmsRegistered },
+  { name: 'documents-gov-edms-sent', types: ['document.dispatched'], handle: govEdmsDispatched },
+  { name: 'documents-gov-edms-text', types: ['file.text_extracted'], handle: govEdmsTextExtracted },
   {
     name: 'documents-search',
     types: [

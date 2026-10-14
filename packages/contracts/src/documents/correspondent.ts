@@ -101,6 +101,8 @@ export const CorrespondentRecord = z.object({
   externalId: z.string().nullable(),
   /** Почтовые домены ведомства — по ним приём из почты подставляет корреспондента. */
   mailDomains: z.array(z.string()),
+  /** Обмен через государственную систему ЭДО (ADR-0219): исходящие ему — пакетом для госЭДО. */
+  edmsExchange: z.boolean().default(false),
   documentCount: z.number().int(),
   canEdit: z.boolean(),
   createdAt: Timestamp,
@@ -119,6 +121,7 @@ export const CorrespondentInput = z.object({
   contacts: CorrespondentContacts.default({}),
   externalId: z.string().max(120).nullable().default(null),
   mailDomains: CorrespondentMailDomains.default([]),
+  edmsExchange: z.boolean().default(false),
 })
 export type CorrespondentInput = z.infer<typeof CorrespondentInput>
 
@@ -129,6 +132,7 @@ export const CorrespondentUpdateInput = z.object({
   contacts: CorrespondentContacts.optional(),
   externalId: z.string().max(120).nullable().optional(),
   mailDomains: CorrespondentMailDomains.optional(),
+  edmsExchange: z.boolean().optional(),
 })
 export type CorrespondentUpdateInput = z.infer<typeof CorrespondentUpdateInput>
 

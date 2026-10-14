@@ -40,6 +40,7 @@ import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { documentFilePolicy } from './domain/version-service.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
+import { registerGovEdmsRoutes } from './http/gov-edms-routes.js'
 import { registerMailRoutes } from './http/mail-routes.js'
 import { registerDocumentProcessRoutes } from './http/process-routes.js'
 import { registerQualifiedSignatureRoutes } from './http/qualified-routes.js'
@@ -61,6 +62,8 @@ async function requestResolution(tx: Tx, ctx: Ctx, documentId: string): Promise<
  * резолюцию» выполняется формой в карточке (действие `openObject`).
  */
 function registerResolutionInboxActions(): void {
+  // Дело «Передать в госЭДО» (ADR-0219) закрывает отметка о передаче — кнопка открывает карточку
+  registerInboxKind('edms_transfer', { delegationScopes: ['documents'] })
   registerInboxKind('resolve', { delegationScopes: ['documents'] })
   registerInboxActionHandler('resolve', async (ctx, { item, action, comment }) => {
     if (!item.objectId) throw errors.validation('Нет такого действия')
@@ -404,6 +407,8 @@ export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerTemplateRoutes(route)
   // Очередь «Из почты» (ADR-0113)
   registerMailRoutes(route)
+  // Ручной обмен с госЭДО (ADR-0219)
+  registerGovEdmsRoutes(route)
 }
 
 /**

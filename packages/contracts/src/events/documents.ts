@@ -151,6 +151,23 @@ export const DOCUMENTS_EVENTS = {
     addressee: z.string(),
     first: z.boolean(),
   }),
+  /** Черновик входящего заведён из файлов, выгруженных из госЭДО (ADR-0219). */
+  'document.edms_imported': z.object({
+    intakeId: Uuid,
+    mainFileId: Uuid,
+    attachments: z.number().int().nonnegative(),
+  }),
+  /** Реквизиты черновика из госЭДО подставлены из текста основного файла (ADR-0219). */
+  'document.edms_prefilled': z.object({
+    intakeId: Uuid,
+    fields: z.array(z.string()),
+    duplicateOf: Uuid.nullable().default(null),
+  }),
+  /** Собран пакет исходящего для ручной загрузки в госЭДО (ADR-0219). */
+  'document.edms_package_prepared': z.object({
+    files: z.number().int().nonnegative(),
+    size: z.number().int().nonnegative(),
+  }),
   /** Исходящий поставлен в очередь отправки письмом (ADR-0149). */
   'document.email_queued': z.object({ emailId: Uuid, to: z.string() }),
   /** Письмо принято почтовым сервером; отметка в реестре отправки — `document.dispatched`. */

@@ -292,6 +292,9 @@ importers:
       fastify-type-provider-zod:
         specifier: ^5.0.3
         version: 5.1.0(@fastify/swagger@9.8.1(supports-color@10.2.2))(fastify@5.12.5)(openapi-types@12.1.3)(zod@4.6.5)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       grammy:
         specifier: ^1.46.0
         version: 1.46.0(supports-color@10.2.2)
@@ -464,6 +467,9 @@ importers:
       '@turf/length':
         specifier: ^7.4.0
         version: 7.4.0
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       livekit-client:
         specifier: ~2.15.16
         version: 2.15.16(@types/dom-mediacapture-record@1.0.22)
