@@ -274,7 +274,7 @@ export const placeSignature = (
 /** «Подписать КЭП» (ADR-0205): сеанс подписания и ссылка на страницу подписания. */
 export const startQualifiedSigning = (
   documentId: string,
-  body: { stepId: string; onBehalfOf?: string | null },
+  body: { stepId: string; onBehalfOf?: string | null; seal?: boolean },
 ) => http.post('/documents/:id/qes-sessions', { params: { id: documentId }, body })
 
 /** Состояние сеанса квалифицированной подписи — карточка ждёт подписи. */

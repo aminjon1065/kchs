@@ -21,6 +21,8 @@ export const ADMIN_SECTIONS = [
   { value: 'dataSources', capabilities: ['data.sources.manage'] },
   { value: 'audit', capabilities: ['admin.audit.read'] },
   { value: 'security', capabilities: ['admin.system'] },
+  // УЦ Комитета (ADR-0218): создаёт администратор системы, отзывает управляющий пользователями
+  { value: 'pki', capabilities: ['admin.system', 'users.manage'] },
   { value: 'features', capabilities: ['admin.system'] },
   { value: 'branding', capabilities: ['admin.system'] },
   { value: 'backups', capabilities: ['admin.system'] },

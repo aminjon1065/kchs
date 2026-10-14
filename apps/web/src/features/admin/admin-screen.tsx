@@ -27,6 +27,7 @@ import {
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  BadgeCheck,
   Bot,
   Building2,
   Cable,
@@ -64,6 +65,7 @@ import { type ReactNode, useState } from 'react'
 import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
+import { PkiSection } from '~/features/pki/pki-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
 import { apiUrl } from '~/shared/api/link.js'
 import {
@@ -212,6 +214,12 @@ export function AdminScreen() {
       label: t('admin.sections.security'),
       icon: <ShieldCheck className="size-3.5" />,
       visible: allowed.has('security'),
+    },
+    {
+      value: 'pki',
+      label: t('admin.sections.pki'),
+      icon: <BadgeCheck className="size-3.5" />,
+      visible: allowed.has('pki'),
     },
     {
       value: 'features',
@@ -445,6 +453,12 @@ export function AdminScreen() {
         ) : null}
         <TabsContent value="audit" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <AuditSection />
+        </TabsContent>
+        <TabsContent value="pki" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <PkiSection
+            canInit={isSystemAdmin}
+            canManage={me?.capabilities.includes('users.manage') ?? false}
+          />
         </TabsContent>
       </Tabs>
     </div>

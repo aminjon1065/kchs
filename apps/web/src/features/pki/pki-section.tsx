@@ -1,0 +1,241 @@
+import type { PkiCertificateRecord, PkiCertificateState } from '@kchs/contracts'
+import { formatDate, formatDateTime } from '@kchs/fields'
+import {
+  AlertDialog,
+  Button,
+  Callout,
+  Card,
+  EmptyState,
+  KeyValueList,
+  SearchInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  useDebouncedValue,
+  useToast,
+} from '@kchs/ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Download, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
+import { ApiError } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { CertificateStateBadge } from './certificate-state.js'
+import {
+  allCertificatesQuery,
+  issuingCertificateUrl,
+  pkiApi,
+  pkiKeys,
+  pkiStatusQuery,
+  rootCertificateUrl,
+} from './queries.js'
+
+const ALL = 'all'
+
+/**
+ * «УЦ Комитета» в консоли (ADR-0218): создание удостоверяющего центра (один раз),
+ * корневой и выпускающий сертификаты для установки доверия, сертификаты сотрудников и
+ * печати с отзывом. Создаёт УЦ администратор системы; отзывает — управляющий
+ * пользователями.
+ */
+export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage: boolean }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const [creating, setCreating] = useState(false)
+  const [revoking, setRevoking] = useState<PkiCertificateRecord | null>(null)
+  const [state, setState] = useState<PkiCertificateState | typeof ALL>('active')
+  const [search, setSearch] = useState('')
+  const q = useDebouncedValue(search.trim(), 300)
+
+  const status = useQuery(pkiStatusQuery())
+  const ready = status.data?.initialized ?? false
+  const list = useQuery({
+    ...allCertificatesQuery({ state: state === ALL ? undefined : state, q: q || undefined }),
+    enabled: ready && canManage,
+  })
+
+  const init = useMutation({
+    mutationFn: pkiApi.init,
+    onSuccess: (next) => {
+      setCreating(false)
+      client.setQueryData(pkiKeys.status, next)
+      toast.show({ title: t('admin.pki.created'), tone: 'success' })
+    },
+    onError: (err) => {
+      setCreating(false)
+      toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
+    },
+  })
+
+  const revoke = useMutation({
+    mutationFn: (id: string) => pkiApi.revoke(id),
+    onSuccess: () => {
+      setRevoking(null)
+      toast.show({ title: t('admin.pki.revoked'), tone: 'info' })
+      void client.invalidateQueries({ queryKey: ['pki'] })
+    },
+    onError: (err) => {
+      setRevoking(null)
+      toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
+    },
+  })
+
+  return (
+    <div className="mx-auto flex max-w-[1100px] flex-col gap-3 p-5">
+      <p className="text-sm text-fg-secondary">{t('admin.pki.hint')}</p>
+      <Card
+        title={t('admin.pki.authority')}
+        action={
+          ready ? (
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Download className="size-3.5" />}
+                onClick={() => window.open(rootCertificateUrl(), '_blank', 'noopener')}
+              >
+                {t('admin.pki.root')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Download className="size-3.5" />}
+                onClick={() => window.open(issuingCertificateUrl(), '_blank', 'noopener')}
+              >
+                {t('admin.pki.issuing')}
+              </Button>
+            </div>
+          ) : null
+        }
+      >
+        {status.isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : status.data?.initialized ? (
+          <KeyValueList
+            items={[
+              { key: 'subject', label: t('admin.pki.subject'), value: status.data.rootSubject },
+              {
+                key: 'fingerprint',
+                label: t('admin.pki.fingerprint'),
+                value: (
+                  <span className="break-all font-mono text-xs">{status.data.rootFingerprint}</span>
+                ),
+              },
+              {
+                key: 'root',
+                label: t('admin.pki.rootValid'),
+                value: status.data.rootNotAfter ? formatDate(status.data.rootNotAfter) : '—',
+              },
+              {
+                key: 'issuing',
+                label: t('admin.pki.issuingValid'),
+                value: status.data.issuingNotAfter ? formatDate(status.data.issuingNotAfter) : '—',
+              },
+              { key: 'active', label: t('admin.pki.active'), value: status.data.active },
+            ]}
+          />
+        ) : (
+          <div className="flex flex-col items-start gap-3">
+            <Callout tone="info">{t('admin.pki.notCreated')}</Callout>
+            {canInit ? (
+              <Button icon={<ShieldCheck className="size-3.5" />} onClick={() => setCreating(true)}>
+                {t('admin.pki.create')}
+              </Button>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      {ready && canManage ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              placeholder={t('admin.pki.search')}
+              className="max-w-sm"
+            />
+            <Select value={state} onValueChange={(next) => setState(next as typeof state)}>
+              <SelectTrigger aria-label={t('admin.pki.stateFilter')} className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t('admin.pki.allStates')}</SelectItem>
+                <SelectItem value="active">{t('profile.signingKey.states.active')}</SelectItem>
+                <SelectItem value="revoked">{t('profile.signingKey.states.revoked')}</SelectItem>
+                <SelectItem value="expired">{t('profile.signingKey.states.expired')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Card padded={false}>
+            {list.isLoading ? (
+              <div className="flex flex-col gap-2 p-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : (list.data?.items ?? []).length === 0 ? (
+              <EmptyState compact icon={<ShieldCheck />} title={t('admin.pki.empty')} />
+            ) : (
+              <ul className="divide-y divide-line">
+                {(list.data?.items ?? []).map((item) => (
+                  <li key={item.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-fg">
+                        {item.purpose === 'seal'
+                          ? t('admin.pki.seal', { name: item.userName ?? '—' })
+                          : (item.userName ?? '—')}
+                      </p>
+                      <p className="truncate text-xs text-fg-secondary">{item.subject}</p>
+                      <p className="text-xs text-fg-muted">
+                        {t('admin.pki.issued', {
+                          device: item.deviceLabel,
+                          from: formatDate(item.issuedAt),
+                          to: formatDate(item.expiresAt),
+                        })}
+                        {item.revokedAt
+                          ? ` · ${t('admin.pki.revokedAt', { at: formatDateTime(item.revokedAt) })}`
+                          : ''}
+                      </p>
+                    </div>
+                    <CertificateStateBadge state={item.state} />
+                    {item.state === 'active' ? (
+                      <Button variant="ghost" size="sm" onClick={() => setRevoking(item)}>
+                        {t('profile.signingKey.revoke')}
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
+      ) : null}
+
+      <AlertDialog
+        open={creating}
+        onOpenChange={setCreating}
+        title={t('admin.pki.createTitle')}
+        description={t('admin.pki.createHint')}
+        confirmLabel={t('admin.pki.create')}
+        loading={init.isPending}
+        onConfirm={() => init.mutate()}
+      />
+      <AlertDialog
+        open={revoking !== null}
+        onOpenChange={(open) => !open && setRevoking(null)}
+        title={t('admin.pki.revokeTitle', { name: revoking?.userName ?? '' })}
+        description={t('admin.pki.revokeHint')}
+        confirmLabel={t('profile.signingKey.revoke')}
+        destructive
+        loading={revoke.isPending}
+        onConfirm={() => {
+          if (revoking) revoke.mutate(revoking.id)
+        }}
+      />
+    </div>
+  )
+}

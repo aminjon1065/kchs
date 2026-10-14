@@ -15,7 +15,12 @@ export const CAPABILITY_GROUPS: ReadonlyArray<{
   },
   {
     key: 'documents',
-    capabilities: ['documents.register', 'documents.journals.manage', 'processes.manage'],
+    capabilities: [
+      'documents.register',
+      'documents.journals.manage',
+      'documents.seal',
+      'processes.manage',
+    ],
   },
   {
     key: 'data',
