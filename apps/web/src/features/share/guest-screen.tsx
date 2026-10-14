@@ -5,10 +5,10 @@ import { skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { Download, Link2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { FilePreview } from '~/entities/files/file-preview.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { setShareToken } from '~/shared/api/session.js'
 import { useT } from '~/shared/i18n.js'
+import { shareApi } from './queries.js'
 
 /**
  * Гостевой просмотр объекта по ссылке (03-access-model.md §Гостевые ссылки):
@@ -21,12 +21,7 @@ export function GuestShareScreen({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null)
 
   const open = useMutation({
-    mutationFn: (value?: string) =>
-      http.post('/share/:token/open', {
-        params: { token },
-        body: value ? { password: value } : {},
-        anonymous: true,
-      }),
+    mutationFn: (value?: string) => shareApi.postOpen(token, value ? { password: value } : {}),
     onSuccess: (result) => {
       setError(null)
       setOpened(result)
@@ -53,19 +48,17 @@ export function GuestShareScreen({ token }: { token: string }) {
 
   const object = useQuery({
     queryKey: ['share', token, 'object', objectId],
-    queryFn: objectId ? () => http.get('/objects/:id', { params: { id: objectId } }) : skipToken,
+    queryFn: objectId ? () => shareApi.getObjects(objectId) : skipToken,
   })
 
   const file = useQuery({
     queryKey: ['share', token, 'file', objectId],
     queryFn:
-      objectId && object.data?.type === 'file'
-        ? () => http.get('/files/:id', { params: { id: objectId } })
-        : skipToken,
+      objectId && object.data?.type === 'file' ? () => shareApi.getFiles(objectId) : skipToken,
   })
 
   const download = useMutation({
-    mutationFn: () => http.get('/files/:id/download', { params: { id: objectId! } }),
+    mutationFn: () => shareApi.getFilesDownload(objectId!),
     onSuccess: (result) => window.open(result.url, '_blank', 'noopener'),
   })
 

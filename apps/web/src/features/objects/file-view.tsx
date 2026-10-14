@@ -33,11 +33,11 @@ import {
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { useFileDownload } from '~/features/files/index.js'
 import { NewVersionDialog, RestoreVersionDialog } from '~/features/files/version-dialogs.js'
-import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { objectsApi } from './queries.js'
 
 export function FileView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
@@ -64,8 +64,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const editing = useOfficeEditing(officeAvailable ? [objectId] : []).get(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => objectsApi.updateObject(objectId, { title }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -74,14 +73,14 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => objectsApi.removeObject(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void objectsApi.restoreObject(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
