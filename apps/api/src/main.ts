@@ -1,7 +1,7 @@
 import './shared/config/load-env.js'
 import { writeFile } from 'node:fs/promises'
 import { buildApp } from './app.js'
-import { bootstrapPlatform } from './bootstrap.js'
+import { bootstrapPlatform, bootstrapWorker } from './bootstrap.js'
 import { startCollab, stopCollab } from './kernel/collab/server.js'
 import {
   startConsumers,
@@ -55,8 +55,13 @@ async function main(): Promise<void> {
   // Исходящий прокси — до первых запросов наружу: глобальный fetch пойдёт через него (ADR-0132)
   if (configureOutboundProxy()) log.info('исходящие запросы идут через прокси')
 
-  await runMigrations()
-  await bootstrapPlatform()
+  if (env.ROLE === 'worker') {
+    // Миграции и DDL — дело api и задания `kchs migrate`; worker ждёт свежую схему (ADR-0220)
+    await bootstrapWorker()
+  } else {
+    await runMigrations()
+    await bootstrapPlatform()
+  }
 
   registerKernelSubscribers()
   registerMaintenanceJobs()
