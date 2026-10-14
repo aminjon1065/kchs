@@ -28,6 +28,20 @@ const lastCall = () => {
   return { url, init, headers: init.headers as Record<string, string> }
 }
 
+describe('ответ прокси вместо api', () => {
+  it('страница 502 от прокси — ApiError с этим статусом, а не SyntaxError', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('<html><body>502 Bad Gateway</body></html>', {
+        status: 502,
+        headers: { 'content-type': 'text/html' },
+      }),
+    )
+    const failure = await http.get('/me').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).problem.status).toBe(502)
+  })
+})
+
 describe('клиент API по таблице маршрутов (ADR-0188)', () => {
   it('параметры пути подставляются и кодируются', async () => {
     await http.get('/tasks/:id', { params: { id: 'a b/c' } })

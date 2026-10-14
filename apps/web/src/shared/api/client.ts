@@ -145,6 +145,19 @@ function requestHeaders(
   return headers
 }
 
+/**
+ * Тело ответа с ошибкой как JSON — или `null`: прокси перед api (Caddy, балансировщик) на
+ * 502/504 отдаёт страницу HTML, и разбор не должен падать `SyntaxError` вместо `ApiError`.
+ */
+function errorPayload(text: string): unknown {
+  if (!text) return null
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return null
+  }
+}
+
 /** Ответ с ошибкой → `ApiError` (проблема RFC 9457 или общая «запрос не выполнен»). */
 function problemOf(status: number, payload: unknown): ApiError {
   const problem = (payload ?? {
@@ -177,7 +190,7 @@ export async function send(
   })
   if (response.ok) return response
   const text = await response.text()
-  const error = problemOf(response.status, text ? (JSON.parse(text) as unknown) : null)
+  const error = problemOf(response.status, errorPayload(text))
   if (response.status === 401 && !options.anonymous) onUnauthorized?.()
   if (response.status === 403 && SETUP_CODES.has(error.problem.code)) onSetupRequired?.()
   throw error
