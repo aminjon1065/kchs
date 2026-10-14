@@ -25,6 +25,7 @@ import {
   FileSignature,
   FileText,
   Inbox,
+  Landmark,
   LayoutDashboard,
   LayoutTemplate,
   LibraryBig,
@@ -59,6 +60,7 @@ import { CorrespondentsDirectory } from './directories/correspondents-directory.
 import { JournalsDirectory } from './directories/journals-directory.js'
 import { TemplatesDirectory } from './directories/templates-directory.js'
 import { TypesDirectory } from './directories/types-directory.js'
+import { GovEdmsScreen } from './gov-edms/gov-edms-screen.js'
 import { MailScreen } from './mail/mail-screen.js'
 import { documentSummaryQuery, journalsQuery, officeDashboardQuery } from './queries.js'
 import { RegistrationScreen } from './registration/registration-screen.js'
@@ -195,6 +197,8 @@ export function DocumentsScreen({ tab }: { tab: TabState }) {
       return <TemplatesDirectory selectedId={tab.params.id ?? null} />
     case 'mail':
       return <MailScreen />
+    case 'gov-edms':
+      return <GovEdmsScreen />
     default:
       return <DocumentsList tabId={tab.id} savedState={tab.state as DocumentsScreenState} />
   }
@@ -451,6 +455,13 @@ function DocumentsList({
               icon={Mail}
               label={t('documents.mail.title')}
               onClick={() => openScreen('mail', t('documents.mail.title'), 'document')}
+            />
+          ) : null}
+          {canRegister ? (
+            <NavButton
+              icon={Landmark}
+              label={t('documents.govEdms.title')}
+              onClick={() => openScreen('gov-edms', t('documents.govEdms.title'), 'document')}
             />
           ) : null}
           <NavButton

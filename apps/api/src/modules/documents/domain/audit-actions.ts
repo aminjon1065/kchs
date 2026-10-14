@@ -26,6 +26,10 @@ export const DOCUMENTS_AUDIT = {
   resolutionAdded: 'document.resolution_added',
   /** Письмо из ящика канцелярии отклонено делопроизводителем (ADR-0113). */
   mailRejected: 'mail.rejected',
+  /** Входящий заведён из файлов, выгруженных из госЭДО (ADR-0219). */
+  govEdmsImported: 'document.edms_imported',
+  /** Собран пакет исходящего для ручной загрузки в госЭДО (ADR-0219). */
+  govEdmsPackagePrepared: 'document.edms_package_prepared',
   /** Начато подписание квалифицированной подписью (ADR-0205). */
   qualifiedSigningStarted: 'document.qes_started',
   /** Сеанс квалифицированной подписи закончился: подпись встроена или не принята. */

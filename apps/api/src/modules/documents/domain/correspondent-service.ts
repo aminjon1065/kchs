@@ -7,6 +7,7 @@ import {
   type CorrespondentUpdateInput,
 } from '@kchs/contracts'
 import { and, arrayOverlaps, asc, count, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm'
+import type { z } from 'zod'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -27,6 +28,7 @@ const COLUMNS = {
   contacts: correspondents.contacts,
   externalId: correspondents.externalId,
   mailDomains: correspondents.mailDomains,
+  edmsExchange: correspondents.edmsExchange,
   createdAt: objects.createdAt,
   updatedAt: objects.updatedAt,
 }
@@ -102,6 +104,7 @@ export const CorrespondentService = {
       contacts: Record<string, string>
       externalId: string | null
       mailDomains: string[]
+      edmsExchange: boolean
       createdAt: string
       updatedAt: string
     }>,
@@ -134,6 +137,7 @@ export const CorrespondentService = {
         contacts: row.contacts,
         externalId: row.externalId,
         mailDomains: row.mailDomains,
+        edmsExchange: row.edmsExchange,
         documentCount: counts.find((item) => item.correspondentId === row.id)?.total ?? 0,
         canEdit: decision.allowed,
         createdAt: row.createdAt,
@@ -143,7 +147,7 @@ export const CorrespondentService = {
     return result
   },
 
-  async create(tx: Tx, ctx: Ctx, raw: CorrespondentInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, raw: z.input<typeof CorrespondentInput>): Promise<string> {
     requireCapability(ctx, 'documents.register')
     const input = CorrespondentInput.parse(raw)
     if (input.externalId) {
@@ -172,6 +176,7 @@ export const CorrespondentService = {
       contacts: stripEmpty(input.contacts),
       externalId: input.externalId,
       mailDomains: input.mailDomains,
+      edmsExchange: input.edmsExchange,
     })
     await grantAccess(
       tx,
@@ -196,6 +201,7 @@ export const CorrespondentService = {
     if (patch.details !== undefined) values.details = stripEmpty(patch.details)
     if (patch.contacts !== undefined) values.contacts = stripEmpty(patch.contacts)
     if (patch.externalId !== undefined) values.externalId = patch.externalId
+    if (patch.edmsExchange !== undefined) values.edmsExchange = patch.edmsExchange
     if (patch.mailDomains !== undefined || patch.kind === 'person') {
       const [current] = await tx
         .select({ kind: correspondents.kind })

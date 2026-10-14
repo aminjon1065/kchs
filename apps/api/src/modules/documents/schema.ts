@@ -132,6 +132,8 @@ export const correspondents = pgTable(
      * получает этого корреспондента при приёме из почты. Домен принадлежит одному корреспонденту.
      */
     mailDomains: text('mail_domains').array().notNull().default(sql`'{}'::text[]`),
+    /** Обмен через государственную систему ЭДО (ADR-0219): исходящие — пакетом для неё. */
+    edmsExchange: boolean('edms_exchange').notNull().default(false),
   },
   (t) => [
     index('correspondents_name_trgm').using('gin', sql`${t.name} extensions.gin_trgm_ops`),
@@ -764,6 +766,39 @@ export const documentRenders = pgTable(
       'document_renders_status_check',
       sql`${t.status} in ('queued', 'running', 'ready', 'failed')`,
     ),
+  ],
+)
+
+/**
+ * Очередь «Из госЭДО» (ADR-0219): черновик входящего, заведённый из файлов, выгруженных
+ * из закрытой государственной системы ЭДО. Хэш основного файла не даёт завести тот же
+ * документ дважды; реквизиты, найденные в его тексте, подставляются в пустые поля
+ * черновика, а повтор «отправитель + номер» помечается предупреждением.
+ */
+export const govEdmsIntakes = pgTable(
+  'gov_edms_intakes',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    mainFileId: uuid('main_file_id').references(() => objects.id, { onDelete: 'set null' }),
+    fileName: text('file_name'),
+    /** SHA-256 основного файла — поиск повторов. */
+    sha256: text('sha256'),
+    /** `waiting` — ждём текста файла, `done` — реквизиты подставлены, `none` — текста нет. */
+    prefillStatus: text('prefill_status').notNull().default('waiting'),
+    prefill: jsonb('prefill'),
+    duplicateOf: uuid('duplicate_of').references(() => objects.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('gov_edms_intakes_document_uq').on(t.documentId),
+    index('gov_edms_intakes_sha_idx').on(t.sha256),
+    index('gov_edms_intakes_file_idx').on(t.mainFileId),
+    index('gov_edms_intakes_created_idx').on(t.createdAt.desc()),
+    check('gov_edms_intakes_prefill_check', sql`${t.prefillStatus} in ('waiting', 'done', 'none')`),
   ],
 )
 

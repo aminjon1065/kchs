@@ -45,6 +45,7 @@ export const inbox: DeepPartial<Dictionary['inbox']> = {
     acceptForm: 'Қабули гузориш',
     dismissAlert: 'Баррасӣ шуд',
     respond: 'Ҷавоб додан',
+    prepareEdms: 'Барои ҲЭД-и давлатӣ омода кардан',
   },
   tpl: {
     acceptInstruction: 'Супориш: {title}',
@@ -63,6 +64,7 @@ export const inbox: DeepPartial<Dictionary['inbox']> = {
     submitForm: 'Гузоришро супоред: {title}, {period}',
     reviewForm: 'Гузоришро қабул кунед: {title}, {period} — {subject}',
     alertFired: 'Огоҳии «{title}»: {message}',
+    edmsTransfer: 'Ба ҲЭД-и давлатӣ супоридан: {title}',
   },
   resolved: 'Иҷро шуд',
   dueIn: 'Мӯҳлат: {date}',

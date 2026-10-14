@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
-import { db, type Tx } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -11,14 +11,15 @@ import { recordUsage } from './usage.js'
 
 /**
  * Порт государственной системы электронного документооборота (ADR-0206, пункт 10
- * плана 08-architecture-concept-note-and-signatures.md). Интерфейса системы пока нет,
- * поэтому реализации нет: есть только порт, очередь отправок с повторами и учёт канала
- * `edms` в журнале подключений. До появления адаптера обмен идёт исходящим письмом
- * с подписанным экземпляром (ADR-0198).
+ * плана 08-architecture-concept-note-and-signatures.md): очередь отправок с повторами и
+ * учёт канала `edms` в журнале подключений.
  *
- * Адаптер регистрирует себя `registerEdmsExchange` и объявляет расписание задания
- * `EDMS_DISPATCH_JOB` (обработчик уже зарегистрирован модулем); модуль документов
- * собирает пакет отправки и ставит её `EdmsSends.enqueue` в своей транзакции.
+ * Государственная система закрыта (ADR-0219): по умолчанию работает провайдер «ручной
+ * обмен» (`MANUAL_EDMS`) — отправка в очереди ждёт, пока делопроизводитель загрузит пакет
+ * в госсистему и отметит передачу (`EdmsSends.markSent`); сетевых повторов у него нет.
+ * Автоматический адаптер, если он появится, регистрирует себя `registerEdmsExchange`
+ * и объявляет расписание задания `EDMS_DISPATCH_JOB` (обработчик уже зарегистрирован
+ * модулем); модуль документов ставит отправку `EdmsSends.enqueue` в своей транзакции.
  */
 
 /** Файл отправки: версия документа или подписанный экземпляр. */
@@ -64,6 +65,11 @@ export interface EdmsExchange {
   /** Название системы — для журнала и интерфейса. */
   name: string
   /**
+   * Ручной обмен (ADR-0219): задание очереди такие отправки не трогает — их закрывает
+   * отметка о передаче, которую ставит человек.
+   */
+  manual?: boolean
+  /**
    * Отправка пакета. Повтор с тем же ключом идемпотентности не должен создавать
    * второй документ у адресата. Ошибка с `retryable: false` повторами не лечится.
    */
@@ -85,7 +91,19 @@ export class EdmsError extends Error {
   }
 }
 
-let adapter: EdmsExchange | null = null
+/**
+ * Ручной обмен с закрытой госсистемой (ADR-0219): пакет собирает и загружает человек.
+ * `send` не вызывается — задание очереди ручные отправки пропускает.
+ */
+export const MANUAL_EDMS: EdmsExchange = {
+  name: 'Государственная система ЭДО (ручной обмен)',
+  manual: true,
+  async send() {
+    throw new EdmsError('Ручной обмен: пакет загружает в госсистему делопроизводитель', false)
+  },
+}
+
+let adapter: EdmsExchange | null = MANUAL_EDMS
 
 export function registerEdmsExchange(exchange: EdmsExchange | null): void {
   adapter = exchange
@@ -162,7 +180,7 @@ export const EdmsSends = {
   ): Promise<{ sent: number; retried: number; failed: number }> {
     const result = { sent: 0, retried: 0, failed: 0 }
     const exchange = adapter
-    if (!exchange) return result
+    if (!exchange || exchange.manual) return result
     const due = await db().transaction(async (tx) => {
       const rows = await tx
         .select()
@@ -191,6 +209,53 @@ export const EdmsSends = {
       result[outcome] += 1
     }
     return result
+  },
+
+  /** Отправка документа ещё ждёт передачи — ручной обмен или очередь адаптера. */
+  async pendingFor(executor: Executor, documentId: string): Promise<boolean> {
+    const [row] = await executor
+      .select({ id: edmsSends.id })
+      .from(edmsSends)
+      .where(and(eq(edmsSends.documentId, documentId), eq(edmsSends.status, 'pending')))
+      .limit(1)
+    return Boolean(row)
+  },
+
+  /**
+   * Передача отмечена человеком (ручной обмен, ADR-0219): ждущие отправки документа
+   * получают номер в госсистеме и статус `sent` — в транзакции отметки.
+   */
+  async markSent(
+    tx: Tx,
+    ctx: Ctx,
+    input: { documentId: string; externalId: string },
+  ): Promise<number> {
+    const rows = await tx
+      .update(edmsSends)
+      .set({
+        status: 'sent',
+        externalId: input.externalId,
+        error: null,
+        nextAttemptAt: null,
+        updatedAt: sql`now()`,
+      })
+      .where(and(eq(edmsSends.documentId, input.documentId), eq(edmsSends.status, 'pending')))
+      .returning()
+    for (const row of rows) {
+      await publishEvent(tx, ctx, {
+        type: 'edms.sent',
+        object: eventObject(row),
+        payload: { sendId: row.id, externalId: input.externalId, attempts: row.attempts },
+      })
+    }
+    if (rows.length > 0 && adapter) {
+      const at = new Date()
+      await recordUsage(
+        tx,
+        rows.map((row) => edmsUsage(row, adapter as EdmsExchange, at, { requests: 1, errors: 0 })),
+      )
+    }
+    return rows.length
   },
 }
 

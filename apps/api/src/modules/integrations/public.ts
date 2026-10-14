@@ -14,6 +14,7 @@ export {
   type EdmsExchange,
   type EdmsPackage,
   EdmsSends,
+  MANUAL_EDMS,
   registerEdmsExchange,
 } from './domain/edms.js'
 export {

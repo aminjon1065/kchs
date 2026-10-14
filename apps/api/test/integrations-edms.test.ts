@@ -39,7 +39,8 @@ beforeAll(async () => {
   })
 })
 
-afterAll(() => edms.registerEdmsExchange(null))
+// По умолчанию — ручной обмен с закрытой госсистемой (ADR-0219)
+afterAll(() => edms.registerEdmsExchange(edms.MANUAL_EDMS))
 
 const ctx = () => systemCtx('test', { initiatorId: fx.admin.id })
 

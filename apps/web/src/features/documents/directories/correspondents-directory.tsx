@@ -16,6 +16,7 @@ import {
   SearchInput,
   SegmentedControl,
   Skeleton,
+  Switch,
   Textarea,
   useDebouncedValue,
   useToast,
@@ -167,6 +168,8 @@ interface FormValue {
   note: string
   /** Почтовые домены через запятую (ADR-0136). */
   mailDomains: string
+  /** Обмен через госЭДО (ADR-0219). */
+  edmsExchange: boolean
 }
 
 const formOf = (record: CorrespondentRecord | null): FormValue => ({
@@ -180,6 +183,7 @@ const formOf = (record: CorrespondentRecord | null): FormValue => ({
   phone: record?.contacts.phone ?? '',
   note: record?.details.note ?? '',
   mailDomains: (record?.mailDomains ?? []).join(', '),
+  edmsExchange: record?.edmsExchange ?? false,
 })
 
 /** «mvd.tj, @mvd.gov.tj» → [`mvd.tj`, `mvd.gov.tj`]; проверяет домены сервер. */
@@ -244,6 +248,7 @@ function CorrespondentForm({
           ...compact({ email: value.email, phone: value.phone }),
         },
         mailDomains: value.kind === 'organization' ? domainsOf(value.mailDomains) : [],
+        edmsExchange: value.edmsExchange,
       }
       return record
         ? http.patch('/correspondents/:id', { params: { id: record.id }, body })
@@ -269,7 +274,11 @@ function CorrespondentForm({
     },
   })
 
-  const input = (key: keyof FormValue, label: string, maxLength: number) => (
+  const input = (
+    key: Exclude<keyof FormValue, 'edmsExchange'>,
+    label: string,
+    maxLength: number,
+  ) => (
     <Field label={label} htmlFor={`${formId}-${key}`}>
       <Input
         id={`${formId}-${key}`}
@@ -340,6 +349,14 @@ function CorrespondentForm({
           />
         </Field>
       ) : null}
+      <Field hint={t('documents.correspondents.edmsExchangeHint')}>
+        <Switch
+          label={t('documents.correspondents.edmsExchange')}
+          checked={value.edmsExchange}
+          disabled={!editable}
+          onCheckedChange={(checked) => set({ edmsExchange: checked })}
+        />
+      </Field>
       <Field label={t('documents.correspondents.note')} htmlFor={`${formId}-note`}>
         <Textarea
           id={`${formId}-note`}
