@@ -501,6 +501,59 @@ describeDb('выполнение на Postgres', () => {
     ])
   })
 
+  it('план «Исследования»: территория уровнем и расчёт при сравнении (ADR-0217, «Дополнено»)', async () => {
+    const references = (request: ReferenceRequest): ReferenceMap | undefined =>
+      request.kind === 'territory_level' && request.key === 'id'
+        ? {
+            values: {
+              [TERR_DU]: TERR_DU,
+              [TERR_DU_1]: TERR_DU,
+              [TERR_DU_2]: TERR_DU,
+              [TERR_KH]: TERR_KH,
+            },
+            version: 't1',
+          }
+        : undefined
+    const byRegion = await run(
+      explorePlanSpec(IDS.incidents, {
+        filter: null,
+        groups: [{ field: 'territory_id', level: 'region' }],
+        measures: [{ agg: 'count' }],
+        sort: { field: 'count', dir: 'desc' },
+        limit: null,
+      }),
+      { references },
+    )
+    expect(byRegion.rows.map((row) => [row.territory_id_region, Number(row.count)])).toEqual([
+      [TERR_DU, 6],
+      [TERR_KH, 3],
+      [null, 1],
+    ])
+
+    const shared = await run(
+      explorePlanSpec(IDS.incidents, {
+        filter: null,
+        groups: [{ field: 'kind' }],
+        measures: [{ agg: 'count', calc: 'share' }],
+        compare: {
+          field: 'reported_on',
+          current: { from: '2026-09-01', to: '2026-09-30' },
+          previous: { from: '2026-08-01', to: '2026-08-31' },
+        },
+        sort: { field: 'kind', dir: 'asc' },
+        limit: null,
+      }),
+    )
+    // Доля — от итога текущего периода: пожаров 4 из 5
+    expect(
+      shared.rows.map((row) => [row.kind, Number(row.count_cur), Number(row.count_share)]),
+    ).toEqual([
+      ['fire', 4, 0.8],
+      ['flood', 0, 0],
+      ['landslide', 1, 0.2],
+    ])
+  })
+
   it('соединение с политиками источника и мера-выражение', async () => {
     const { rows } = await run(
       q(src('inc'), [

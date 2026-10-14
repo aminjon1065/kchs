@@ -3,7 +3,11 @@ import {
   calcAlias,
   compareAlias,
   type ExplorePlan,
+  explorePipelineLosses,
+  explorePlanMetric,
+  explorePlanPipeline,
   explorePlanSpec,
+  groupAlias,
   measureAlias,
   periodWhere,
   planColumns,
@@ -63,7 +67,7 @@ describe('explorePlanSpec — сравнение периодов', () => {
     })
   })
 
-  it('столбцы результата: разрез и четыре части каждой меры; расчёты не применяются', () => {
+  it('столбцы результата: разрез, четыре части каждой меры и расчёт от текущего периода', () => {
     const withCalc = { ...plan, measures: [{ agg: 'count' as const, calc: 'share' as const }] }
     expect(planColumns(withCalc)).toEqual([
       'district',
@@ -71,7 +75,172 @@ describe('explorePlanSpec — сравнение периодов', () => {
       'count_prev',
       'count_diff',
       'count_pct',
+      'count_share',
     ])
+  })
+
+  it('расчёты при сравнении: окно над значением текущего периода после частей сравнения', () => {
+    const withCalc: ExplorePlan = {
+      ...plan,
+      groups: [{ field: 'occurred_on', bucket: 'week' }],
+      measures: [
+        { agg: 'count', calc: 'rank' },
+        { agg: 'sum', field: 'damage', calc: 'change' },
+      ],
+    }
+    const spec = explorePlanSpec(DATASET, withCalc)
+    expect(spec.steps.map((step) => step.type)).toEqual([
+      'filter',
+      'aggregate',
+      'compute',
+      'window',
+      'compute',
+    ])
+    const window = spec.steps[3] as Extract<(typeof spec.steps)[number], { type: 'window' }>
+    expect(window.fields).toEqual([
+      { alias: 'count_rank', fn: 'rank', partitionBy: [], orderBy: ['count_cur desc'] },
+      {
+        alias: 'sum_damage_lag',
+        fn: 'lag',
+        field: 'sum_damage_cur',
+        n: 1,
+        partitionBy: [],
+        orderBy: ['occurred_on_week'],
+      },
+    ])
+    const change = spec.steps[4] as Extract<(typeof spec.steps)[number], { type: 'compute' }>
+    expect(change.fields).toEqual([
+      { name: 'sum_damage_change', expr: '"sum_damage_cur" - "sum_damage_lag"' },
+    ])
+    expect(planColumns(withCalc)).toEqual([
+      'occurred_on_week',
+      'count_cur',
+      'count_prev',
+      'count_diff',
+      'count_pct',
+      'count_rank',
+      'sum_damage_cur',
+      'sum_damage_prev',
+      'sum_damage_diff',
+      'sum_damage_pct',
+      'sum_damage_lag',
+      'sum_damage_change',
+    ])
+  })
+})
+
+describe('explorePlanSpec — уровень территории', () => {
+  it('разрез по предку уровня: вычисляемое поле перед сводкой, столбец — поле_уровень', () => {
+    const plan: ExplorePlan = {
+      ...base,
+      groups: [{ field: 'territory', level: 'region' }, { field: 'kind' }],
+      measures: [{ agg: 'count' }],
+    }
+    const spec = explorePlanSpec(DATASET, plan)
+    expect(spec.steps.map((step) => step.type)).toEqual(['compute', 'aggregate'])
+    expect(spec.steps[0]).toEqual({
+      type: 'compute',
+      fields: [{ name: 'territory_region', expr: `territory_level("territory", 'region')` }],
+    })
+    const aggregate = spec.steps[1] as Extract<(typeof spec.steps)[number], { type: 'aggregate' }>
+    expect(aggregate.groupBy).toEqual([{ field: 'territory_region' }, { field: 'kind' }])
+    expect(planColumns(plan)).toEqual(['territory_region', 'kind', 'count'])
+  })
+
+  it('у разреза по дате уровень не действует; длинное имя укорачивается', () => {
+    expect(groupAlias({ field: 'occurred_on', bucket: 'month', level: 'district' })).toBe(
+      'occurred_on_month',
+    )
+    const long = groupAlias({ field: 'territory_of_the_incident_reported', level: 'jamoat' })
+    expect(long.length).toBeLessThanOrEqual(32)
+    expect(long.endsWith('_jamoat')).toBe(true)
+  })
+})
+
+describe('explorePlanPipeline — исследование датасетом', () => {
+  it('те же шаги, что у запроса, без окон, сортировки и лимита; идентификаторы шагов разные', () => {
+    const plan: ExplorePlan = {
+      filter: { field: 'kind', op: 'eq', value: 'flood' },
+      groups: [{ field: 'territory', level: 'district' }],
+      measures: [{ agg: 'sum', field: 'damage', calc: 'share' }],
+      compare: {
+        field: 'occurred_on',
+        current: { from: '2026-09-01', to: '2026-09-30' },
+        previous: { from: '2026-08-01', to: '2026-08-31' },
+      },
+      sort: { field: 'sum_damage_cur', dir: 'desc' },
+      limit: 10,
+    }
+    const definition = explorePlanPipeline(DATASET, plan, 'Ущерб по районам')
+    expect(definition.source).toEqual({ kind: 'dataset', id: DATASET })
+    expect(definition.outputName).toBe('Ущерб по районам')
+    expect(definition.steps.map((step) => `${step.id}:${step.type}`)).toEqual([
+      'filter:filter',
+      'filter-2:filter',
+      'compute:compute',
+      'aggregate:aggregate',
+      'compute-2:compute',
+    ])
+    expect(definition.steps[4]).toMatchObject({
+      fields: [
+        { name: 'sum_damage_diff', expr: '"sum_damage_cur" - "sum_damage_prev"' },
+        { name: 'sum_damage_pct', type: 'percent' },
+      ],
+    })
+    expect(explorePipelineLosses(plan)).toEqual({ calcs: true, limit: true })
+  })
+
+  it('без сводки — отфильтрованная копия датасета', () => {
+    const plan: ExplorePlan = {
+      filter: { field: 'kind', op: 'eq', value: 'flood' },
+      groups: [],
+      measures: [],
+      sort: null,
+      limit: null,
+    }
+    expect(explorePlanPipeline(DATASET, plan, 'Паводки').steps).toEqual([
+      {
+        id: 'filter',
+        disabled: false,
+        type: 'filter',
+        where: { field: 'kind', op: 'eq', value: 'flood' },
+      },
+    ])
+    expect(explorePipelineLosses(plan)).toEqual({ calcs: false, limit: false })
+  })
+})
+
+describe('explorePlanMetric — показатель из меры', () => {
+  it('мера, условия плана, разрезы и поле сравнения — поле времени', () => {
+    const plan: ExplorePlan = {
+      ...base,
+      filter: { field: 'kind', op: 'eq', value: 'flood' },
+      groups: [
+        { field: 'territory', level: 'region' },
+        { field: 'occurred_on', bucket: 'month' },
+      ],
+      compare: {
+        field: 'occurred_on',
+        current: { from: '2026-09-01', to: '2026-09-30' },
+        previous: { from: '2026-08-01', to: '2026-08-31' },
+      },
+    }
+    expect(explorePlanMetric(plan, { agg: 'sum', field: 'damage', calc: 'share' })).toEqual({
+      measure: { agg: 'sum', field: 'damage' },
+      filter: { field: 'kind', op: 'eq', value: 'flood' },
+      timeField: 'occurred_on',
+      dimensions: ['territory', 'occurred_on'],
+      period: { unit: 'month', from: 0, to: 0 },
+      comparison: 'previous_period',
+    })
+    expect(
+      explorePlanMetric(base, { agg: 'expr', expr: 'sum(damage) / count()' })?.measure,
+    ).toEqual({ agg: 'expr', expr: 'sum(damage) / count()' })
+  })
+
+  it('первое, последнее и склейка строк показателю не подходят', () => {
+    expect(explorePlanMetric(base, { agg: 'string_agg', field: 'kind' })).toBeNull()
+    expect(explorePlanMetric(base, { agg: 'first', field: 'kind' })).toBeNull()
   })
 })
 
