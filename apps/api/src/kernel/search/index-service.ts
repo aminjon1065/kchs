@@ -7,6 +7,7 @@ import {
 } from '@kchs/contracts'
 import { and, asc, eq, gt, gte, inArray, lte, or, sql } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
+import { mapLimited } from '~/shared/concurrency.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -131,25 +132,6 @@ export async function indexObjects(objectIds: string[]): Promise<void> {
       .deleteDocuments(removed)
       .catch(() => undefined)
   }
-}
-
-/** `map` с не более чем `limit` одновременными вызовами; порядок результатов — как у входа. */
-async function mapLimited<T, R>(
-  items: T[],
-  limit: number,
-  run: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let next = 0
-  const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const index = next
-      next += 1
-      results[index] = await run(items[index] as T)
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
-  return results
 }
 
 export async function removeFromIndex(objectId: string): Promise<void> {

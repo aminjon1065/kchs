@@ -12,9 +12,10 @@ import {
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { mapLimited } from '~/shared/concurrency.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { afterCommit, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cache, cacheKeys } from '~/shared/redis/index.js'
@@ -242,7 +243,13 @@ export const InboxService = {
       .set({ dueAt })
       .where(and(...conditions))
       .returning({ userId: inboxItems.userId })
-    if (affected.length > 0) await invalidateCounts(affected.map((item) => item.userId))
+    if (affected.length > 0) {
+      // Пересчёт — после коммита (ADR-0222): в транзакции нового срока ещё не видно другим
+      // соединениям, пересчёт здесь закешировал бы прежнее «просрочено» на минуту
+      const owners = affected.map((item) => item.userId)
+      await dropCounts(owners)
+      await afterCommit(tx, () => invalidateCounts(owners))
+    }
     return affected.length
   },
 
@@ -647,11 +654,19 @@ async function dropCounts(userIds: string[]): Promise<void> {
   await cache.del(...keys)
 }
 
-/** Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита. */
+/** Сколько пользователей пересчитываются одновременно: пробуждение отложенного — сотни. */
+const COUNTS_CONCURRENCY = 8
+
+/**
+ * Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита: кэш
+ * сбрасывается одной командой, пересчёт идёт параллельно по пользователям (ADR-0222).
+ */
 export async function invalidateCounts(userIds: string[]): Promise<void> {
-  for (const userId of [...new Set(userIds)]) {
-    await cache.del(cacheKeys.inboxCounts(userId))
+  const unique = [...new Set(userIds)]
+  if (unique.length === 0) return
+  await dropCounts(unique)
+  await mapLimited(unique, COUNTS_CONCURRENCY, async (userId) => {
     const counts = await InboxService.counts(userId)
     emitToUser(userId, 'inbox.changed', { counts })
-  }
+  })
 }
