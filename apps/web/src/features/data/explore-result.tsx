@@ -29,8 +29,9 @@ import { LazyChoroplethPreview, LazyPointsPreview } from '~/features/gis/index.j
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { labelOf, ResultTable, useExploreLabels } from './explore-builder.js'
+import { ResultTable } from './explore-builder.js'
 import { fieldKind } from './explore-insights.js'
+import { labelOf, useExploreLabels } from './explore-labels.js'
 import { exploreFailure, exploreRunQuery } from './explore-queries.js'
 
 /**

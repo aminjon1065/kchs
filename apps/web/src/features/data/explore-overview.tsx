@@ -13,10 +13,9 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { optionLabels } from '~/features/gis/index.js'
+import { optionLabels } from '~/entities/data/result-labels.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { labelOf } from './explore-builder.js'
 import {
   analysisFields,
   type ExploreQuestion,
@@ -26,6 +25,7 @@ import {
   fieldQuestionPlan,
   timeFieldOf,
 } from './explore-insights.js'
+import { labelOf } from './explore-labels.js'
 import { overviewProfileQuery } from './explore-queries.js'
 import { useFieldOptions } from './field-options.js'
 

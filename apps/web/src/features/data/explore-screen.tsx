@@ -38,14 +38,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { AskBox } from './ask-box.js'
-import {
-  CHART_TYPES,
-  ExplorePlanEditor,
-  ResultTable,
-  updatePlan,
-  useExploreLabels,
-  withChannelLabels,
-} from './explore-builder.js'
+import { ExplorePlanEditor, ResultTable } from './explore-builder.js'
 import {
   andFilter,
   type ExploreQuestion,
@@ -54,6 +47,7 @@ import {
   smartPlan,
   timeFieldOf,
 } from './explore-insights.js'
+import { CHART_TYPES, updatePlan, useExploreLabels, withChannelLabels } from './explore-labels.js'
 import { ExploreOverview, useDataRange } from './explore-overview.js'
 import { exploreApi, exploreFailure, exploreRunQuery } from './explore-queries.js'
 import { type ExploreState, emptyExplore, exploreSpec } from './explore-query.js'

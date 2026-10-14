@@ -83,5 +83,4 @@ export const gisApi = {
     http.post('/datasets/:id/exports', { params: { id }, body }),
   patchMaps: (id: string, body: ApiBody<'PATCH /gis/maps/:id'>) =>
     http.patch('/gis/maps/:id', { params: { id }, body }),
-  getUsers: (id: string) => http.get('/users/:id', { params: { id } }),
 }

@@ -25,9 +25,15 @@ import {
 import { skipToken, useQueries, useQuery } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
-import { useExploreLabels, withChannelLabels } from '~/features/data/explore-builder.js'
-import { chartQuery, datasetQuery, metricQuery } from '~/features/data/index.js'
-import { registerPmtilesProtocol, useLabelledResult } from '~/features/gis/index.js'
+import { useLabelledResult } from '~/entities/data/result-labels.js'
+import {
+  chartQuery,
+  datasetQuery,
+  metricQuery,
+  useExploreLabels,
+  withChannelLabels,
+} from '~/features/data/index.js'
+import { registerPmtilesProtocol } from '~/features/gis/index.js'
 import { cellSpec, chartQuerySpec, metricPeriod, sqlParams } from '~/features/notebooks/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'

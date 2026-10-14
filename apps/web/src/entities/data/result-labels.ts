@@ -3,9 +3,9 @@ import type { FieldOption, Locale, QueryResult } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { territoriesQuery } from '~/entities/territory/queries.js'
+import { http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
-import { gisApi } from './queries.js'
 
 /**
  * Результат с подписями вместо значений в указанных столбцах: категории
@@ -109,7 +109,7 @@ export function useLabelledResult(
   const users = useQueries({
     queries: people.map((id) => ({
       queryKey: ['user-ref', id] as const,
-      queryFn: () => gisApi.getUsers(id),
+      queryFn: () => http.get('/users/:id', { params: { id } }),
       staleTime: 5 * 60_000,
       retry: false,
     })),

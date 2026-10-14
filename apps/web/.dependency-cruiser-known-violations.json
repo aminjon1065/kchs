@@ -46,57 +46,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/notebooks/notebook-params.tsx",
-    "to": "src/features/data/explore-builder.tsx",
-    "unresolvedTo": "~/features/data/explore-builder.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/notebooks/query-cell.tsx",
-    "to": "src/features/data/explore-builder.tsx",
-    "unresolvedTo": "~/features/data/explore-builder.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/data/explore-builder.tsx",
-    "unresolvedTo": "~/features/data/explore-builder.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/reports/report-map.ts",
     "to": "src/features/gis/layer-render.ts",
     "unresolvedTo": "~/features/gis/layer-render.js",

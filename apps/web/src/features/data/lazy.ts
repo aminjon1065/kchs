@@ -24,3 +24,11 @@ export const LazyAddToDashboardDialog = lazy(() =>
 export const LazyDatasetTable = lazy(() =>
   import('./dataset-table.js').then((module) => ({ default: module.DatasetTable })),
 )
+
+export const LazyExplorePlanEditor = lazy(() =>
+  import('./explore-builder.js').then((module) => ({ default: module.ExplorePlanEditor })),
+)
+
+export const LazyResultTable = lazy(() =>
+  import('./explore-builder.js').then((module) => ({ default: module.ResultTable })),
+)

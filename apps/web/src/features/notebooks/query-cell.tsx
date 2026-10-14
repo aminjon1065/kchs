@@ -34,7 +34,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { Play, Settings2, Sparkles } from 'lucide-react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, Suspense, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
 import {
   type CellMap,
@@ -44,14 +44,17 @@ import {
 } from '~/entities/collab/notebook-doc.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import {
+  aiStatusQuery,
+  askError,
   CHART_TYPES,
-  ExplorePlanEditor,
-  ResultTable,
+  datasetQuery,
+  LazyExplorePlanEditor,
+  LazyResultTable,
+  sqlSchemaQuery,
   updatePlan,
   useExploreLabels,
   withChannelLabels,
-} from '~/features/data/explore-builder.js'
-import { aiStatusQuery, askError, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
+} from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -218,13 +221,15 @@ function VisualBody({
         <div className="flex flex-col gap-3 rounded-md border border-line bg-surface-2 p-3">
           <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
             <legend className="sr-only">{t('data.notebook.query.configure')}</legend>
-            <ExplorePlanEditor
-              fields={fields}
-              plan={plan}
-              columnLabel={columnLabel}
-              compact
-              onChange={(patch) => writeCell(cell, { plan: updatePlan(plan, patch) })}
-            />
+            <Suspense fallback={null}>
+              <LazyExplorePlanEditor
+                fields={fields}
+                plan={plan}
+                columnLabel={columnLabel}
+                compact
+                onChange={(patch) => writeCell(cell, { plan: updatePlan(plan, patch) })}
+              />
+            </Suspense>
           </fieldset>
           <BindingsControl
             fields={fields}
@@ -252,7 +257,9 @@ function VisualBody({
               timezone={timezone}
             />
           ) : (
-            <ResultTable result={labelled} className="h-80 flex-none" />
+            <Suspense fallback={null}>
+              <LazyResultTable result={labelled} className="h-80 flex-none" />
+            </Suspense>
           )
         ) : null}
       </CellResult>
@@ -345,7 +352,11 @@ function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
         result={result.data}
         raw={result.data}
       >
-        {result.data ? <ResultTable result={result.data} className="h-80 flex-none" /> : null}
+        {result.data ? (
+          <Suspense fallback={null}>
+            <LazyResultTable result={result.data} className="h-80 flex-none" />
+          </Suspense>
+        ) : null}
       </CellResult>
     </div>
   )

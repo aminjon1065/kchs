@@ -6,6 +6,7 @@
 
 export * from './ask-error.js'
 export * from './dashboard-layout.js'
+export * from './explore-labels.js'
 export * from './field-options.js'
 export * from './field-types.js'
 export * from './lazy.js'
