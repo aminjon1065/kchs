@@ -40,6 +40,13 @@ describe('toProblem', () => {
     expect(toProblem(reply, request)).toMatchObject({ status: 500, code: 'internal_error' })
   })
 
+  it('запрос к базе отменён по пределу времени — 504 «слишком долго», не 500 (ADR-0220)', () => {
+    const canceled = Object.assign(new Error('canceling statement due to statement timeout'), {
+      code: '57014',
+    })
+    expect(toProblem(canceled, request)).toMatchObject({ status: 504, code: 'query_timeout' })
+  })
+
   it('ошибки Fastify до 500 — их статус и код', () => {
     const tooMany = Object.assign(new Error('Rate limit exceeded'), { statusCode: 429 })
     expect(toProblem(tooMany, request)).toMatchObject({ status: 429, code: 'rate_limited' })

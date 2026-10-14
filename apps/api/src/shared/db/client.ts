@@ -15,11 +15,41 @@ export type Executor = Database | Tx
 let sqlClient: postgres.Sql | null = null
 let dbInstance: Database | null = null
 
+/**
+ * Пределы сеанса основного пула (ADR-0220): процесс api — `DATABASE_STATEMENT_TIMEOUT_MS`,
+ * worker и `ROLE=all` (в нём идут задания) — свои, большие пределы для тяжёлых заданий.
+ */
+export function poolSessionSettings(env: {
+  ROLE: 'api' | 'worker' | 'all'
+  DATABASE_STATEMENT_TIMEOUT_MS: number
+  DATABASE_IDLE_IN_TX_TIMEOUT_MS: number
+  DATABASE_WORKER_STATEMENT_TIMEOUT_MS: number
+  DATABASE_WORKER_IDLE_IN_TX_TIMEOUT_MS: number
+  DATABASE_CONNECT_TIMEOUT_S: number
+}): {
+  connect_timeout: number
+  connection: { statement_timeout: number; idle_in_transaction_session_timeout: number }
+} {
+  const api = env.ROLE === 'api'
+  return {
+    connect_timeout: env.DATABASE_CONNECT_TIMEOUT_S,
+    connection: {
+      statement_timeout: api
+        ? env.DATABASE_STATEMENT_TIMEOUT_MS
+        : env.DATABASE_WORKER_STATEMENT_TIMEOUT_MS,
+      idle_in_transaction_session_timeout: api
+        ? env.DATABASE_IDLE_IN_TX_TIMEOUT_MS
+        : env.DATABASE_WORKER_IDLE_IN_TX_TIMEOUT_MS,
+    },
+  }
+}
+
 function createClient(url: string, max: number): postgres.Sql {
   return postgres(url, {
     max,
     idle_timeout: 30,
     max_lifetime: 60 * 30,
+    ...poolSessionSettings(config()),
     prepare: true,
     onnotice: (notice) => logger().debug({ notice }, 'postgres notice'),
     types: {

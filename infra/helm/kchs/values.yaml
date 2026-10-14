@@ -489,6 +489,13 @@ observability:
 app:
   sessionIdleHours: 12
   rateLimitPerMinute: 600
+  # Пределы запросов к базе (ADR-0220): api — короткие, worker — тяжёлые задания
+  database:
+    statementTimeoutMs: 60000
+    idleInTransactionTimeoutMs: 60000
+    workerStatementTimeoutMs: 1800000
+    workerIdleInTransactionTimeoutMs: 600000
+    connectTimeoutSeconds: 10
   loginRateLimitPerIpPerMinute: 300
   apiTokenRateLimitPerMinute: 600
   webhookRetryWindowHours: 24
