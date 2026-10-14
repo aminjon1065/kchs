@@ -1,5 +1,5 @@
-import type { EventEnvelope } from '@kchs/contracts'
-import type { Redis } from 'ioredis'
+import { EVENT_DOMAINS, type EventEnvelope } from '@kchs/contracts'
+import type { ChainableCommander, Redis } from 'ioredis'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import type { Subscriber } from './types.js'
@@ -48,18 +48,23 @@ export function matchesType(patterns: string[], type: string): boolean {
   })
 }
 
-/** Домены, на которые подписан хотя бы один подписчик. */
-export function subscribedDomains(): string[] {
+/**
+ * Потоки, которые читает подписчик (ADR-0220): только домены его типов, со звёздочкой в
+ * домене — все домены каталога событий (ADR-0182). Группа подписчика живёт только на них.
+ */
+export function subscriberStreams(subscriber: Pick<Subscriber, 'types'>): string[] {
   const domains = new Set<string>()
-  for (const sub of subscribers) {
-    for (const pattern of sub.types) {
-      if (pattern === '*') return ['*']
-      const domain = pattern.split('.')[0] ?? ''
-      if (domain.endsWith('*')) return ['*']
-      domains.add(domain)
-    }
+  for (const pattern of subscriber.types) {
+    const domain = pattern.split('.')[0] ?? ''
+    if (domain.endsWith('*')) return EVENT_DOMAINS.map(streamKey)
+    domains.add(domain)
   }
-  return [...domains]
+  return [...domains].map(streamKey)
+}
+
+/** Потоки каждого зарегистрированного подписчика: чужие группы на потоке не учитываются. */
+export function streamsBySubscriber(): Map<string, Set<string>> {
+  return new Map(subscribers.map((sub) => [sub.name, new Set(subscriberStreams(sub))]))
 }
 
 /** Домен события — поток, в который оно публикуется. */
@@ -71,7 +76,19 @@ export async function xaddEvent(
   event: EventEnvelope,
   options: { only?: string } = {},
 ): Promise<void> {
-  await client.xadd(
+  await client.xadd(...xaddArgs(event, options))
+}
+
+/** Та же запись в пачку команд (`pipeline`) — диспетчер outbox шлёт события пачкой. */
+export function addEvent(pipeline: ChainableCommander, event: EventEnvelope): void {
+  pipeline.xadd(...xaddArgs(event, {}))
+}
+
+function xaddArgs(
+  event: EventEnvelope,
+  options: { only?: string },
+): [string, 'MAXLEN', '~', string, '*', ...string[]] {
+  return [
     streamKey(eventDomain(event)),
     'MAXLEN',
     '~',
@@ -80,7 +97,7 @@ export async function xaddEvent(
     'event',
     JSON.stringify(event),
     ...(options.only ? [ONLY_FIELD, options.only] : []),
-  )
+  ]
 }
 
 export async function sendToDlq(

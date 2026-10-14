@@ -39,6 +39,11 @@ data:
 
   SESSION_IDLE_HOURS: {{ .Values.app.sessionIdleHours | quote }}
   RATE_LIMIT_PER_MINUTE: {{ .Values.app.rateLimitPerMinute | quote }}
+  DATABASE_STATEMENT_TIMEOUT_MS: {{ .Values.app.database.statementTimeoutMs | quote }}
+  DATABASE_IDLE_IN_TX_TIMEOUT_MS: {{ .Values.app.database.idleInTransactionTimeoutMs | quote }}
+  DATABASE_WORKER_STATEMENT_TIMEOUT_MS: {{ .Values.app.database.workerStatementTimeoutMs | quote }}
+  DATABASE_WORKER_IDLE_IN_TX_TIMEOUT_MS: {{ .Values.app.database.workerIdleInTransactionTimeoutMs | quote }}
+  DATABASE_CONNECT_TIMEOUT_S: {{ .Values.app.database.connectTimeoutSeconds | quote }}
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: {{ .Values.app.loginRateLimitPerIpPerMinute | quote }}
   API_TOKEN_RATE_LIMIT_PER_MINUTE: {{ .Values.app.apiTokenRateLimitPerMinute | quote }}
   WEBHOOK_RETRY_WINDOW_HOURS: {{ .Values.app.webhookRetryWindowHours | quote }}

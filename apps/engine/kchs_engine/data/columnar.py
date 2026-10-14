@@ -40,6 +40,8 @@ SCHEMA = "ds"
 
 #: Строк в пачке при чтении из Postgres и в группе строк Parquet.
 BATCH_ROWS = 100_000
+# Строки результата запроса забираются из DuckDB порциями
+FETCH_ROWS = 10_000
 
 #: Денежные и точные числа: та же ширина, что у диалекта DuckDB компилятора, —
 #: из общего реестра хранения полей (ADR-0190).
@@ -134,9 +136,13 @@ def _select_expr(column: Column) -> str:
 
 def _value_for_arrow(value: Any, kind: str) -> Any:
     """Значение psycopg → значение, которое принимает pyarrow."""
+    return _to_arrow(value, _arrow_kind(kind))
+
+
+def _to_arrow(value: Any, arrow: str | None) -> Any:
+    """То же по уже известному типу Arrow: реестр типов не спрашивается на каждое значение."""
     if value is None:
         return None
-    arrow = _arrow_kind(kind)
     if arrow == "decimal":
         return value if isinstance(value, Decimal) else Decimal(str(value))
     if arrow == "float64" and isinstance(value, Decimal):
@@ -195,16 +201,33 @@ def _build_copy(
                 batch = cursor.fetchmany(BATCH_ROWS)
                 if not batch:
                     break
-                arrays = [
-                    pa.array(
-                        [_value_for_arrow(row[index], column.type) for row in batch],
-                        type=fields[index].type,
-                    )
-                    for index, column in enumerate(columns)
-                ]
-                writer.write_table(pa.Table.from_arrays(arrays, schema=schema))
+                writer.write_table(_batch_table(batch, columns, schema))
                 rows += len(batch)
     return rows, target.stat().st_size
+
+
+def _batch_table(batch: list[tuple[Any, ...]], columns: list[Column], schema: Any) -> Any:
+    """Пачка строк → таблица Arrow по столбцам (ADR-0220): тип Arrow каждого столбца
+    известен заранее, а не ищется в реестре на каждое значение."""
+    import pyarrow as pa
+
+    kinds = [_arrow_kind(column.type) for column in columns]
+    values = list(zip(*batch, strict=True)) if batch else [() for _ in columns]
+    arrays = [
+        pa.array(
+            values[index]
+            if kinds[index] in _NATIVE_KINDS
+            else [_to_arrow(value, kinds[index]) for value in values[index]],
+            type=field.type,
+        )
+        for index, field in enumerate(schema)
+    ]
+    return pa.Table.from_arrays(arrays, schema=schema)
+
+
+# Типы Arrow, значения которых psycopg уже отдаёт готовыми: строки (не-текст читается
+# `::text`, см. `_select_expr`), целые, логические, даты и время — без преобразования
+_NATIVE_KINDS = frozenset({"string", "int64", "bool", "date32", "time64"})
 
 
 async def build(payload: dict[str, Any]) -> dict[str, Any]:
@@ -262,17 +285,41 @@ def _evict(folder: Path, keep: Path) -> None:
         log.info("columnar.evicted", file=item.name, size=size)
 
 
+# Скачивание — под замком своего ключа (ADR-0220): загрузка большой копии из хранилища не
+# держит запросы к уже скачанным копиям. Общий замок — только на проверку и вытеснение.
+_download_locks: dict[str, threading.Lock] = {}
+
+
+def _key_lock(name: str) -> threading.Lock:
+    with _cache_lock:
+        lock = _download_locks.get(name)
+        if lock is None:
+            lock = _download_locks[name] = threading.Lock()
+        return lock
+
+
+def _cached(target: Path) -> bool:
+    with _cache_lock:
+        if target.exists() and target.stat().st_size > 0:
+            target.touch()
+            return True
+        return False
+
+
 def _ensure_local(bucket: str, key: str) -> Path:
     """Файл копии на диске движка; отсутствующий — скачивается один раз."""
     folder = _cache_dir()
     target = folder / _cache_name(bucket, key)
-    with _cache_lock:
-        if target.exists() and target.stat().st_size > 0:
-            target.touch()
+    if _cached(target):
+        return target
+    with _key_lock(target.name):
+        # Пока ждали замка, копию мог скачать соседний запрос
+        if _cached(target):
             return target
         partial = target.with_suffix(".part")
         storage.download_sync(bucket, key, partial)
         partial.replace(target)
+    with _cache_lock:
         _evict(folder, target)
     log.info("columnar.cached", key=key, size=target.stat().st_size)
     return target
@@ -351,7 +398,10 @@ def _literal(value: str) -> str:
 def _run(con: Any, sql: str, params: list[Any]) -> tuple[list[str], list[list[Any]]]:
     result = con.execute(sql, params) if params else con.execute(sql)
     names = [column[0] for column in result.description or []]
-    rows = [[_json_value(value) for value in row] for row in result.fetchall()]
+    # Порциями (ADR-0220): сырые строки DuckDB не держатся в памяти рядом с готовыми
+    rows: list[list[Any]] = []
+    while chunk := result.fetchmany(FETCH_ROWS):
+        rows.extend([_json_value(value) for value in row] for row in chunk)
     return names, rows
 
 

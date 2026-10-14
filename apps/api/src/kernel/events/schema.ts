@@ -18,6 +18,9 @@ export const outbox = opsSchema.table(
     publishedAt: tsCol('published_at'),
     attempts: bigint('attempts', { mode: 'number' }).notNull().default(0),
     lastError: text('last_error'),
+    /** Карантин (ADR-0220): событие, которое Redis отвергает само по себе, после предела
+     *  попыток больше не публикуется и не держит очередь — его разбирает администратор. */
+    quarantinedAt: tsCol('quarantined_at'),
   },
   (t) => [
     index('outbox_unpublished_idx').on(t.id).where(sql`${t.publishedAt} is null`),

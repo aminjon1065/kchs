@@ -199,7 +199,12 @@ export const HealthReport = z.object({
   version: z.string(),
   uptimeSeconds: z.number().int(),
   components: z.array(HealthComponent),
-  outbox: z.object({ pending: z.number().int(), oldestSeconds: z.number().int().nullable() }),
+  outbox: z.object({
+    pending: z.number().int(),
+    oldestSeconds: z.number().int().nullable(),
+    /** Карантин (ADR-0220): события, которые Redis отверг, — публикация остановлена. */
+    quarantined: z.number().int().default(0),
+  }),
   jobs: z.object({ queued: z.number().int(), running: z.number().int(), failed: z.number().int() }),
   /** Шина событий (ADR-0171): очередь сбоев и отстающие подписчики. */
   events: HealthEvents,

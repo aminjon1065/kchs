@@ -66,6 +66,16 @@ const EnvSchema = z.object({
   DATABASE_MIGRATOR_URL: z.string().min(1).optional(),
   DATABASE_QUERY_URL: z.string().min(1).optional(),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(200).default(20),
+  /**
+   * Пределы основного пула (ADR-0220): зависшая транзакция или запрос не выедают пул.
+   * Процесс api — короткие запросы пользователей; worker и `ROLE=all` (там идут задания)
+   * — тяжёлые импорты и пайплайны, предел больше. Миграции — своим клиентом, без предела.
+   */
+  DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+  DATABASE_IDLE_IN_TX_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+  DATABASE_WORKER_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(1000).default(1_800_000),
+  DATABASE_WORKER_IDLE_IN_TX_TIMEOUT_MS: z.coerce.number().int().min(1000).default(600_000),
+  DATABASE_CONNECT_TIMEOUT_S: z.coerce.number().int().min(1).max(120).default(10),
 
   REDIS_URL: z.string().min(1),
   /**

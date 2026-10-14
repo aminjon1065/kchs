@@ -121,6 +121,18 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
     }
   }
 
+  // Предел времени запроса к базе (ADR-0220): «запрос выполнялся слишком долго», а не 500
+  if ((error as { code?: unknown } | null)?.code === '57014') {
+    logger().warn({ err: error, url: redactUrl(request.url) }, 'запрос к базе отменён по пределу')
+    return {
+      type: `${TYPE_BASE}/query_timeout`,
+      title: t('errors.query_timeout'),
+      status: 504,
+      instance: redactUrl(request.url),
+      code: 'query_timeout',
+    }
+  }
+
   // Основной Redis недоступен (ADR-0175): клиент пути запроса падает быстро, а
   // ответ — «временно недоступен» с повтором, как при сбросе нагрузки
   if (isRedisUnavailable(error)) {

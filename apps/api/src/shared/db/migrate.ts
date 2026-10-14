@@ -6,6 +6,7 @@ import postgres from 'postgres'
 import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
 import { ADVISORY_LOCKS } from './advisory.js'
+import { rawSql } from './client.js'
 import { applyGrants } from './grants.js'
 import { ensureAuditPartitions } from './partitions.js'
 
@@ -121,6 +122,47 @@ export async function runMigrations(): Promise<MigrationResult> {
     await sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`.catch(() => undefined)
     await sql.end({ timeout: 5 })
   }
+}
+
+/**
+ * Схема не отстаёт от кода: все миграции этой версии применены. Worker схему не меняет
+ * (ADR-0220) — ждёт, пока миграции применит api или задание `kchs migrate`; не дождался —
+ * ошибка, процесс перезапустит оркестратор.
+ */
+export async function waitForSchema(
+  options: { timeoutMs?: number; intervalMs?: number; files?: string[] } = {},
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 10 * 60_000
+  const intervalMs = options.intervalMs ?? 3000
+  const files = options.files ?? (await listMigrationFiles(migrationsDir()))
+  const started = Date.now()
+  let announced = false
+  for (;;) {
+    const pending = await pendingMigrations(files)
+    if (pending.length === 0) return
+    if (Date.now() - started >= timeoutMs) {
+      throw new Error(
+        `схема базы отстаёт от кода: не применено миграций — ${pending.length} (первая — ${pending[0]})`,
+      )
+    }
+    if (!announced) {
+      logger().info({ pending: pending.length }, 'жду миграций от api или задания kchs migrate')
+      announced = true
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+}
+
+async function pendingMigrations(files: string[]): Promise<string[]> {
+  const [journal] = await rawSql()<Array<{ exists: boolean }>>`
+    SELECT to_regclass('public.__migrations') IS NOT NULL AS exists`
+  if (!journal?.exists) return files
+  const applied = new Set(
+    (await rawSql()<Array<{ name: string }>>`SELECT name FROM public.__migrations`).map(
+      (row) => row.name,
+    ),
+  )
+  return files.filter((file) => !applied.has(file))
 }
 
 /**

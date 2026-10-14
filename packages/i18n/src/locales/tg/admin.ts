@@ -1174,6 +1174,9 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     ok: 'Кор мекунад',
     degraded: 'Бо эродҳо',
     down: 'Дастнорас',
+    outboxQuarantined: 'Рӯйдодҳо дар карантин: {count}',
+    outboxQuarantinedHint:
+      'Redis ин рӯйдодҳоро рад кард ва нашри онҳо қатъ шуд, то дигаронро бознадоранд. Сабаб — дар журнали api ва дар майдони last_error-и ҷадвали ops.outbox.',
     outboxPending: 'Рӯйдодҳои нашрнашуда: {count}',
     latencyMs: '{ms} мс',
     jobsQueued: 'Амалиётҳо дар навбат',

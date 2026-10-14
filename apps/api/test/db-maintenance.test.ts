@@ -231,10 +231,25 @@ describe('старт нескольких реплик', () => {
     }
     await db().execute(sql.raw(`CREATE UNIQUE INDEX ON ds."${meta.table}" ("${meta.column}")`))
 
+    // Установка прежней версии: номера вида хранилища в настройках ещё нет (ADR-0220)
+    await db().execute(sql`DELETE FROM settings WHERE key = 'data.storage_version'`)
     await Promise.all([upgradeModuleStorage(), upgradeModuleStorage()])
 
     const after = await uniqueIndexes()
     expect(after).toHaveLength(1)
     expect(after[0]?.def).toContain('WHERE (_deleted_at IS NULL)')
+    // Версия записана — следующий старт каталог ds не сканирует
+    const [version] = await db().execute<{ value: unknown }>(
+      sql`SELECT value FROM settings WHERE key = 'data.storage_version' AND scope = 'system'`,
+    )
+    expect(version?.value).toBe(2)
+  })
+
+  it('worker ждёт миграций: свежая схема — сразу, неприменённая миграция — ошибка по сроку', async () => {
+    const { waitForSchema } = await import('../src/shared/db/migrate.js')
+    await expect(waitForSchema()).resolves.toBeUndefined()
+    await expect(
+      waitForSchema({ files: ['99999999999999_future.sql'], timeoutMs: 100, intervalMs: 20 }),
+    ).rejects.toThrow('схема базы отстаёт от кода')
   })
 })

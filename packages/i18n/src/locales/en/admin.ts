@@ -1095,6 +1095,9 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     ok: 'Operational',
     degraded: 'Degraded',
     down: 'Unavailable',
+    outboxQuarantined: 'Events in quarantine: {count}',
+    outboxQuarantinedHint:
+      'Redis rejected these events, so publishing them stopped to keep the rest flowing. The reason is in the api log and in the last_error column of ops.outbox.',
     outboxPending: 'Unpublished events: {count}',
     latencyMs: '{ms} ms',
     jobsQueued: 'Queued jobs',

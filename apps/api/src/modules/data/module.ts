@@ -5,6 +5,7 @@ import { closedReason, jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { SettingsService } from '~/kernel/settings/service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -51,12 +52,40 @@ import {
 } from './source-module.js'
 import { registerVisualizationRoutes } from './viz-module.js'
 
-/** Таблицы датасетов, созданные прежними версиями, — к текущему виду (при старте). */
+/**
+ * Версия вида таблиц датасетов: растёт с каждым новым обновлением в `upgradeDataStorage`.
+ * 1 — номер версии в таблицах истории (ADR-0062), 2 — индексы ключа по живым строкам (ADR-0160).
+ */
+const DATA_STORAGE_VERSION = 2
+const DATA_STORAGE_VERSION_KEY = 'data.storage_version'
+
+/**
+ * Таблицы датасетов, созданные прежними версиями, — к текущему виду (при старте api).
+ * Каталог `ds` сканируется, только пока версия хранилища в настройках старее кода, а не
+ * на каждом старте (ADR-0220): таблицы, созданные текущим кодом, уже нужного вида.
+ */
 export async function upgradeDataStorage(): Promise<void> {
+  const current = await SettingsService.get<number>(
+    DATA_STORAGE_VERSION_KEY,
+    [{ scope: 'system' }],
+    0,
+  )
+  if (current >= DATA_STORAGE_VERSION) return
   const upgraded = await Physical.upgradeHistoryTables()
   if (upgraded > 0) logger().info({ upgraded }, 'таблицы истории строк дополнены номером версии')
   const keys = await Physical.upgradeKeyIndexes()
   if (keys > 0) logger().info({ keys }, 'индексы ключа строк — только по живым строкам (ADR-0160)')
+  await db().transaction((tx) =>
+    SettingsService.set(
+      tx,
+      systemCtx('data.storage'),
+      'system',
+      null,
+      DATA_STORAGE_VERSION_KEY,
+      DATA_STORAGE_VERSION,
+      { silent: true },
+    ),
+  )
 }
 
 export function registerDataRoutes(route: RouteRegistrar): void {

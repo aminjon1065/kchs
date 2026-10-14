@@ -21,6 +21,7 @@ import {
   duckdbDialect,
   type LookupRef,
   MissingReferencesError,
+  prepareRawSql,
   QueryCompileError,
   type ReferenceMap,
   type ReferenceRequest,
@@ -52,6 +53,25 @@ import { DatasetService, type DatasetStorage } from './dataset-service.js'
 
 /** Результат интерактивного запроса живёт в кэше, пока не сменилась версия данных. */
 const CACHE_TTL_SECONDS = 300
+/**
+ * Предел кэшируемого результата (ADR-0220): большой ответ (до 50 000 строк — десятки МБ
+ * JSON) одним ключом занимает однопоточный Redis на время записи и вымывает кэш тайлов и
+ * прав. Такой результат считается заново; дашборды и сводки укладываются с запасом.
+ */
+export const CACHE_MAX_ROWS = 2000
+export const CACHE_MAX_BYTES = 1_048_576
+
+/** Результат помещается в кэш: строк и байт JSON не больше предела. */
+export function fitsCache(rows: number, bytes: number): boolean {
+  return rows <= CACHE_MAX_ROWS && bytes <= CACHE_MAX_BYTES
+}
+
+async function cacheResult(key: string, result: QueryResult): Promise<void> {
+  if (result.rows.length > CACHE_MAX_ROWS) return
+  const text = JSON.stringify(result)
+  if (!fitsCache(result.rows.length, Buffer.byteLength(text))) return
+  await cache.set(key, text, CACHE_TTL_SECONDS)
+}
 /** Запрос отменён по `statement_timeout`. */
 const QUERY_CANCELED = '57014'
 /** Строк в пачке курсора потокового чтения. */
@@ -529,10 +549,12 @@ export const QueryService = {
         return { compiled, schemaVersions, cacheable: sources.system.length === 0 }
       } catch (error) {
         if (error instanceof MissingReferencesError && attempt === 0) {
-          for (const request of error.requests) {
-            if (request.kind !== 'lookup_label') continue
-            lookups.set(referenceKey(request), await lookupReference(ctx, request))
-          }
+          // Справочники недостающих подписей — разом, а не по одному (ADR-0220)
+          const requests = error.requests.filter((request) => request.kind === 'lookup_label')
+          const maps = await Promise.all(requests.map((request) => lookupReference(ctx, request)))
+          requests.forEach((request, index) => {
+            lookups.set(referenceKey(request), maps[index] as ReferenceMap)
+          })
           continue
         }
         if (error instanceof QueryCompileError) throw compileError(error)
@@ -649,7 +671,7 @@ export const QueryService = {
       cached: false,
       executedOn: executor,
     }
-    if (cacheable) await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
+    if (cacheable) await cacheResult(cacheKey, result)
     await recordRun(ctx, {
       queryId: options.queryId,
       specHash,
@@ -678,8 +700,9 @@ export const QueryService = {
   ): Promise<CompiledRawSql> {
     requireCapability(ctx, 'data.sql')
     try {
-      const datasets = await sqlDatasets(ctx, await rawSqlTables(sqlText))
-      const compiled = await compileRawSql(sqlText, {
+      const parsed = await prepareRawSql(sqlText)
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(parsed))
+      const compiled = await compileRawSql(parsed, {
         datasets,
         user: compileUser(ctx),
         params: options.params ?? {},
@@ -730,8 +753,10 @@ export const QueryService = {
     const started = performance.now()
     let compiled: CompiledRawSql
     try {
-      const datasets = await sqlDatasets(ctx, await rawSqlTables(input.sql))
-      compiled = await compileRawSql(input.sql, {
+      // Разбор один на оба шага: имена таблиц и компиляцию (ADR-0220)
+      const parsed = await prepareRawSql(input.sql)
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(parsed))
+      compiled = await compileRawSql(parsed, {
         datasets,
         user: compileUser(ctx),
         params: input.params,
@@ -810,9 +835,7 @@ export const QueryService = {
       cached: false,
       executedOn: 'postgres',
     }
-    if (compiled.cacheable) {
-      await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
-    }
+    if (compiled.cacheable) await cacheResult(cacheKey, result)
     await recordRun(ctx, {
       specHash,
       durationMs: result.durationMs,
@@ -831,13 +854,15 @@ export const QueryService = {
     compiled: Pick<CompiledQuery, 'sql' | 'params' | 'countSql' | 'countParams' | 'timeoutMs'> & {
       /** Пояс запроса — у сырого SQL свой (`CompiledRawSql.timezone`). */
       timezone?: string
+      /** Сигнал задания: отмена прерывает запрос в самой базе (ADR-0220). */
+      signal?: AbortSignal | undefined
     },
     consume: (batches: AsyncIterable<Array<Record<string, unknown>>>, total: number) => Promise<T>,
     batchSize = STREAM_BATCH,
   ): Promise<T> {
     try {
       return await readAsQueryRole(
-        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone },
+        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone, signal: compiled.signal },
         async (read) => {
           const counted = await read.rows({ sql: compiled.countSql, params: compiled.countParams })
           const total = Number(counted[0]?.count ?? 0)

@@ -1,9 +1,11 @@
 import type { Capability, LangText } from '@kchs/contracts'
 import { and, eq, notInArray } from 'drizzle-orm'
+import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { roleCapabilities, roles } from '~/kernel/directory/schema.js'
 import { ensureSearchIndex } from './kernel/search/index-service.js'
 import { registerAllObjectTypes, upgradeModuleStorage } from './modules/index.js'
 import { db } from './shared/db/client.js'
+import { waitForSchema } from './shared/db/migrate.js'
 import { newId } from './shared/ids.js'
 import { logger } from './shared/logger/index.js'
 
@@ -110,7 +112,7 @@ export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex:
         .where(eq(roles.key, role.key))
         .limit(1)
       if (!current) return
-      await tx
+      const removed = await tx
         .delete(roleCapabilities)
         .where(
           and(
@@ -118,24 +120,47 @@ export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex:
             notInArray(roleCapabilities.capability, role.capabilities),
           ),
         )
-      if (role.capabilities.length > 0) {
-        await tx
-          .insert(roleCapabilities)
-          .values(role.capabilities.map((capability) => ({ roleId: current.id, capability })))
-          .onConflictDoNothing()
-      }
+        .returning({ capability: roleCapabilities.capability })
+      const added =
+        role.capabilities.length > 0
+          ? await tx
+              .insert(roleCapabilities)
+              .values(role.capabilities.map((capability) => ({ roleId: current.id, capability })))
+              .onConflictDoNothing()
+              .returning({ capability: roleCapabilities.capability })
+          : []
+      // Способности живут в кэше наборов принципалов (ADR-0220): новая версия платформы с
+      // другими способностями системной роли сбрасывает наборы
+      if (removed.length > 0 || added.length > 0) await bumpPrincipalsVersion(tx)
     })
   }
 
   await upgradeModuleStorage()
 
-  const searchIndex = await ensureSearchIndex()
-    .then(() => true)
-    .catch((error) => {
-      log.warn({ err: error }, 'поисковый индекс недоступен, продолжаю без него')
-      return false
-    })
+  const searchIndex = await prepareSearchIndex()
 
   log.info({ roles: SYSTEM_ROLES.length }, 'платформа инициализирована')
   return { roles: SYSTEM_ROLES.length, searchIndex }
+}
+
+/**
+ * Старт worker (ADR-0220): схему, системные роли и таблицы модулей готовит api (или
+ * задание `kchs migrate`) — worker не гоняет миграции и DDL, а ждёт свежую схему.
+ * Поисковый индекс — и здесь: задания индексации не должны создать его без настроек.
+ */
+export async function bootstrapWorker(): Promise<void> {
+  registerAllObjectTypes()
+  await waitForSchema()
+  await prepareSearchIndex()
+}
+
+function prepareSearchIndex(): Promise<boolean> {
+  return ensureSearchIndex()
+    .then(() => true)
+    .catch((error) => {
+      logger()
+        .child({ module: 'bootstrap' })
+        .warn({ err: error }, 'поисковый индекс недоступен, продолжаю без него')
+      return false
+    })
 }

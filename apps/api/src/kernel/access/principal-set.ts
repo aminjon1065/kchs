@@ -119,6 +119,8 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     ...headedUnitIds.map((id) => `${UNIT_HEAD_PRINCIPAL}:${id}`),
   ]
 
+  const capabilities = [...(await loadCapabilities(roleKeys))]
+
   return {
     keys: [...new Set(keys)],
     userId,
@@ -129,6 +131,7 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     positionIds,
     spaceRoles,
     roleKeys,
+    capabilities,
     actingFor: delegationRows.map((row) => ({ userId: row.fromUserId, scope: row.scope })),
     headedUnitIds,
     version,
@@ -232,12 +235,14 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as PrincipalSet
-      // Кэш прежней версии кода — без территорий или глав подразделений: пересчитываем
+      // Кэш прежней версии кода — без территорий, глав подразделений или способностей:
+      // пересчитываем
       if (
         parsed.version === version &&
         (parsed.generation ?? 0) === generation &&
         Array.isArray(parsed.territoryIds) &&
-        Array.isArray(parsed.headedUnitIds)
+        Array.isArray(parsed.headedUnitIds) &&
+        Array.isArray(parsed.capabilities)
       ) {
         return parsed
       }

@@ -69,6 +69,14 @@ export function HealthSection() {
         })}
       </div>
 
+      {data.outbox.quarantined > 0 ? (
+        <Callout
+          tone="danger"
+          title={t('admin.health.outboxQuarantined', { count: data.outbox.quarantined })}
+        >
+          {t('admin.health.outboxQuarantinedHint')}
+        </Callout>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-4">
         <StatTile
           label={t('admin.health.outboxPending', { count: data.outbox.pending })}

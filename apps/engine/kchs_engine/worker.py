@@ -32,6 +32,16 @@ from kchs_engine.telemetry import job_span
 
 Processor = Callable[[Job, str], Awaitable[dict[str, Any]]]
 
+# Предел времени задания по очереди (ADR-0220), как QUEUE_TIMEOUT_MS у воркера TS: зависший
+# обработчик (внешняя программа без своего тайм-аута) не держит слот навсегда
+QUEUE_TIMEOUT_SECONDS: dict[str, float] = {
+    "imports": 120 * 60,
+    "transform": 120 * 60,
+    "render": 30 * 60,
+    "media": 180 * 60,
+}
+DEFAULT_TIMEOUT_SECONDS = 60 * 60
+
 
 def _make_processor(queue: str) -> Processor:
     """Имя очереди известно воркеру, а не заданию, — замыкаем его."""
@@ -79,7 +89,11 @@ async def _run(
     await report_started(record_id)
 
     try:
-        cancelled, result = await run_cancellable(record_id, job_handler(job.data))
+        cancelled, result = await run_cancellable(
+            record_id,
+            job_handler(job.data),
+            timeout_seconds=QUEUE_TIMEOUT_SECONDS.get(queue, DEFAULT_TIMEOUT_SECONDS),
+        )
     except Exception as error:  # статус задания фиксируется в реестре
         permanent = isinstance(error, PermanentJobError)
         final = permanent or is_final_attempt(job)

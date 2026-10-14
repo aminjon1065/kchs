@@ -8,6 +8,7 @@ api ставит флаг `kchs:job:cancel:<id>` в Redis (`cacheKeys.jobCancel`
 """
 
 import asyncio
+import contextlib
 from collections.abc import Coroutine
 from typing import Any
 
@@ -39,19 +40,41 @@ async def is_cancelled(job_id: str) -> bool:
         return False
 
 
+class JobTimeoutError(Exception):
+    """Задание не уложилось в предел времени своей очереди (ADR-0220)."""
+
+    def __init__(self, limit_seconds: float) -> None:
+        minutes = max(1, round(limit_seconds / 60))
+        super().__init__(f"Превышено время выполнения задания: {minutes} мин")
+        self.limit_seconds = limit_seconds
+
+
 async def run_cancellable(
     job_id: str,
     work: Coroutine[Any, Any, dict[str, Any]],
     *,
     poll_seconds: float = POLL_SECONDS,
+    timeout_seconds: float | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
-    """Выполнить обработчик, следя за отменой. (True, None) — задание отменено;
-    ошибка обработчика поднимается как есть."""
+    """Выполнить обработчик, следя за отменой и пределом времени. (True, None) — задание
+    отменено; предел — `JobTimeoutError`, слот воркера освобождается; ошибка обработчика
+    поднимается как есть."""
     task = asyncio.ensure_future(work)
+    loop = asyncio.get_running_loop()
+    deadline = None if timeout_seconds is None else loop.time() + timeout_seconds
     while True:
-        done, _ = await asyncio.wait({task}, timeout=poll_seconds)
+        wait = poll_seconds
+        if deadline is not None:
+            wait = max(0.0, min(poll_seconds, deadline - loop.time()))
+        done, _ = await asyncio.wait({task}, timeout=wait)
         if done:
             return False, task.result()
+        if deadline is not None and loop.time() >= deadline:
+            task.cancel()
+            # Прерванный по пределу обработчик дочищается; его ошибка — уже не исход задания
+            with contextlib.suppress(BaseException):
+                await task
+            raise JobTimeoutError(timeout_seconds or 0)
         if await is_cancelled(job_id):
             task.cancel()
             try:

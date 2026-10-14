@@ -114,7 +114,7 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       if (!targetCtx) throw errors.notFound('Пользователь')
       const object = await loadObject(request.params.id)
       if (!object) throw errors.notFound()
-      const decision = await effectiveLevel(targetCtx, object)
+      const decision = await effectiveLevel(targetCtx, object, db(), { explain: true })
       return { level: decision.level, reasons: decision.reasons }
     },
   })

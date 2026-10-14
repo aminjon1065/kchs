@@ -47,6 +47,16 @@ groups:
         annotations:
           summary: "Outbox: неопубликованное событие старше минуты"
 
+      # ADR-0220: событие, которое Redis отвергает само по себе, после предела попыток
+      # уходит в карантин — остальные идут дальше, а это ждёт администратора
+      - alert: KchsOutboxQuarantined
+        expr: max(kchs_outbox_quarantined) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox: события в карантине — Redis их отверг, публикация остановлена"
+
       - alert: KchsQueueGrowing
         expr: |
           sum by (queue) (kchs_queue_jobs{state=~"waiting|prioritized"}) > 0

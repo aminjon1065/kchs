@@ -1,11 +1,16 @@
-import { type AdminModeState, type Locale, parseConfidentiality } from '@kchs/contracts'
+import {
+  type AdminModeState,
+  type Capability,
+  type Locale,
+  parseConfidentiality,
+} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { FastifyRequest } from 'fastify'
 import { users } from '~/kernel/directory/schema.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { getPrincipalSet, loadCapabilities } from './access/principal-set.js'
+import { getPrincipalSet } from './access/principal-set.js'
 import { SecurityPolicyService } from './settings/security-policy.js'
 
 /**
@@ -23,20 +28,26 @@ export async function buildUserCtx(
   },
   request: FastifyRequest,
 ): Promise<UserCtx> {
-  const [user] = await db()
-    .select({
-      id: users.id,
-      displayName: users.displayName,
-      locale: users.locale,
-      timezone: users.timezone,
-      status: users.status,
-      kind: users.kind,
-      attributes: users.attributes,
-      mustChangePassword: users.mustChangePassword,
-    })
-    .from(users)
-    .where(eq(users.id, session.userId))
-    .limit(1)
+  // Пользователь, набор принципалов (со способностями ролей, из кэша) и политика — разом:
+  // каждый запрос ждал их по очереди (ADR-0220)
+  const [[user], principals, policy] = await Promise.all([
+    db()
+      .select({
+        id: users.id,
+        displayName: users.displayName,
+        locale: users.locale,
+        timezone: users.timezone,
+        status: users.status,
+        kind: users.kind,
+        attributes: users.attributes,
+        mustChangePassword: users.mustChangePassword,
+      })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1),
+    getPrincipalSet(session.userId),
+    SecurityPolicyService.current(),
+  ])
 
   if (!user) throw errors.unauthorized('Учётная запись не найдена')
   if (user.status !== 'active') throw errors.unauthorized('Учётная запись отключена')
@@ -47,9 +58,7 @@ export async function buildUserCtx(
     throw errors.unauthorized('Учётная запись отключена')
   }
 
-  const principals = await getPrincipalSet(user.id)
-  const capabilities = await loadCapabilities(principals.roleKeys)
-  const policy = await SecurityPolicyService.current()
+  const capabilities = new Set(principals.capabilities as Capability[])
 
   // Режим «от имени»: только в пределах активного замещения (03-access-model.md §Делегирование)
   const header = request.headers['x-kchs-on-behalf-of']

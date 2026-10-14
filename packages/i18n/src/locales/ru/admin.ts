@@ -1108,6 +1108,9 @@ export const admin = {
     ok: 'Работает',
     degraded: 'С замечаниями',
     down: 'Недоступен',
+    outboxQuarantined: 'События в карантине: {count}',
+    outboxQuarantinedHint:
+      'Redis отверг эти события, и их публикация остановлена, чтобы они не держали остальные. Причина — в журнале api и в поле last_error таблицы ops.outbox.',
     outboxPending: 'Неопубликованных событий: {count}',
     latencyMs: '{ms} мс',
     jobsQueued: 'Заданий в очереди',

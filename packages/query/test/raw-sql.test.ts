@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   compileRawSql,
+  prepareRawSql,
   QueryCompileError,
   type RawSqlContext,
   rawSqlErrorPosition,
@@ -612,6 +613,13 @@ describe('сырой SQL: имена таблиц для загрузки дат
     await expect(rawSqlTables('SELECT pg_sleep(1) FROM x')).rejects.toThrow(
       'Функция «pg_sleep» запрещена',
     )
+  })
+
+  it('готовый разбор — тот же результат, что и текст (разбор не повторяется)', async () => {
+    const sql = 'SELECT r.name, count(*) FROM "Происшествия" i JOIN Регионы r ON true GROUP BY 1'
+    const parsed = await prepareRawSql(sql)
+    expect(await rawSqlTables(parsed)).toEqual(await rawSqlTables(sql))
+    expect(await compileRawSql(parsed, sqlCtx())).toEqual(await compile(sql))
   })
 })
 

@@ -24,6 +24,11 @@ export interface PrincipalSet {
   /** Пространство → роль участника. */
   spaceRoles: Record<string, string>
   roleKeys: string[]
+  /**
+   * Способности ролей (ADR-0220): считаются вместе с набором и живут в его кэше — правка
+   * способностей роли и назначение ролей сбрасывают набор, как и смена членства.
+   */
+  capabilities: string[]
   /** Активные замещения: пользователи, от имени которых можно действовать. */
   actingFor: Array<{ userId: string; scope: string }>
   /** Подразделения, которые пользователь возглавляет (ключи `unit_head:<id>`). */
@@ -164,6 +169,7 @@ export const EMPTY_PRINCIPALS: PrincipalSet = {
   positionIds: [],
   spaceRoles: {},
   roleKeys: [],
+  capabilities: [],
   actingFor: [],
   headedUnitIds: [],
   version: 0,

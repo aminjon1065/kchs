@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import { EVENT_DOMAINS, type EventEnvelope } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Subscriber } from '../src/kernel/events/types.js'
@@ -172,5 +172,96 @@ describe('шина событий', () => {
         publishEvent(tx, ctx, { type: 'object.created', payload: { type: 42 } }),
       ),
     ).rejects.toThrow('не соответствует схеме')
+  })
+})
+
+describe('outbox: битое событие (ADR-0220)', () => {
+  it('после предела попыток уходит в карантин и не держит остальные события', async () => {
+    const { OUTBOX_MAX_ATTEMPTS, outboxLag } = await import('../src/kernel/events/dispatcher.js')
+    await dispatchAll()
+    // Ключ потока домена занят строкой: XADD отвечает WRONGTYPE — Redis отвергает событие
+    const run = Date.now().toString(36)
+    const poisonDomain = `poison${run}`
+    await redis().set(`events:${poisonDomain}`, 'не поток')
+    const envelope = (type: string) => ({ id: `${type}-${run}`, type, payload: {} })
+    for (const type of [`${poisonDomain}.broken`, `okay${run}.first`, `okay${run}.second`]) {
+      const domain = type.split('.')[0] as string
+      await db().execute(
+        sql`INSERT INTO ops.outbox (event_id, type, domain, event)
+            VALUES (${`${type}-${run}`}, ${type}, ${domain}, ${JSON.stringify(envelope(type))}::jsonb)`,
+      )
+    }
+
+    // Первый проход: годные события опубликованы, битое ждёт — порядок годных сохранён
+    expect(await bus.dispatchOnce()).toBeGreaterThan(0)
+    const okay = await redis().xrange(`events:okay${run}`, '-', '+')
+    expect(okay.map(([, fields]) => JSON.parse(fields[1] ?? '{}').type)).toEqual([
+      `okay${run}.first`,
+      `okay${run}.second`,
+    ])
+
+    // До предела попыток — снова в следующем проходе, затем карантин
+    await dispatchAll()
+    const [row] = await db().execute<{ attempts: number; quarantined: boolean; error: string }>(
+      sql`SELECT attempts::int AS attempts, quarantined_at IS NOT NULL AS quarantined,
+                 last_error AS error
+            FROM ops.outbox WHERE event_id = ${`${poisonDomain}.broken-${run}`}`,
+    )
+    expect(row).toMatchObject({ attempts: OUTBOX_MAX_ATTEMPTS, quarantined: true })
+    expect(row?.error).toMatch(/WRONGTYPE/)
+    expect(await bus.dispatchOnce()).toBe(0)
+
+    // Показатели: карантин отдельно, в «ждут публикации» его нет
+    const lag = await outboxLag()
+    expect(lag.quarantined).toBeGreaterThanOrEqual(1)
+    expect(lag.pending).toBe(0)
+    await redis().del(`events:${poisonDomain}`)
+    await db().execute(sql`DELETE FROM ops.outbox WHERE quarantined_at IS NOT NULL`)
+  })
+})
+
+describe('потребители: свои потоки и пачка (ADR-0220)', () => {
+  const groupsOn = async (stream: string) =>
+    ((await redis().xinfo('GROUPS', stream)) as Array<Array<string | number>>).map((group) =>
+      String(group[group.indexOf('name') + 1]),
+    )
+
+  it('группа подписчика — только на потоках его доменов; прежняя на чужом снимается', async () => {
+    const name = `test-domains-${Date.now()}`
+    const foreign = `events:${EVENT_DOMAINS.find((domain) => domain !== 'object')}`
+    // Группа прежней версии: тогда она была на каждом потоке
+    await redis().xgroup('CREATE', foreign, name, '$', 'MKSTREAM')
+    bus.clearSubscribers()
+    bus.registerSubscriber({ name, types: ['object.created'], handle: async () => {} })
+    await bus.startConsumers(FAST)
+
+    expect(await groupsOn('events:object')).toContain(name)
+    expect(await groupsOn(foreign)).not.toContain(name)
+  })
+
+  it('событие, попавшее в поток дважды, обрабатывается один раз', async () => {
+    const name = `test-batch-${Date.now()}`
+    const handled: string[] = []
+    bus.clearSubscribers()
+    bus.registerSubscriber({
+      name,
+      types: ['object.created'],
+      handle: async (event) => {
+        if (event.id.startsWith('dup-')) handled.push(event.id)
+      },
+    })
+    await bus.startConsumers(FAST)
+
+    // Публикация «как минимум один раз»: та же запись outbox ушла в поток дважды
+    const { xaddEvent } = await import('../src/kernel/events/bus.js')
+    const event = { id: `dup-${Date.now()}`, type: 'object.created', payload: {} } as never
+    await xaddEvent(redis(), event)
+    await xaddEvent(redis(), event)
+
+    await waitFor(async () => {
+      const summary = (await redis().xpending('events:object', name)) as [number, ...unknown[]]
+      return handled.length > 0 && summary[0] === 0
+    })
+    expect(handled).toHaveLength(1)
   })
 })
