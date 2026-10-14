@@ -53,13 +53,13 @@ import {
   withChannelLabels,
 } from '~/features/data/explore-builder.js'
 import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { cellSpec, notebookKeys, sqlParams } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
 import { BindingsControl } from './notebook-params.js'
+import { notebooksApi } from './queries.js'
 
 const AUTO = '__auto'
 const RESULT_HEIGHT = 320
@@ -132,8 +132,7 @@ function VisualBody({
   const settled = useMemo((): typeof spec => (specKey ? JSON.parse(specKey) : null), [specKey])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn:
-      specKey && settled ? () => http.post('/queries/run', { body: { spec: settled } }) : skipToken,
+    queryFn: specKey && settled ? () => notebooksApi.postQueriesRun({ spec: settled }) : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })
@@ -289,7 +288,7 @@ function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { sql: submitted, values }),
-    queryFn: () => http.post('/sql/run', { body: { sql: submitted, params: values } }),
+    queryFn: () => notebooksApi.postSqlRun({ sql: submitted, params: values }),
     enabled: canSql && Boolean(submitted.trim()),
     placeholderData: keepPreviousData,
     retry: false,
@@ -375,8 +374,7 @@ export function AiCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   }
 
   const ask = useMutation({
-    mutationFn: (text: string) =>
-      http.post('/datasets/:id/ask', { params: { id: datasetId! }, body: { question: text } }),
+    mutationFn: (text: string) => notebooksApi.postDatasetsAsk(datasetId!, { question: text }),
     onSuccess: (result, text) => {
       writeCell(cell, {
         // Подпись ячейки (оглавление) — название ответа, если своей нет

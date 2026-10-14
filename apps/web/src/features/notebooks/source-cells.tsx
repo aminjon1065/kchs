@@ -7,12 +7,12 @@ import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { chartQuery, datasetQuery, metricQuery } from '~/features/data/index.js'
 import { useLabelledResult } from '~/features/gis/index.js'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { chartQuerySpec, metricPeriod, notebookKeys } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
 import { BindingsControl } from './notebook-params.js'
+import { notebooksApi } from './queries.js'
 import { CellError, CellResult } from './query-cell.js'
 
 const RESULT_HEIGHT = 320
@@ -43,16 +43,13 @@ export function ChartCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const specKey = runSpec ? JSON.stringify(runSpec) : ''
   const viaQuery = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: runSpec ? () => http.post('/queries/run', { body: { spec: runSpec } }) : skipToken,
+    queryFn: runSpec ? () => notebooksApi.postQueriesRun({ spec: runSpec }) : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })
   const viaChart = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { chart: chartId }),
-    queryFn:
-      chartId && spec && !query
-        ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
-        : skipToken,
+    queryFn: chartId && spec && !query ? () => notebooksApi.postChartsData(chartId) : skipToken,
     retry: false,
   })
   const result = query ? viaQuery : viaChart
@@ -140,7 +137,7 @@ export function MetricCell({ cell, cellId }: { cell: CellMap; cellId: string }) 
     queryKey: notebookKeys.cell(notebookId, cellId, { metric: metricId, input }),
     queryFn:
       metricId && metric.data && (dataset.data || dataset.error)
-        ? () => http.post('/metrics/:id/value', { params: { id: metricId }, body: input })
+        ? () => notebooksApi.postMetricsValue(metricId, input)
         : skipToken,
     placeholderData: keepPreviousData,
     retry: false,

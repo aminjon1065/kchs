@@ -53,7 +53,6 @@ import {
   useYChanges,
   writeCell,
 } from '~/entities/collab/notebook-doc.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -68,6 +67,7 @@ import {
 } from './notebook-context.js'
 import { iconOf, NotebookOutline } from './notebook-outline.js'
 import { NotebookParamsBar } from './notebook-params.js'
+import { notebooksApi } from './queries.js'
 import { AiCell, QueryCell } from './query-cell.js'
 import { ChartCell, MetricCell } from './source-cells.js'
 
@@ -94,8 +94,7 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
   const collab = useCollabDocument(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => notebooksApi.updateObject(objectId, { title }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -103,14 +102,14 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => notebooksApi.removeObject(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void notebooksApi.restoreObject(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -120,7 +119,7 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
 
   // «Экспорт в отчёт» (P2-E05 S03): ячейки снимка → блоки нового отчёта рядом с тетрадью
   const toReport = useMutation({
-    mutationFn: () => http.post('/reports/from-notebook', { body: { notebookId: objectId } }),
+    mutationFn: () => notebooksApi.postReportsFromNotebook({ notebookId: objectId }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.report.exported'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })
