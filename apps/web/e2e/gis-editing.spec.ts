@@ -246,7 +246,8 @@ test.describe('GIS: правка объектов и модерация', () => 
     await expect(panel.getByText(`Объект № ${rowId}`)).toBeVisible()
     await panel.getByLabel('Название').fill(`Пойма ${run} (уточнена)`)
     await panel.getByRole('button', { name: 'Сохранить' }).click()
-    await expect(page.getByText('Изменения сохранены')).toBeVisible()
+    // Сохранения подряд оставляют несколько уведомлений — последнее и есть это
+    await expect(page.getByText('Изменения сохранены').last()).toBeVisible()
     await expect(panel.getByText('Версия 2')).toBeVisible()
 
     // Геометрия — координатами вручную: южная граница ниже
@@ -257,7 +258,8 @@ test.describe('GIS: правка объектов и модерация', () => 
     await vertices.fill(text.replaceAll('38.548', '38.546'))
     await dialog.getByRole('button', { name: 'Применить' }).click()
     await panel.getByRole('button', { name: 'Сохранить' }).click()
-    await expect(page.getByText('Изменения сохранены')).toBeVisible()
+    // Сохранения подряд оставляют несколько уведомлений — последнее и есть это
+    await expect(page.getByText('Изменения сохранены').last()).toBeVisible()
     await expect(panel.getByText('Версия 3')).toBeVisible()
 
     await panel.getByRole('tab', { name: 'История' }).click()
@@ -374,7 +376,8 @@ test.describe('GIS: правка объектов и модерация', () => 
     await expect(conflict.getByRole('row', { name: /Опасность/ })).toContainText('Высокая')
     await page.screenshot({ path: 'test-results/gis-editing-conflict.png' })
     await conflict.getByRole('button', { name: 'Перезаписать' }).click()
-    await expect(page.getByText('Изменения сохранены')).toBeVisible()
+    // Сохранения подряд оставляют несколько уведомлений — последнее и есть это
+    await expect(page.getByText('Изменения сохранены').last()).toBeVisible()
     await expect(panel.getByText('Версия 3')).toBeVisible()
     let [row] = await rows(request, datasetId)
     // Своё поле перезаписано, чужая правка другого поля сохранилась

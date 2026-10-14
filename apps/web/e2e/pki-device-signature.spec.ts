@@ -184,7 +184,8 @@ test('ключ на устройстве → подпись КЭП → стра�
   await expect(signerPage.getByText('Ключ создан, сертификат выпущен')).toBeVisible({
     timeout: 30_000,
   })
-  await expect(signerPage.getByText('Это устройство')).toBeVisible()
+  // «Это устройство» — и в списке, и в подсказках; строку устройства проверяет следующий шаг
+  await expect(signerPage.getByText('Это устройство').first()).toBeVisible()
   await expect(signerPage.getByText(`Ноутбук ${run}`)).toBeVisible()
 
   // ── Автор: PDF записки и маршрут с КЭП ───────────────────────────────────
