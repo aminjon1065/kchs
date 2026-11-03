@@ -33,11 +33,6 @@ export const EventEnvelope = z.object({
   correlationId: z.string().nullable().default(null),
   causationId: z.string().nullable().default(null),
   source: z.string().default('api'),
-  /** Принципалы, имеющие право видеть факт события (realtime, вебхуки). */
-  visibility: z
-    .object({ principals: z.array(z.string()) })
-    .nullable()
-    .default(null),
 })
 export type EventEnvelope = z.infer<typeof EventEnvelope>
 

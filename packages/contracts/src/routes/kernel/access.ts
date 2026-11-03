@@ -28,21 +28,25 @@ export const kernelAccessRoutes = defineRoutes({
     },
   },
   'POST /objects/:id/access': {
+    sessionOnly: true,
     params: IdParam,
     body: z.object({ grants: z.array(AclGrantInput).min(1).max(50) }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'DELETE /objects/:id/access': {
+    sessionOnly: true,
     params: IdParam,
     body: z.object({ principal: Principal }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'PUT /objects/:id/access-mode': {
+    sessionOnly: true,
     params: IdParam,
     body: z.object({ mode: z.enum(['inherit', 'restricted']) }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'POST /objects/:id/access/explain': {
+    sessionOnly: true,
     params: IdParam,
     body: z.object({ userId: z.uuid() }),
     response: {
@@ -62,6 +66,7 @@ export const kernelAccessRoutes = defineRoutes({
   },
   'GET /objects/:id/share-links': { params: IdParam, response: { 200: ShareLinkList } },
   'POST /objects/:id/share-links': {
+    sessionOnly: true,
     params: IdParam,
     body: ShareLinkInput,
     response: { 200: ShareLinkCreated },
@@ -72,6 +77,7 @@ export const kernelAccessRoutes = defineRoutes({
     response: { 200: ShareLinkOpenResult },
   },
   'DELETE /objects/:id/share-links/:linkId': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid(), linkId: z.uuid() }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },

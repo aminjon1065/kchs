@@ -27,6 +27,7 @@ const { buildEnvelope } = await import('../src/kernel/events/publisher.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { resetConfigCache } = await import('../src/shared/config/index.js')
 const { outbox, webhookDeliveries, webhooks } = await import('../src/db-schema.js')
+const { Webhooks } = await import('../src/modules/integrations/domain/webhook-service.js')
 
 interface Received {
   headers: Record<string, string | undefined>
@@ -74,13 +75,35 @@ async function createWebhook(
   return { id: body.webhook.id, secret: body.secret }
 }
 
-function envelope(type: string, options: { spaceId?: string | null; principals?: string[] } = {}) {
+function envelope(
+  type: string,
+  options: { spaceId?: string | null; object?: { id: string; type: string } | null } = {},
+) {
+  const object =
+    options.object === null
+      ? null
+      : {
+          ...(options.object ?? { id: fx.spaceId, type: 'space' }),
+          spaceId: options.spaceId ?? fx.spaceId,
+        }
   return buildEnvelope(systemCtx('test'), {
     type,
-    object: { id: fx.spaceId, type: 'space', spaceId: options.spaceId ?? fx.spaceId },
+    object,
     payload: type === 'object.created' ? { type: 'space', title: 'Проверка' } : {},
-    ...(options.principals ? { visibilityPrincipals: options.principals } : {}),
   })
+}
+
+/** Папка в личном пространстве постороннего: администратору она не видна. */
+async function strangersFolder(): Promise<string> {
+  const me = (await call(fx.app, { url: '/me', as: fx.users.stranger })).json()
+  const folder = await call(fx.app, {
+    method: 'POST',
+    url: '/folders',
+    as: fx.users.stranger,
+    payload: { name: `Личная папка ${Date.now()}`, spaceId: me.personalSpaceId },
+  })
+  expect(folder.statusCode, folder.body).toBe(200)
+  return folder.json().id as string
 }
 
 async function deliveriesOf(webhookId: string) {
@@ -150,15 +173,61 @@ describe('исходящие вебхуки', () => {
   })
 
   it('не отдаёт наружу событие, которого владелец подписки не видит', async () => {
-    const { id } = await createWebhook({ name: 'Видимость' })
-    // Факт виден только постороннему — администратор-владелец подписки в список не входит
-    await dispatchEvent(
-      envelope('object.created', { principals: [`user:${fx.users.stranger.id}`] }),
-    )
+    const { id } = await createWebhook({ name: 'Видимость', eventTypes: ['*'] })
+    // Подписка от имени читателя пространства; объект в личном пространстве
+    // постороннего ему не виден
+    await db().update(webhooks).set({ runAsUserId: fx.users.viewer.id }).where(eq(webhooks.id, id))
+    Webhooks.invalidateActive()
+    const hidden = await strangersFolder()
+    await dispatchEvent(envelope('object.created', { object: { id: hidden, type: 'folder' } }))
     expect(await deliveriesOf(id)).toHaveLength(0)
 
-    await dispatchEvent(envelope('object.created', { principals: [`user:${fx.admin.id}`] }))
+    // Объект, который владелец видит, уходит
+    await dispatchEvent(envelope('object.created'))
     expect(await deliveriesOf(id)).toHaveLength(1)
+  })
+
+  it('событие без объекта реестра уходит только подписке, которая назвала его тип', async () => {
+    const wildcard = await createWebhook({ name: 'Всё подряд', eventTypes: ['*'] })
+    const domain = await createWebhook({ name: 'Домен входа', eventTypes: ['user.*'] })
+    const exact = await createWebhook({ name: 'Входы', eventTypes: ['user.login'] })
+    const login = buildEnvelope(systemCtx('test'), {
+      type: 'user.login',
+      object: { id: fx.users.member.id, type: 'user' },
+      payload: { ip: '127.0.0.1', userAgent: 'проверка' },
+    })
+    await dispatchEvent(login)
+    expect(await deliveriesOf(wildcard.id)).toHaveLength(0)
+    expect(await deliveriesOf(domain.id)).toHaveLength(0)
+    expect(await deliveriesOf(exact.id)).toHaveLength(1)
+  })
+
+  it('владельцу с отключённой учётной записью ничего не доставляется', async () => {
+    const own = await strangersFolder()
+    const { id } = await createWebhook({ name: 'Владелец отключён' })
+    // Подписка от имени постороннего: свою папку он видит
+    await db()
+      .update(webhooks)
+      .set({ runAsUserId: fx.users.stranger.id })
+      .where(eq(webhooks.id, id))
+    Webhooks.invalidateActive()
+    await dispatchEvent(envelope('object.created', { object: { id: own, type: 'folder' } }))
+    expect(await deliveriesOf(id)).toHaveLength(1)
+
+    const block = (status: 'blocked' | 'active') =>
+      call(fx.app, {
+        method: 'PATCH',
+        url: `/users/${fx.users.stranger.id}`,
+        as: fx.admin,
+        payload: { status },
+      })
+    expect((await block('blocked')).statusCode).toBe(200)
+    try {
+      await dispatchEvent(envelope('object.updated', { object: { id: own, type: 'folder' } }))
+      expect(await deliveriesOf(id)).toHaveLength(1)
+    } finally {
+      await block('active')
+    }
   })
 
   it('одно событие не задваивается при повторной обработке подписчиком', async () => {

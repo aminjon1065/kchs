@@ -176,14 +176,17 @@ export const identityRoutes = defineRoutes({
   'PUT /admin/sso': { body: SsoSettingsInput, response: { 200: SsoState } },
   'POST /admin/sso/test': { response: { 200: SsoTestResult } },
   'POST /users/:id/reset-mfa': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'GET /users/:id/passkeys': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ items: z.array(PasskeyInfo) }) },
   },
   'DELETE /users/:id/passkeys': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ revoked: z.number().int() }) },
   },

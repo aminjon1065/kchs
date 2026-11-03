@@ -169,6 +169,10 @@ export interface RegisteredRoute {
   readOnly?: boolean
   /** Открыт снаружи без входа (таблица маршрутов, ADR-0200). */
   exposure?: RouteExposure
+  /** Только из сессии: токенам и шлюзу DMZ недоступен (таблица маршрутов, ADR-0225). */
+  sessionOnly?: true
+  /** Доступен гостю по ссылке (таблица маршрутов, ADR-0225). */
+  guest?: true
 }
 
 const registered: RegisteredRoute[] = []
@@ -270,6 +274,16 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         `Маршрут ${method} ${url}: exposure: '${contract.exposure}' только у маршрутов auth: 'public'`,
       )
     }
+    // Гость только читает один объект (ADR-0032): признак — у GET с проверкой права
+    if (
+      contract.guest &&
+      (method !== 'GET' || typeof definition.auth !== 'object' || !('action' in definition.auth))
+    ) {
+      throw new Error(`Маршрут ${method} ${url}: guest только у GET с auth: { action } (ADR-0225)`)
+    }
+    if (contract.sessionOnly && contract.exposure) {
+      throw new Error(`Маршрут ${method} ${url}: sessionOnly и exposure несовместимы (ADR-0225)`)
+    }
     if (!registered.some((r) => r.method === method && r.url === url)) {
       registered.push({
         method,
@@ -279,6 +293,8 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         ...(definition.tags ? { tags: definition.tags } : {}),
         ...(definition.readOnly ? { readOnly: true } : {}),
         ...(contract.exposure ? { exposure: contract.exposure } : {}),
+        ...(contract.sessionOnly ? { sessionOnly: true as const } : {}),
+        ...(contract.guest ? { guest: true as const } : {}),
       })
     }
 
@@ -303,6 +319,9 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         ...(definition.readOnly ? { readOnly: true } : {}),
         // Шлюз DMZ: что открыто снаружи без входа (ADR-0200)
         ...(contract.exposure ? { exposure: contract.exposure } : {}),
+        // Учётные записи и доступ — только из сессии; гостю — по белому списку (ADR-0225)
+        ...(contract.sessionOnly ? { sessionOnly: true } : {}),
+        ...(contract.guest ? { guest: true } : {}),
       },
       handler: definition.handler as never,
     })

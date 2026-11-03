@@ -110,6 +110,16 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
     tags: ['access'],
     summary: 'Объяснить доступ конкретного пользователя',
     handler: async (request) => {
+      // Объяснение раскрывает допуск сотрудника и названия хостов вложения — его видит
+      // тот, кто управляет доступом объекта, аудитор безопасности и администратор
+      // системы, а не любой читатель (ADR-0225)
+      const ctx = request.ctx
+      if (!ctx.isSecurityAuditor && !ctx.isSystemAdmin) {
+        const own = await authorize(ctx, 'view', request.params.id)
+        if (own.level !== 'manage' && own.level !== 'owner') {
+          throw errors.forbidden('Объяснение доступа видит тот, кто управляет доступом')
+        }
+      }
       const targetCtx = await buildUserCtxFor(request.body.userId)
       if (!targetCtx) throw errors.notFound('Пользователь')
       const object = await loadObject(request.params.id)

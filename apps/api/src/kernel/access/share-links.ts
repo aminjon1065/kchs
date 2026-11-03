@@ -5,7 +5,7 @@ import {
   type ShareLinkOpenResult,
   withinClearance,
 } from '@kchs/contracts'
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import { EMPTY_PRINCIPALS, type UserCtx } from '~/shared/context.js'
 import { hashPassword, verifyPassword } from '~/shared/crypto/password.js'
@@ -156,14 +156,23 @@ export async function openShareLink(
     }
   }
 
+  // Открытие засчитывается одним условным UPDATE (ADR-0225): параллельные открытия
+  // ссылки с пределом не проходят сверх `maxUses`
+  const counted = await db()
+    .update(shareLinks)
+    .set({ uses: sql`${shareLinks.uses} + 1` })
+    .where(
+      and(
+        eq(shareLinks.id, row.id),
+        or(isNull(shareLinks.maxUses), lt(shareLinks.uses, shareLinks.maxUses)),
+      ),
+    )
+    .returning({ id: shareLinks.id })
+  if (counted.length === 0) return null
+
   const grant = `${GRANT_PREFIX}${randomToken(24)}`
   const ttl = grantTtlSeconds(row.expiresAt)
   await redis().set(cacheKeys.shareGrant(hashToken(grant)), row.id, 'EX', ttl)
-
-  await db()
-    .update(shareLinks)
-    .set({ uses: sql`${shareLinks.uses} + 1` })
-    .where(eq(shareLinks.id, row.id))
 
   return {
     linkId: row.id,

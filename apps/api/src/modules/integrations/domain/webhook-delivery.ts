@@ -2,12 +2,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { type EventEnvelope, WEBHOOK_HEADERS } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { request } from 'undici'
-import { getPrincipalSet } from '~/kernel/access/principal-set.js'
+import { authorize, loadObject } from '~/kernel/access/authorize.js'
+import { buildUserCtxFor } from '~/kernel/access/explain.js'
+import { directory } from '~/kernel/directory/port.js'
 import { matchesType } from '~/kernel/events/bus.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { config } from '~/shared/config/index.js'
-import { systemCtx } from '~/shared/context.js'
+import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { decryptSecret } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -48,20 +50,54 @@ export function verifySignature(
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 
+/** Контексты владельцев подписок в пределах одного события (ADR-0225). */
+type RunAsCache = Map<string, Promise<UserCtx | null>>
+
+/**
+ * Видит ли владелец подписки факт события (ADR-0225). Объект реестра — по праву
+ * просмотра с грифом, как в интерфейсе (удалённый в корзину — тоже: подписчику нужен
+ * факт удаления). Событие без объекта реестра (вход в систему, окончательно удалённый
+ * объект, служебные ресурсы) уходит, только если подписка называет его тип прямо —
+ * шаблон `*` или `user.*` их не включает.
+ */
+async function visibleToOwner(
+  row: WebhookRow,
+  event: EventEnvelope,
+  owners: RunAsCache,
+): Promise<boolean> {
+  const object = event.object ? await loadObject(event.object.id) : null
+  if (!object) return row.eventTypes.includes(event.type)
+  let owner = owners.get(row.runAsUserId)
+  if (!owner) {
+    // Отключённой учётной записи не доставляется ничего: её права не действуют
+    owner = directory()
+      .account(row.runAsUserId)
+      .then((account) => (account?.status === 'active' ? buildUserCtxFor(row.runAsUserId) : null))
+    owners.set(row.runAsUserId, owner)
+  }
+  const ctx = await owner
+  if (!ctx) return false
+  const decision = await authorize(ctx, 'view', object.id, {
+    object,
+    soft: true,
+    allowTrashed: true,
+  })
+  return decision.allowed
+}
+
 /** Событие подходит вебхуку: тип, пространство и видимость владельца подписки. */
-async function matches(row: WebhookRow, event: EventEnvelope): Promise<boolean> {
+async function matches(
+  row: WebhookRow,
+  event: EventEnvelope,
+  owners: RunAsCache,
+): Promise<boolean> {
   if (!matchesType(row.eventTypes, event.type)) return false
   if (row.spaceIds.length > 0) {
     const spaceId = event.object?.spaceId ?? event.target?.spaceId ?? null
     if (!spaceId || !row.spaceIds.includes(spaceId)) return false
   }
-  // Видимость факта: наружу уходит только то, что видит владелец подписки
-  if (event.visibility?.principals && event.visibility.principals.length > 0) {
-    const principals = await getPrincipalSet(row.runAsUserId)
-    const keys = new Set(principals.keys)
-    if (!event.visibility.principals.some((key) => keys.has(key))) return false
-  }
-  return true
+  // Наружу уходит только то, что владелец подписки видит в интерфейсе
+  return visibleToOwner(row, event, owners)
 }
 
 /**
@@ -78,8 +114,9 @@ export async function dispatchEvent(event: EventEnvelope): Promise<void> {
   const active = await Webhooks.active()
   if (active.length === 0) return
 
+  const owners: RunAsCache = new Map()
   for (const row of active) {
-    if (!(await matches(row, event))) continue
+    if (!(await matches(row, event, owners))) continue
     const id = newId()
     const inserted = await db()
       .insert(webhookDeliveries)

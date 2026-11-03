@@ -23,16 +23,19 @@ export const kernelSpacesRoutes = defineRoutes({
     response: { 200: z.object({ items: z.array(SpaceMember) }) },
   },
   'POST /spaces/:id/members': {
+    sessionOnly: true,
     params: IdParam,
     body: z.object({ userId: z.uuid(), role: SpaceRole }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'PUT /spaces/:id/members/:userId': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid(), userId: z.uuid() }),
     body: z.object({ role: SpaceRole }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'DELETE /spaces/:id/members/:userId': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid(), userId: z.uuid() }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },

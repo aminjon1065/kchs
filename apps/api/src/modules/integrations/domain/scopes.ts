@@ -45,7 +45,8 @@ const TAG_RESOURCE: Record<string, ApiScopeResource> = {
  * Пути, закрытые для токенов при любых областях: личный кабинет, вход,
  * администрирование и внутренние маршруты движка. Токен не должен становиться
  * способом сменить пароль, выпустить второй токен или войти в режим
- * администратора (17-security.md §2, §3).
+ * администратора (17-security.md §2, §3). Управление чужими учётными записями и
+ * доступом закрыто признаком маршрута `sessionOnly` (ADR-0225).
  */
 const DENIED_PREFIXES = ['/me', '/auth', '/internal', '/admin', '/share', '/hooks']
 
@@ -68,11 +69,18 @@ export function requiredScope(input: {
   url: string
   tags: readonly string[] | undefined
   readOnly?: boolean
+  /**
+   * Признак таблицы маршрутов `sessionOnly` (ADR-0225): учётные записи и доступ —
+   * пароль, второй фактор, роли, группы, допуск, права на объект — токену не даются
+   * при любых областях, даже если тег маршрута открыт.
+   */
+  sessionOnly?: boolean
 }): ScopeRequirement {
   const path = input.url.startsWith('/api/v1') ? input.url.slice('/api/v1'.length) : input.url
   if (DENIED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     return { scope: null }
   }
+  if (input.sessionOnly) return { scope: null }
 
   const tags = input.tags ?? []
   if (tags.some((tag) => DENIED_TAGS.has(tag))) return { scope: null }

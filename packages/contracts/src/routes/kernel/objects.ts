@@ -18,7 +18,8 @@ import { IdParam } from '../params.js'
  * Маршруты ядра «objects» (ADR-0188). Регистрация — `apps/api/src/kernel/objects/`: http.ts.
  */
 export const kernelObjectsRoutes = defineRoutes({
-  'GET /objects/:id': { params: IdParam, response: { 200: ObjectRecord } },
+  // Гостю по ссылке открыт просмотр объекта и файла — и только (ADR-0225)
+  'GET /objects/:id': { guest: true, params: IdParam, response: { 200: ObjectRecord } },
   'PATCH /objects/:id': {
     params: IdParam,
     body: ObjectPatchInput,

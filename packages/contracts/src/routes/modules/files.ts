@@ -72,7 +72,8 @@ export const filesRoutes = defineRoutes({
     params: IdParam,
     response: { 200: z.object({ ok: z.boolean() }) },
   },
-  'GET /files/:id': { params: IdParam, response: { 200: FileRecord } },
+  // Гостю по ссылке — карточка, скачивание, превью и текст файла (ADR-0225)
+  'GET /files/:id': { guest: true, params: IdParam, response: { 200: FileRecord } },
   'GET /files/:id/versions': {
     params: IdParam,
     response: { 200: z.object({ items: z.array(FileVersion) }) },
@@ -83,6 +84,7 @@ export const filesRoutes = defineRoutes({
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'GET /files/:id/download': {
+    guest: true,
     params: IdParam,
     query: z.object({
       versionId: z.uuid().optional(),
@@ -90,8 +92,8 @@ export const filesRoutes = defineRoutes({
     }),
     response: { 200: z.object({ url: z.string(), name: z.string() }) },
   },
-  'GET /files/:id/previews': { params: IdParam, response: { 200: FilePreviews } },
-  'GET /files/:id/text': { params: IdParam, response: { 200: FileText } },
+  'GET /files/:id/previews': { guest: true, params: IdParam, response: { 200: FilePreviews } },
+  'GET /files/:id/text': { guest: true, params: IdParam, response: { 200: FileText } },
   'POST /internal/files/:id/processed': {
     params: IdParam,
     body: ENGINE_CALLBACKS.fileProcessed.body,

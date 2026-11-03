@@ -60,33 +60,43 @@ export const kernelDirectoryRoutes = defineRoutes({
     },
   },
   'PUT /users/:id/clearance': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: ClearanceInput,
     response: { 200: z.object({ clearance: Confidentiality }) },
   },
   'GET /users/:id': { params: z.object({ id: z.uuid() }), response: { 200: UserRef } },
   'POST /users': {
+    sessionOnly: true,
     body: AdminUserCreateInput,
     response: { 200: z.object({ id: z.uuid(), temporaryPassword: z.string().nullable() }) },
   },
   'PATCH /users/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: AdminUserPatchInput,
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'POST /users/:id/reset-password': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ temporaryPassword: z.string() }) },
   },
   'GET /org/units': { response: { 200: z.object({ items: z.array(OrgUnit) }) } },
-  'POST /org/units': { body: OrgUnitInput, response: { 200: z.object({ id: z.uuid() }) } },
+  'POST /org/units': {
+    sessionOnly: true,
+    body: OrgUnitInput,
+    response: { 200: z.object({ id: z.uuid() }) },
+  },
   'PATCH /org/units/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: OrgUnitPatch,
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'GET /org/positions': { response: { 200: z.object({ items: z.array(Position) }) } },
   'POST /org/positions': {
+    sessionOnly: true,
     body: z.object({
       name: LangText,
       rank: z.number().int().default(0),
@@ -95,6 +105,7 @@ export const kernelDirectoryRoutes = defineRoutes({
     response: { 200: z.object({ id: z.uuid() }) },
   },
   'PATCH /org/positions/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: z.object({
       name: LangText.optional(),
@@ -104,11 +115,13 @@ export const kernelDirectoryRoutes = defineRoutes({
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'DELETE /org/positions/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'GET /groups': { response: { 200: z.object({ items: z.array(Group) }) } },
   'POST /groups': {
+    sessionOnly: true,
     body: z.object({
       name: z.string().min(1).max(200),
       description: z.string().max(1000).nullable().optional(),
@@ -116,6 +129,7 @@ export const kernelDirectoryRoutes = defineRoutes({
     response: { 200: z.object({ id: z.uuid() }) },
   },
   'PATCH /groups/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: z.object({
       name: z.string().trim().min(1).max(200).optional(),
@@ -128,21 +142,25 @@ export const kernelDirectoryRoutes = defineRoutes({
     response: { 200: z.object({ items: z.array(UserRef) }) },
   },
   'PUT /groups/:id/members': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: z.object({ userIds: z.array(z.uuid()) }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
   'GET /roles': { response: { 200: z.object({ items: z.array(RoleInfo) }) } },
   'POST /roles': {
+    sessionOnly: true,
     body: RoleInput,
     response: { 200: z.object({ id: z.uuid(), key: z.string() }) },
   },
   'PATCH /roles/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: RolePatch,
     response: { 200: z.object({ ok: z.literal(true) }) },
   },
   'DELETE /roles/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: z.object({ ok: z.literal(true) }) },
   },
@@ -151,8 +169,13 @@ export const kernelDirectoryRoutes = defineRoutes({
     params: z.object({ id: z.uuid() }),
     response: { 200: ServiceAccount },
   },
-  'POST /service-accounts': { body: ServiceAccountCreateInput, response: { 200: ServiceAccount } },
+  'POST /service-accounts': {
+    sessionOnly: true,
+    body: ServiceAccountCreateInput,
+    response: { 200: ServiceAccount },
+  },
   'PATCH /service-accounts/:id': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: ServiceAccountPatchInput,
     response: { 200: ServiceAccount },
@@ -162,15 +185,18 @@ export const kernelDirectoryRoutes = defineRoutes({
   'PUT /me/facsimile': { body: FacsimileInput, response: { 200: OwnFacsimile } },
   'DELETE /me/facsimile': { response: { 200: OwnFacsimile } },
   'GET /users/:id/facsimile': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: FacsimileState },
   },
   'PUT /users/:id/facsimile': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     body: FacsimileInput,
     response: { 200: FacsimileState },
   },
   'DELETE /users/:id/facsimile': {
+    sessionOnly: true,
     params: z.object({ id: z.uuid() }),
     response: { 200: FacsimileState },
   },
