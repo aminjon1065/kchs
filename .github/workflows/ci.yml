@@ -11,7 +11,8 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
-  PNPM_VERSION: '12'
+  # Версию pnpm action-setup берёт из packageManager в package.json: явная
+  # версия рядом с ним роняет шаг «Multiple versions of pnpm specified»
   HELM_VERSION: 'v3.19.0'
 
 jobs:
@@ -23,7 +24,6 @@ jobs:
         # Вся история: совместимость контрактов сравнивается с точкой ответвления (ADR-0189)
         with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -67,7 +67,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -83,7 +82,6 @@ jobs:
         # Вся история: совместимость API сравнивается с точкой ответвления (ADR-0189)
         with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -148,7 +146,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -228,7 +225,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -367,7 +363,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -379,7 +374,7 @@ jobs:
       - name: Уязвимости зависимостей
         run: pnpm audit --audit-level high
       - name: Trivy (файловая система)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
