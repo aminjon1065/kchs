@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 from kchs_engine.files.processing import (
     THUMBNAIL_WIDTH,
     WEB_MAX_SIDE,
+    _seed_libreoffice_profile,
     classify,
     detect_lang,
     image_previews,
@@ -88,6 +89,26 @@ def test_office_document_to_pdf_pages_and_text(tmp_path: Path) -> None:
     assert result.lang == "ru"
     kinds = sorted(p.kind for p in result.previews)
     assert kinds == ["page", "thumbnail"]
+
+
+@needs_office
+def test_office_profile_blocks_external_links(tmp_path: Path) -> None:
+    # Конвертация недоверенного документа идёт с профилем, который запрещает
+    # внешние ссылки и макросы: сам профиль создаётся до запуска soffice.
+    source = tmp_path / "doc.rtf"
+    source.write_text(rtf("Документ со ссылкой"), encoding="ascii")
+    pdf = office_to_pdf(source, tmp_path)
+    assert pdf.exists()
+    profile = next(tmp_path.glob("lo-*"))
+    registry = (profile / "user" / "registrymodifications.xcu").read_text(encoding="utf-8")
+    assert "BlockUntrustedRefererLinks" in registry
+    assert "MacroSecurityLevel" in registry
+
+
+def test_seed_libreoffice_profile_writes_registry(tmp_path: Path) -> None:
+    _seed_libreoffice_profile(tmp_path / "lo")
+    registry = (tmp_path / "lo" / "user" / "registrymodifications.xcu").read_text(encoding="utf-8")
+    assert "BlockUntrustedRefererLinks" in registry
 
 
 @needs_ocr

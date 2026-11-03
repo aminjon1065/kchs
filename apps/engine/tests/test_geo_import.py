@@ -18,6 +18,7 @@ from import_helpers import analyze, column, mapping_from, normalize
 from pyogrio import raw
 
 from kchs_engine.contracts import data_import_contract
+from kchs_engine.data.analyze import analyze_file
 from kchs_engine.data.readers import FEATURE_FORMATS, ImportFileError
 
 # Пункты временного размещения под Душанбе в UTM 42N (метры) и их координаты в градусах
@@ -108,6 +109,32 @@ def test_контракт_знает_форматы_слоёв() -> None:
     contract = data_import_contract()
     assert set(contract["layerFormats"]) == FEATURE_FORMATS
     assert set(contract["formats"]) >= FEATURE_FORMATS
+
+
+# Описание источника OGR VRT: GDAL прочитал бы по нему любой посторонний файл или
+# сетевой адрес. Файл с расширением геоформата, но таким содержимым — отклоняется.
+_VRT_AS_GEO = (
+    '<OGRVRTDataSource><OGRVRTLayer name="x">'
+    "<SrcDataSource>/etc/hostname</SrcDataSource><SrcLayer>x</SrcLayer>"
+    "</OGRVRTLayer></OGRVRTDataSource>"
+)
+
+
+@pytest.mark.parametrize("suffix", [".gpx", ".kml", ".kmz", ".gpkg"])
+def test_описание_источника_под_видом_геофайла_отклоняется(tmp_path: Path, suffix: str) -> None:
+    source = tmp_path / f"upload{suffix}"
+    source.write_text(_VRT_AS_GEO, encoding="utf-8")
+    with pytest.raises(ImportFileError) as caught:
+        analyze_file(source, source.name, {}, complete=True)
+    assert caught.value.code == "unsupported"
+
+
+def test_драйвер_ogr_vrt_не_зарегистрирован() -> None:
+    # Ограждение geoguard убирает драйвер целиком: даже при обходе определения
+    # формата GDAL не откроет описание источника.
+    import pyogrio
+
+    assert "OGR_VRT" not in set(pyogrio.list_drivers())
 
 
 # ─── Shapefile ───────────────────────────────────────────────────────────────

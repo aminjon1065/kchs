@@ -151,6 +151,15 @@ def detect_format(
             return "kml"
         if "<gpx" in markup:
             return "gpx"
+        # XML, но не KML и не GPX. Файл с расширением геоформата, но иным корневым
+        # элементом (например, описание источника OGR) в GDAL как геоформат не
+        # передаётся: его открыл бы посторонний драйвер.
+        if by_name in FEATURE_FORMATS:
+            raise ImportFileError(
+                "unsupported",
+                "файл не похож на свой формат: ожидался <kml> или <gpx>, "
+                "а внутри другая разметка",
+            )
     if stripped.startswith("{") or stripped.startswith("["):
         if '"FeatureCollection"' in stripped[:4096] or by_name == "geojson":
             return "geojson"

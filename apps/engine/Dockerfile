@@ -33,7 +33,11 @@ FROM system AS runtime
 COPY --from=deps /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     VIRTUAL_ENV=/opt/venv \
-    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
+    # Небезопасные драйверы GDAL/OGR (описание источника, сеть, базы) — выключены на
+    # уровне окружения как запасной рубеж к geoguard.apply_gdal_hardening()
+    OGR_SKIP="OGR_VRT,GMLAS,GML,NAS,WFS,OAPIF,CSW,PG,PostgreSQL,MySQL,MSSQLSpatial,ODBC,OCI,PGDUMP,MongoDBv3,Elasticsearch,Carto,AmigoCloud,NGW,WAsP,Selafin,HTTP,XLSX,XLS,ODS" \
+    GDAL_SKIP="VRT,HTTP,WMS,WCS,WMTS,STACTA,STACIT"
 
 # Chromium печати отчётов (ADR-0022, ADR-0078): безголовая сборка той версии, что
 # ждёт пакет playwright, и её системные библиотеки. Каталог — общий, не в $HOME:
