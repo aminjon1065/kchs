@@ -5,4 +5,10 @@
 (02-architecture/01-overview.md).
 """
 
+# До первого импорта GDAL (pyogrio): список небезопасных драйверов GDAL читается
+# при регистрации — задать его надо раньше любой работы с геоданными.
+from kchs_engine.geoguard import apply_gdal_hardening
+
+apply_gdal_hardening()
+
 __version__ = "0.1.0"

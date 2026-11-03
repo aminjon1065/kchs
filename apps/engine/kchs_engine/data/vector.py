@@ -53,6 +53,9 @@ def _libraries() -> Any:
         raise ImportFileError(
             "unsupported", "геоформаты недоступны: движок собран без библиотек GDAL"
         ) from error
+    from kchs_engine.geoguard import harden_runtime_config
+
+    harden_runtime_config()
     return pyogrio
 
 

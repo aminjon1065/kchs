@@ -70,6 +70,9 @@ def _libraries() -> tuple[Any, Any, Any]:
         raise ImportFileError(
             "unsupported", "геоэкспорт недоступен: движок собран без GDAL и Arrow"
         ) from error
+    from kchs_engine.geoguard import harden_runtime_config
+
+    harden_runtime_config()
     return pyarrow, pyogrio, shapely
 
 
