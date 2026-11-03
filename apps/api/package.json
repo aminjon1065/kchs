@@ -94,7 +94,6 @@
     "@hocuspocus/provider": "^4.7.0",
     "@kchs/config": "workspace:*",
     "@maplibre/maplibre-gl-style-spec": "^26.4.4",
-    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.18.9",
     "@types/nodemailer": "^8.0.2",
     "@types/qrcode": "^1.5.5",
