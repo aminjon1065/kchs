@@ -202,10 +202,38 @@ def ocr_languages() -> str:
     return "+".join(wanted)
 
 
+# Профиль LibreOffice недоверенного файла: не обновлять и не загружать внешние
+# ссылки (картинки, OLE, DDE) ни по сети, ни из файловой системы движка, и не
+# выполнять макросы. Иначе документ при конвертации тянул бы посторонние ресурсы.
+_LIBREOFFICE_PROFILE = """<?xml version="1.0" encoding="UTF-8"?>
+<oor:items xmlns:oor="http://openoffice.org/2001/registry" \
+xmlns:xs="http://www.w3.org/2001/XMLSchema" \
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <item oor:path="/org.openoffice.Office.Common/Security/Scripting">\
+<prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
+ <item oor:path="/org.openoffice.Office.Common/Security/Scripting">\
+<prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>
+ <item oor:path="/org.openoffice.Office.Writer/Content/Update/Link">\
+<prop oor:name="Mode" oor:op="fuse"><value>0</value></prop></item>
+ <item oor:path="/org.openoffice.Office.Calc/Content/Update/Link">\
+<prop oor:name="Mode" oor:op="fuse"><value>0</value></prop></item>
+</oor:items>
+"""
+
+
+def _seed_libreoffice_profile(profile: Path) -> None:
+    """Профиль с запретом внешних ссылок — до запуска soffice."""
+    user = profile / "user"
+    user.mkdir(parents=True, exist_ok=True)
+    (user / "registrymodifications.xcu").write_text(_LIBREOFFICE_PROFILE, encoding="utf-8")
+
+
 def office_to_pdf(source: Path, workdir: Path) -> Path:
     """LibreOffice без интерфейса. Отдельный профиль на каждый вызов: параллельные
-    конвертации с общим профилем блокируют друг друга."""
+    конвертации с общим профилем блокируют друг друга. Профиль запрещает внешние
+    ссылки и макросы — недоверенный документ не тянет посторонние ресурсы."""
     profile = workdir / f"lo-{uuid.uuid4().hex}"
+    _seed_libreoffice_profile(profile)
     run(
         [
             "soffice",
