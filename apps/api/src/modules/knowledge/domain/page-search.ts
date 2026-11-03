@@ -6,6 +6,7 @@ import { db } from '~/shared/db/client.js'
 import { type PageChunkDocument, pageChunks, searchPageChunks } from './page-chunks.js'
 import { loadPage } from './page-core.js'
 import { semanticReady, semanticSearch } from './semantic-port.js'
+import { escapeHtml, highlightedSnippet } from './snippet.js'
 
 /**
  * Поиск по базе знаний (13-search-knowledge-ai.md §1–2, ADR-0095): слова —
@@ -31,11 +32,6 @@ function chunkFilter(ctx: UserCtx, query: PageSearchQuery): string {
   return parts.join(' AND ')
 }
 
-/** Сниппет смыслового совпадения: текст чанка из источника или из снимка страницы. */
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-}
-
 function toTextHit(document: PageChunkDocument): PageChunkHit {
   return {
     pageId: document.pageId,
@@ -43,7 +39,7 @@ function toTextHit(document: PageChunkDocument): PageChunkHit {
     title: document.title,
     spaceId: document.spaceId,
     heading: document.heading,
-    snippet: document.text,
+    snippet: highlightedSnippet(document.text),
     source: 'text',
     score: null,
   }

@@ -6,6 +6,7 @@ import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { blockText, loadPage } from './page-core.js'
 import { type SemanticChunk, semanticForget, semanticIndex } from './semantic-port.js'
+import { HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN } from './snippet.js'
 
 /**
  * Чанки страниц базы знаний (13-search-knowledge-ai.md §1, ADR-0095):
@@ -182,8 +183,11 @@ export async function searchPageChunks(
       // Пустой фильтр — у смотрящего нет ограничений (администратор, аудитор)
       ...(filter ? { filter } : {}),
       attributesToHighlight: ['text'],
-      highlightPreTag: '<mark>',
-      highlightPostTag: '</mark>',
+      // Подсветка — метками, а не тегами: Meilisearch вставляет их в исходный текст
+      // как есть, и HTML из страницы ушёл бы в выдачу. Экранирует и превращает
+      // метки в <mark> поиск страниц (`snippet.ts`)
+      highlightPreTag: HIGHLIGHT_OPEN,
+      highlightPostTag: HIGHLIGHT_CLOSE,
       attributesToCrop: ['text'],
       cropLength: 40,
     })
