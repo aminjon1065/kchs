@@ -11,8 +11,6 @@ export interface EventInput {
   correlationId?: string | null
   causationId?: string | null
   source?: string
-  /** Принципалы, которым виден факт события (заполняется ядром из ACL). */
-  visibilityPrincipals?: string[] | null
 }
 
 export type EventHandler = (event: EventEnvelope) => Promise<void>

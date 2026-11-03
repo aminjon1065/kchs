@@ -13,8 +13,7 @@
   "changedFields": null,
   "correlationId": "req_...",
   "causationId": null,
-  "source": "api|worker|engine|automation|integration:telegram",
-  "visibility": {"principals": ["space:01J...:viewer", "user:01J..."]}
+  "source": "api|worker|engine|automation|integration:telegram"
 }
 ```
 
@@ -22,9 +21,9 @@
 - `id` — ULID/UUIDv7 (упорядочен по времени); `type` — из каталога (`16-api-and-events.md`), `version` — версия схемы полезной нагрузки.
 - `actor.kind`: `user | system | automation | integration`; действия «от имени» — `onBehalfOf`.
 - `object` — краткая ссылка (без содержимого); `payload` — минимум для реакции; `changedFields` — список ключей для `*.updated`.
-- `visibility.principals` — принципалы, имеющие право видеть факт события (для realtime-фильтрации и вебхуков); заполняется ядром из ACL на момент события.
+- Поля видимости в конверте нет (ADR-0225): кто видит факт, решает получатель по текущим правам. Realtime проверяет право на комнату объекта, вебхук — право владельца подписки на объект события (`authorize(view)` с грифом); событие без объекта реестра уходит только подписке, которая называет его тип прямо.
 - Outbox → Redis Streams `events:<domain>`; потребители — consumer groups с `ack`; повтор до 5 раз, затем DLQ `events:dlq` с алертом.
-- Вебхуки получают тот же конверт (без `visibility`), подпись `X-Kchs-Signature: sha256=…`, заголовки `X-Kchs-Event`, `X-Kchs-Delivery`.
+- Вебхуки получают тот же конверт, подпись `X-Kchs-Signature: sha256=…`, заголовки `X-Kchs-Event`, `X-Kchs-Delivery`.
 - Realtime получает производные компактные сообщения (см. `16-api-and-events.md`, раздел 3), не сырые события.
 - Полезные нагрузки описаны zod-схемами в `packages/contracts/src/events/*.ts` — файл на владельца, ADR-0189. Регистрация типа события без схемы запрещена (тест).
 

@@ -77,7 +77,6 @@ async function extracted(fileId: string, text: string): Promise<void> {
     correlationId: null,
     causationId: null,
     source: 'test',
-    visibility: null,
   } as never)
 }
 

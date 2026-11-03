@@ -109,7 +109,6 @@ function envelope(type: string, input: Record<string, unknown>) {
     correlationId: null,
     causationId: null,
     source: 'api',
-    visibility: null,
     ...input,
   } as never
 }

@@ -79,6 +79,5 @@ export function buildEnvelope(ctx: Ctx, input: EventInput): EventEnvelope {
     // по ним работает защита от циклов (ADR-0096)
     causationId: input.causationId ?? ctx.cause?.eventId ?? null,
     source: input.source ?? (ctx.cause ? 'automation' : ctx.kind === 'user' ? 'api' : 'worker'),
-    visibility: input.visibilityPrincipals ? { principals: input.visibilityPrincipals } : null,
   }
 }
