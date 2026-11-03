@@ -83,17 +83,48 @@ export function safeName(name: string): string {
 
 const SIGNED_URL_TTL = 900
 
+/**
+ * Типы, которые браузер показывает на месте, не исполняя содержимое: растровые
+ * изображения, PDF, видео, звук и простой текст. HTML, SVG, XML и прочее открылись
+ * бы на адресе хранилища как страница со сценариями (ADR-0225) — их только скачивают.
+ */
+const INLINE_SAFE =
+  /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf|text\/plain)$/
+
+export function inlineSafe(contentType: string | null | undefined): boolean {
+  return INLINE_SAFE.test((contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '')
+}
+
+/**
+ * Подписанная ссылка на скачивание. `inline` — показать на месте: только для
+ * безопасного `contentType`, и тип ответа тогда задаёт сервер (тип объекта при
+ * загрузке назвал клиент); иначе ссылка всегда отдаёт файл вложением.
+ */
 export async function signedGetUrl(
   key: string,
-  options: { bucket?: string; filename?: string; inline?: boolean; ttl?: number } = {},
+  options: {
+    bucket?: string
+    filename?: string
+    inline?: boolean
+    contentType?: string
+    ttl?: number
+  } = {},
 ): Promise<string> {
-  const disposition = options.filename
-    ? `${options.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(options.filename)}`
-    : undefined
+  const inline = options.inline === true && inlineSafe(options.contentType)
+  const name = options.filename ? `; filename*=UTF-8''${encodeURIComponent(options.filename)}` : ''
+  const disposition =
+    options.filename || options.inline ? `${inline ? 'inline' : 'attachment'}${name}` : undefined
   const command = new GetObjectCommand({
     Bucket: options.bucket ?? buckets.files(),
     Key: key,
     ResponseContentDisposition: disposition,
+    ...(inline && options.contentType
+      ? {
+          ResponseContentType: options.contentType.startsWith('text/plain')
+            ? 'text/plain; charset=utf-8'
+            : options.contentType,
+        }
+      : {}),
   })
   return getSignedUrl(presignClient(), command, { expiresIn: options.ttl ?? SIGNED_URL_TTL })
 }

@@ -756,6 +756,7 @@ export const FileService = {
     if (!file) throw errors.notFound('Файл')
 
     let key = file.storageKey
+    let contentType = file.mime
     if (versionId) {
       const [version] = await db()
         .select()
@@ -764,8 +765,13 @@ export const FileService = {
         .limit(1)
       if (!version) throw errors.notFound('Версия файла')
       key = version.storageKey
+      contentType = version.mime
     }
-    return { url: await signedGetUrl(key, { filename: file.name, inline }), name: file.name }
+    // На месте — только безопасные типы (ADR-0225), остальное скачивается
+    return {
+      url: await signedGetUrl(key, { filename: file.name, inline, contentType }),
+      name: file.name,
+    }
   },
 
   /** Восстановление старой версии создаёт новую (09-files.md §2). */

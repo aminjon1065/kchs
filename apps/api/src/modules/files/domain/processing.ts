@@ -193,7 +193,11 @@ export const FileProcessing = {
         width: row.width,
         height: row.height,
         mime: row.mime,
-        url: await signedGetUrl(row.storageKey, { bucket: buckets.previews(), inline: true }),
+        url: await signedGetUrl(row.storageKey, {
+          bucket: buckets.previews(),
+          inline: true,
+          contentType: row.mime,
+        }),
       })),
     )
 
