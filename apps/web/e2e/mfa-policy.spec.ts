@@ -62,6 +62,7 @@ test.describe('Политика безопасности', () => {
       ).toBeVisible()
       const secret = (await auditor.locator('code').innerText()).replace(/\s/g, '')
       await auditor.getByLabel('Код из приложения').fill(totp(secret))
+      await auditor.getByLabel('Пароль для подтверждения').fill(ownPassword)
       await auditor.getByRole('button', { name: 'Подтвердить' }).click()
 
       // Коды восстановления показываются один раз, дальше — рабочее пространство

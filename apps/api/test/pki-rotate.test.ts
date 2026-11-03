@@ -11,6 +11,7 @@ import {
   db,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   type TestResponse,
   type TestUser,
@@ -63,7 +64,7 @@ async function codeOf(user: TestUser): Promise<string> {
       method: 'POST',
       url: '/me/mfa/enable',
       as: user,
-      payload: { code: authenticator.generate(secret) },
+      payload: { code: authenticator.generate(secret), password: TEST_PASSWORD },
     })
     secrets.set(user.id, secret)
   }

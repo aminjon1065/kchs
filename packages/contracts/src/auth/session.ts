@@ -177,8 +177,10 @@ export const MfaSetupResponse = z.object({
 })
 export type MfaSetupResponse = z.infer<typeof MfaSetupResponse>
 
+/** Код из приложения и текущий пароль: подключённый фактор открывает подпись (ADR-0225). */
 export const MfaEnableInput = z.object({
   code: z.string().length(6),
+  password: z.string().min(1).max(256),
 })
 export type MfaEnableInput = z.infer<typeof MfaEnableInput>
 

@@ -97,7 +97,9 @@ export interface TestResponse {
   json: <T = any>() => T
 }
 
-const PASSWORD = 'Test!Password-2026-x'
+/** Пароль пользователей `createUser` — для маршрутов, которые требуют текущий пароль. */
+export const TEST_PASSWORD = 'Test!Password-2026-x'
+const PASSWORD = TEST_PASSWORD
 
 let app: FastifyInstance | null = null
 

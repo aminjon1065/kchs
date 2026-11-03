@@ -9,6 +9,7 @@ import {
   engineHeadersFor,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   type TestUser,
   uploadFile,
@@ -127,7 +128,7 @@ async function signCode(): Promise<string> {
       method: 'POST',
       url: '/me/mfa/enable',
       as: people.signer,
-      payload: { code: authenticator.generate(signerSecret) },
+      payload: { code: authenticator.generate(signerSecret), password: TEST_PASSWORD },
     })
     expect(enable.statusCode, enable.body).toBe(200)
   }

@@ -119,15 +119,12 @@ export const AuthService = {
       throw errors.unauthorized('Неверный логин или пароль')
     }
 
-    // Учётная запись каталога проверяет пароль привязкой в каталоге (ADR-0098);
-    // локального пароля у неё нет. Блокировка, аудит и политика сессий —
-    // те же самые: путь входа ниже общий
-    const valid =
-      user.authSource === 'ldap'
-        ? await verifyDirectoryPassword(user.login, user.directoryDn, password)
-        : await verifyPassword(cred.passwordHash, password)
-
+    // Заблокированная учётная запись пароль не проверяет вовсе (ADR-0225): иначе
+    // во время блокировки перебор шёл бы без счёта, а верный пароль отличался бы
+    // ответом. Хеш считается для пустышки — по времени ответа блокировку не видно;
+    // ответ — тот же, что неверному паролю. Снимает блокировку срок или сброс пароля
     if (cred.lockedUntil && new Date(cred.lockedUntil) > new Date()) {
+      await verifyPassword(await dummyHash(), password)
       await audit(sys, {
         action: AUDIT_ACTIONS.loginFailed,
         actorId: user.id,
@@ -136,27 +133,36 @@ export const AuthService = {
         ip: meta.ip,
         userAgent: meta.userAgent,
       })
-      // О блокировке узнаёт только знающий пароль: иначе блокировка раскрывала бы,
-      // что учётная запись существует
-      if (!valid) throw errors.unauthorized('Неверный логин или пароль')
-      const minutes = Math.ceil((new Date(cred.lockedUntil).getTime() - Date.now()) / 60000)
-      throw errors.unauthorized(
-        `Учётная запись временно заблокирована, повторите через ${minutes} мин`,
-      )
+      throw errors.unauthorized('Неверный логин или пароль')
     }
 
+    // Учётная запись каталога проверяет пароль привязкой в каталоге (ADR-0098);
+    // локального пароля у неё нет. Блокировка, аудит и политика сессий —
+    // те же самые: путь входа ниже общий
+    const valid =
+      user.authSource === 'ldap'
+        ? await verifyDirectoryPassword(user.login, user.directoryDn, password)
+        : await verifyPassword(cred.passwordHash, password)
+
     if (!valid) {
-      const attempts = cred.failedAttempts + 1
-      const lock = attempts >= MAX_FAILED_ATTEMPTS
-      // Счётчик попыток, аудит и событие — одной транзакцией (ADR-0177)
+      // Счётчик попыток, аудит и событие — одной транзакцией (ADR-0177). Счётчик
+      // растёт в самом UPDATE: параллельные неудачи не теряются (ADR-0225)
       await db().transaction(async (tx) => {
-        await tx
+        const [counted] = await tx
           .update(credentials)
           .set({
-            failedAttempts: lock ? 0 : attempts,
-            lockedUntil: lock ? sql`now() + make_interval(mins => ${LOCK_MINUTES})` : null,
+            failedAttempts: sql`CASE WHEN ${credentials.failedAttempts} + 1 >= ${MAX_FAILED_ATTEMPTS}
+              THEN 0 ELSE ${credentials.failedAttempts} + 1 END`,
+            lockedUntil: sql`CASE WHEN ${credentials.failedAttempts} + 1 >= ${MAX_FAILED_ATTEMPTS}
+              THEN now() + make_interval(mins => ${LOCK_MINUTES}) ELSE NULL END`,
           })
           .where(eq(credentials.userId, user.id))
+          .returning({
+            failedAttempts: credentials.failedAttempts,
+            lockedUntil: credentials.lockedUntil,
+          })
+        const lock = counted?.lockedUntil != null
+        const attempts = lock ? MAX_FAILED_ATTEMPTS : (counted?.failedAttempts ?? 1)
         await audit(
           sys,
           {
@@ -259,9 +265,10 @@ export const AuthService = {
       (await AuthService.consumeRecoveryCode(challenge.userId, code))
 
     if (!ok) {
+      // Счётчик — в самом UPDATE: параллельные попытки не обходят предел (ADR-0225)
       await db()
         .update(mfaChallenges)
-        .set({ attempts: challenge.attempts + 1 })
+        .set({ attempts: sql`${mfaChallenges.attempts} + 1` })
         .where(eq(mfaChallenges.id, challenge.id))
       throw errors.unauthorized('Неверный код')
     }
@@ -283,56 +290,31 @@ export const AuthService = {
     return { ...session, mustChangePassword: user.mustChangePassword }
   },
 
-  /** `tx` — когда проверка входит в операцию (подключение второго фактора). */
+  /**
+   * Код подключённого (подтверждённого) фактора — вход, подпись, отключение MFA.
+   * Фактор, начатый в `startMfaSetup` и ещё не подтверждённый, здесь не
+   * принимается (ADR-0225): его подтверждает только `enableMfa`.
+   * `tx` — когда проверка входит в операцию.
+   */
   async verifyTotp(userId: string, code: string, tx: Executor = db()): Promise<boolean> {
-    const factors = await tx
-      .select()
-      .from(mfaFactors)
-      .where(and(eq(mfaFactors.userId, userId), eq(mfaFactors.kind, 'totp')))
-    const token = code.replace(/\s/g, '')
-    for (const factor of factors) {
-      const secret = decryptSecret(factor.secretEnc)
-      const delta = authenticator.checkDelta(token, secret)
-      if (delta === null) continue
-      // Шаг TOTP, которому принадлежит код: повтор того же кода отклоняется
-      const step = Math.floor(Date.now() / 1000 / authenticator.allOptions().step) + delta
-      if (factor.lastStep !== null && step <= factor.lastStep) return false
-      const updated = await tx
-        .update(mfaFactors)
-        .set({
-          lastUsedAt: sql`now()`,
-          lastStep: step,
-          verifiedAt: factor.verifiedAt ?? sql`now()`,
-        })
-        .where(
-          and(
-            eq(mfaFactors.id, factor.id),
-            sql`(${mfaFactors.lastStep} is null or ${mfaFactors.lastStep} < ${step})`,
-          ),
-        )
-        .returning({ id: mfaFactors.id })
-      // Параллельный запрос с тем же кодом успел раньше
-      return updated.length > 0
-    }
-    return false
+    return checkTotpCode(userId, code, 'verified', tx)
   },
 
+  /** Одноразовый код восстановления: погашение условным UPDATE — параллельный второй не пройдёт. */
   async consumeRecoveryCode(userId: string, code: string): Promise<boolean> {
     const normalized = code.replace(/[\s-]/g, '').toUpperCase()
-    const rows = await db()
-      .select()
-      .from(recoveryCodes)
-      .where(and(eq(recoveryCodes.userId, userId), isNull(recoveryCodes.usedAt)))
-    for (const row of rows) {
-      if (row.codeHash === hashToken(normalized)) {
-        await db()
-          .update(recoveryCodes)
-          .set({ usedAt: sql`now()` })
-          .where(eq(recoveryCodes.id, row.id))
-        return true
-      }
-    }
-    return false
+    const used = await db()
+      .update(recoveryCodes)
+      .set({ usedAt: sql`now()` })
+      .where(
+        and(
+          eq(recoveryCodes.userId, userId),
+          eq(recoveryCodes.codeHash, hashToken(normalized)),
+          isNull(recoveryCodes.usedAt),
+        ),
+      )
+      .returning({ id: recoveryCodes.id })
+    return used.length > 0
   },
 
   async createSession(
@@ -817,11 +799,20 @@ export const AuthService = {
    * Подключение второго фактора: проверка кода (она же подтверждает фактор), коды
    * восстановления, аудит и событие — одной транзакцией (ADR-0177). Сбой посередине
    * не оставляет подтверждённый фактор без кодов восстановления.
+   *
+   * Подключённый фактор открывает подпись и выпуск сертификата (ADR-0079, ADR-0218),
+   * поэтому одной сессии мало: нужен текущий пароль (ADR-0225). Иначе тот, кто
+   * минуту сидит за чужим незаблокированным компьютером, подключил бы свой фактор.
    */
-  async enableMfa(ctx: UserCtx, code: string): Promise<string[]> {
+  async enableMfa(ctx: UserCtx, code: string, password: string): Promise<string[]> {
+    if (!(await verifyCurrentPassword(ctx.userId, password))) {
+      throw errors.validation('Текущий пароль неверен', [
+        { path: 'password', message: 'auth.mfa.passwordInvalid' },
+      ])
+    }
     const codes = Array.from({ length: 10 }, () => `${randomCode(5)}-${randomCode(5)}`)
     await db().transaction(async (tx) => {
-      const ok = await AuthService.verifyTotp(ctx.userId, code, tx)
+      const ok = await checkTotpCode(ctx.userId, code, 'pending', tx)
       if (!ok)
         throw errors.validation('Неверный код', [{ path: 'code', message: 'auth.mfa.invalid' }])
       await tx.delete(recoveryCodes).where(eq(recoveryCodes.userId, ctx.userId))
@@ -912,6 +903,76 @@ export const AuthService = {
     if (row?.passkey) methods.push('passkey')
     return methods
   },
+}
+
+/**
+ * Код TOTP по факторам одного вида: `verified` — подключённые (вход, подпись,
+ * отключение), `pending` — начатый и ещё не подтверждённый (только `enableMfa`,
+ * он же его подтверждает). Повтор кода того же шага отклоняется, в том числе
+ * параллельный: шаг сверяется в самом UPDATE.
+ */
+async function checkTotpCode(
+  userId: string,
+  code: string,
+  kind: 'verified' | 'pending',
+  tx: Executor,
+): Promise<boolean> {
+  const factors = await tx
+    .select()
+    .from(mfaFactors)
+    .where(
+      and(
+        eq(mfaFactors.userId, userId),
+        eq(mfaFactors.kind, 'totp'),
+        kind === 'verified' ? isNotNull(mfaFactors.verifiedAt) : isNull(mfaFactors.verifiedAt),
+      ),
+    )
+  const token = code.replace(/\s/g, '')
+  for (const factor of factors) {
+    const secret = decryptSecret(factor.secretEnc)
+    const delta = authenticator.checkDelta(token, secret)
+    if (delta === null) continue
+    // Шаг TOTP, которому принадлежит код: повтор того же кода отклоняется
+    const step = Math.floor(Date.now() / 1000 / authenticator.allOptions().step) + delta
+    if (factor.lastStep !== null && step <= factor.lastStep) return false
+    const updated = await tx
+      .update(mfaFactors)
+      .set({
+        lastUsedAt: sql`now()`,
+        lastStep: step,
+        ...(kind === 'pending' ? { verifiedAt: sql`now()` } : {}),
+      })
+      .where(
+        and(
+          eq(mfaFactors.id, factor.id),
+          sql`(${mfaFactors.lastStep} is null or ${mfaFactors.lastStep} < ${step})`,
+        ),
+      )
+      .returning({ id: mfaFactors.id })
+    // Параллельный запрос с тем же кодом успел раньше
+    return updated.length > 0
+  }
+  return false
+}
+
+/** Текущий пароль сотрудника — локальный или каталога (ADR-0098). */
+async function verifyCurrentPassword(userId: string, password: string): Promise<boolean> {
+  if (!password) return false
+  const [account] = await db()
+    .select({
+      login: users.login,
+      authSource: users.authSource,
+      directoryDn: users.directoryDn,
+      passwordHash: credentials.passwordHash,
+    })
+    .from(users)
+    .innerJoin(credentials, eq(credentials.userId, users.id))
+    .where(eq(users.id, userId))
+    .limit(1)
+  if (!account) return false
+  return account.authSource === 'ldap'
+    ? verifyDirectoryPassword(account.login, account.directoryDn, password)
+    : verifyPassword(account.passwordHash, password)
 }
 
 /**

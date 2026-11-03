@@ -1,7 +1,6 @@
 {
   "events": {},
   "api": {
-    "GET /gis/layers/{id}": "ADR-0223: слой над системным датасетом — datasetId null, источник в systemSource",
-    "PATCH /gis/layers/{id}": "ADR-0223: слой над системным датасетом — datasetId null, источник в systemSource"
+    "POST /me/mfa/enable": "ADR-0225: подключение второго фактора подтверждается текущим паролем — клиент web обновлён в том же выпуске"
   }
 }

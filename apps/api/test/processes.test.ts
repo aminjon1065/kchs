@@ -6,6 +6,7 @@ import {
   db,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   uploadFile,
 } from './helpers.js'
@@ -458,7 +459,7 @@ describe('маршрут документа', () => {
       method: 'POST',
       url: '/me/mfa/enable',
       as: people.signer,
-      payload: { code: authenticator.generate(secret) },
+      payload: { code: authenticator.generate(secret), password: TEST_PASSWORD },
     })
     expect(enable.statusCode).toBe(200)
     const missing = await actInbox(fx, people.signer, signItem?.id ?? '', 'sign')

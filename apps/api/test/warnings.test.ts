@@ -12,6 +12,7 @@ import {
   db,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   type TestUser,
 } from './helpers.js'
@@ -76,7 +77,7 @@ async function signCode(): Promise<string> {
       method: 'POST',
       url: '/me/mfa/enable',
       as: signer,
-      payload: { code: authenticator.generate(signerSecret) },
+      payload: { code: authenticator.generate(signerSecret), password: TEST_PASSWORD },
     })
     expect(enable.statusCode, enable.body).toBe(200)
   }

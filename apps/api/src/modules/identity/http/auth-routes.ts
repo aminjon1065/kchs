@@ -178,8 +178,13 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Подтвердить и включить TOTP',
+    // Тело несёт текущий пароль: без предела маршрут стал бы перебором пароля из сессии
+    rateLimit: {
+      ...rateLimit(5, '15 minutes'),
+      keyGenerator: (request) => `mfa-enable:${request.ctx?.userId ?? request.ip}`,
+    },
     handler: async (request) => ({
-      codes: await AuthService.enableMfa(request.ctx, request.body.code),
+      codes: await AuthService.enableMfa(request.ctx, request.body.code, request.body.password),
     }),
   })
 

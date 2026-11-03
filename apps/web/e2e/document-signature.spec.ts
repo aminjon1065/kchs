@@ -197,7 +197,7 @@ test.beforeAll(async () => {
   signerSecret = (await setup.json()).secret as string
   const enabled = await signer.api.post('/api/v1/me/mfa/enable', {
     headers: { 'x-csrf-token': signer.csrf },
-    data: { code: totp(signerSecret) },
+    data: { code: totp(signerSecret), password: PASSWORD },
   })
   expect(enabled.ok(), await enabled.text()).toBeTruthy()
 

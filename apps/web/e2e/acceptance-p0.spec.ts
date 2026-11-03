@@ -174,6 +174,7 @@ test('1. Администратор входит с MFA, создаёт подр
   admin.secret = (await page.locator('code').first().innerText()).replace(/\s/g, '')
   admin.lastStep = Math.floor(Date.now() / 30_000)
   await page.getByLabel('Код из приложения').fill(totp(admin.secret))
+  await page.getByLabel('Пароль для подтверждения').fill(admin.password)
   await page.getByRole('button', { name: 'Подтвердить' }).click()
   await page.getByRole('checkbox', { name: 'Я сохранил коды в надёжном месте' }).check()
   await page.getByRole('button', { name: 'Готово' }).click()

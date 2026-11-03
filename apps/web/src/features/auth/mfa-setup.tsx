@@ -17,7 +17,7 @@ const groupKey = (secret: string) => secret.replace(/(.{4})/g, '$1 ').trim()
 
 /**
  * Подключение TOTP (17-security.md §2): QR-код или ключ вручную → код из
- * приложения → коды восстановления, которые показываются один раз.
+ * приложения и текущий пароль → коды восстановления, которые показываются один раз.
  * Новый ключ создаётся только по кнопке: повторный запрос заменил бы ключ,
  * уже отсканированный приложением.
  */
@@ -25,8 +25,10 @@ export function MfaSetup({ onDone, onCancel }: { onDone: () => void; onCancel?: 
   const t = useT()
   const toast = useToast()
   const codeId = useId()
+  const passwordId = useId()
   const [stage, setStage] = useState<Stage>({ kind: 'start' })
   const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -51,9 +53,10 @@ export function MfaSetup({ onDone, onCancel }: { onDone: () => void; onCancel?: 
   })
 
   const confirm = useMutation({
-    mutationFn: () => authApi.postMeMfaEnable({ code }),
+    mutationFn: () => authApi.postMeMfaEnable({ code, password }),
     onSuccess: (result) => {
       setError(null)
+      setPassword('')
       setStage({ kind: 'codes', codes: result.codes })
     },
     onError: failed,
@@ -147,11 +150,26 @@ export function MfaSetup({ onDone, onCancel }: { onDone: () => void; onCancel?: 
               className="max-w-40 font-mono tracking-widest"
             />
           </Field>
+          {/* Подключённый фактор открывает подпись: одной сессии мало (ADR-0225) */}
+          <Field
+            label={t('auth.mfa.passwordLabel')}
+            hint={t('auth.mfa.passwordHint')}
+            htmlFor={passwordId}
+          >
+            <Input
+              id={passwordId}
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="max-w-72"
+            />
+          </Field>
           <div className="flex gap-2">
             <Button
               type="submit"
               variant="primary"
-              disabled={code.length !== 6}
+              disabled={code.length !== 6 || password.length === 0}
               loading={confirm.isPending}
             >
               {t('auth.mfa.submit')}

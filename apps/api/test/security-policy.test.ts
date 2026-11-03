@@ -8,6 +8,7 @@ import {
   db,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   type TestUser,
 } from './helpers.js'
@@ -169,7 +170,7 @@ describe('обязательный второй фактор по роли', () 
       method: 'POST',
       url: '/me/mfa/enable',
       as: auditor,
-      payload: { code: authenticator.generate(setup.json().secret) },
+      payload: { code: authenticator.generate(setup.json().secret), password: TEST_PASSWORD },
     })
     expect(enabled.statusCode).toBe(200)
     expect(enabled.json().codes.length).toBeGreaterThan(0)

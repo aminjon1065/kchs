@@ -1,6 +1,14 @@
 import { authenticator } from 'otplib'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  db,
+  redis,
+  registerLifecycle,
+  setupFixture,
+  TEST_PASSWORD,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Сценарии приёмки фазы 0 (04-delivery/04-verification.md §3).
@@ -107,7 +115,7 @@ describe('сценарий 1: администратор заводит подр
       method: 'POST',
       url: '/me/mfa/enable',
       as: user,
-      payload: { code: authenticator.generate(secret) },
+      payload: { code: authenticator.generate(secret), password: TEST_PASSWORD },
     })
     expect(enable.statusCode).toBe(200)
     expect(enable.json().codes.length).toBeGreaterThan(0)

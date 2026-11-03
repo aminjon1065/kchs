@@ -245,7 +245,7 @@ test.beforeAll(async () => {
   bossSecret = (await setup.json()).secret as string
   const enabled = await boss.api.post('/api/v1/me/mfa/enable', {
     headers: { 'x-csrf-token': boss.csrf },
-    data: { code: totp(bossSecret) },
+    data: { code: totp(bossSecret), password: PASSWORD },
   })
   expect(enabled.ok(), await enabled.text()).toBeTruthy()
 })

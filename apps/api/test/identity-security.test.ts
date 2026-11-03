@@ -8,6 +8,7 @@ import {
   db,
   registerLifecycle,
   setupFixture,
+  TEST_PASSWORD,
   type TestContext,
   type TestUser,
 } from './helpers.js'
@@ -243,7 +244,7 @@ describe('вход и второй фактор', () => {
       method: 'POST',
       url: '/me/mfa/enable',
       as: user,
-      payload: { code: now },
+      payload: { code: now, password: TEST_PASSWORD },
     })
     expect(enable.statusCode).toBe(200)
 
@@ -269,26 +270,141 @@ describe('вход и второй фактор', () => {
     expect((await loginWith(next)).statusCode).toBe(401)
   })
 
-  it('о блокировке узнаёт только тот, кто знает пароль', async () => {
-    const user = await createUser(fx.app, 'lockout_test', ['employee'])
-    await db().execute(
-      sql`UPDATE credentials SET locked_until = now() + interval '15 minutes' WHERE user_id = ${user.id}`,
-    )
-    const wrong = await call(fx.app, {
-      method: 'POST',
-      url: '/auth/login',
-      payload: { login: user.login, password: 'неверный-пароль' },
-    })
-    expect(wrong.statusCode).toBe(401)
-    expect(wrong.json().detail ?? wrong.json().title).not.toContain('заблокирована')
+  it('неподтверждённый фактор не считается вторым фактором (ADR-0225)', async () => {
+    const user = await createUser(fx.app, 'totp_pending_test', ['employee'])
+    const first = await call(fx.app, { method: 'POST', url: '/me/mfa/setup', as: user })
+    const secret = first.json().secret as string
+    expect(
+      (
+        await call(fx.app, {
+          method: 'POST',
+          url: '/me/mfa/enable',
+          as: user,
+          payload: { code: authenticator.generate(secret), password: TEST_PASSWORD },
+        })
+      ).statusCode,
+    ).toBe(200)
 
-    const right = await call(fx.app, {
+    // Второй фактор начат, но не подтверждён: его код не отключает MFA и не входит
+    const pending = await call(fx.app, { method: 'POST', url: '/me/mfa/setup', as: user })
+    const pendingCode = authenticator.generate(pending.json().secret as string)
+    const disabled = await call(fx.app, {
+      method: 'DELETE',
+      url: '/me/mfa',
+      as: user,
+      payload: { code: pendingCode },
+    })
+    expect(disabled.json()).toEqual({ ok: false })
+
+    const login = await call(fx.app, {
       method: 'POST',
       url: '/auth/login',
       payload: { login: user.login, password: PASSWORD },
     })
+    const verify = await call(fx.app, {
+      method: 'POST',
+      url: '/auth/mfa/verify',
+      headers: { cookie: cookieOf(login, 'kchs_mfa') },
+      payload: { challengeId: login.json().challengeId, code: pendingCode },
+    })
+    expect(verify.statusCode).toBe(401)
+  })
+
+  it('подключение фактора требует текущий пароль (ADR-0225)', async () => {
+    const user = await createUser(fx.app, 'totp_password_test', ['employee'])
+    const setup = await call(fx.app, { method: 'POST', url: '/me/mfa/setup', as: user })
+    const secret = setup.json().secret as string
+    const enable = (password: string | undefined) =>
+      call(fx.app, {
+        method: 'POST',
+        url: '/me/mfa/enable',
+        as: user,
+        payload: {
+          code: authenticator.generate(secret),
+          ...(password === undefined ? {} : { password }),
+        },
+      })
+    expect((await enable(undefined)).statusCode).toBe(400)
+    const wrong = await enable('неверный-пароль')
+    expect(wrong.statusCode).toBe(400)
+    expect(JSON.stringify(wrong.json())).toContain('auth.mfa.passwordInvalid')
+    const [factor] = await db().execute<{ verified: boolean }>(
+      sql`SELECT verified_at IS NOT NULL AS verified FROM mfa_factors WHERE user_id = ${user.id}`,
+    )
+    expect(factor?.verified).toBe(false)
+    expect((await enable(TEST_PASSWORD)).statusCode).toBe(200)
+  })
+
+  it('код восстановления гасится один раз и при параллельных запросах', async () => {
+    const user = await createUser(fx.app, 'recovery_race_test', ['employee'])
+    const setup = await call(fx.app, { method: 'POST', url: '/me/mfa/setup', as: user })
+    const enabled = await call(fx.app, {
+      method: 'POST',
+      url: '/me/mfa/enable',
+      as: user,
+      payload: {
+        code: authenticator.generate(setup.json().secret as string),
+        password: TEST_PASSWORD,
+      },
+    })
+    const recovery = (enabled.json().codes as string[])[0] as string
+    const challenge = async () => {
+      const login = await call(fx.app, {
+        method: 'POST',
+        url: '/auth/login',
+        payload: { login: user.login, password: PASSWORD },
+      })
+      return { cookie: cookieOf(login, 'kchs_mfa'), challengeId: login.json().challengeId }
+    }
+    const [a, b] = await Promise.all([challenge(), challenge()])
+    const results = await Promise.all(
+      [a, b].map((c) =>
+        call(fx.app, {
+          method: 'POST',
+          url: '/auth/mfa/verify',
+          headers: { cookie: c.cookie },
+          payload: { challengeId: c.challengeId, code: recovery },
+        }),
+      ),
+    )
+    expect(results.map((r) => r.statusCode).sort()).toEqual([200, 401])
+  })
+
+  it('заблокированная учётная запись пароль не проверяет: ответ тот же, что неверному (ADR-0225)', async () => {
+    const user = await createUser(fx.app, 'lockout_test', ['employee'])
+    await db().execute(
+      sql`UPDATE credentials SET locked_until = now() + interval '15 minutes' WHERE user_id = ${user.id}`,
+    )
+    const login = (password: string) =>
+      call(fx.app, { method: 'POST', url: '/auth/login', payload: { login: user.login, password } })
+    const wrong = await login('неверный-пароль')
+    const right = await login(PASSWORD)
+    // Верный пароль во время блокировки не отличим от неверного: перебор не узнаёт ничего
+    expect(wrong.statusCode).toBe(401)
     expect(right.statusCode).toBe(401)
-    expect(JSON.stringify(right.json())).toContain('заблокирована')
+    expect(right.json().detail).toBe(wrong.json().detail)
+    expect(JSON.stringify(right.json())).not.toContain('заблокирована')
+
+    // Сброс пароля по ссылке снимает блокировку
+    await db().execute(sql`UPDATE credentials SET locked_until = NULL WHERE user_id = ${user.id}`)
+    expect((await login(PASSWORD)).statusCode).toBe(200)
+  })
+
+  it('параллельные неудачи входа не теряются: счётчик растёт в самом UPDATE', async () => {
+    const user = await createUser(fx.app, 'lockout_race_test', ['employee'])
+    await Promise.all(
+      Array.from({ length: 6 }, () =>
+        call(fx.app, {
+          method: 'POST',
+          url: '/auth/login',
+          payload: { login: user.login, password: 'неверный-пароль' },
+        }),
+      ),
+    )
+    const [row] = await db().execute<{ failed_attempts: number }>(
+      sql`SELECT failed_attempts FROM credentials WHERE user_id = ${user.id}`,
+    )
+    expect(row?.failed_attempts).toBe(6)
   })
 
   it('новый пароль не может содержать логин — ни при смене, ни при восстановлении', async () => {
