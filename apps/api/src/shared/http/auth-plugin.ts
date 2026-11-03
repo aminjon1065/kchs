@@ -26,6 +26,10 @@ declare module 'fastify' {
     readOnly?: boolean
     /** Маршрут без входа, открытый снаружи через шлюз DMZ (ADR-0200). */
     exposure?: 'public'
+    /** Только из сессии: токенам и шлюзу DMZ недоступен (ADR-0225). */
+    sessionOnly?: boolean
+    /** Доступен гостю по ссылке (ADR-0225). */
+    guest?: boolean
   }
 }
 
@@ -140,9 +144,16 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     if (!token && typeof shareToken === 'string' && deps.resolveShareLink) {
       const guestCtx = await deps.resolveShareLink(shareToken)
       if (guestCtx) {
-        // Гость видит один объект и только читает его (ADR-0032): маршруты
-        // сессии, способностей и любые изменения для него не существуют
-        if (!SAFE_METHODS.has(request.method) || typeof auth !== 'object' || !('action' in auth)) {
+        // Гость видит один объект и только читает его (ADR-0032): ему открыты лишь
+        // маршруты с признаком `guest` в таблице маршрутов (ADR-0225) — просмотр
+        // объекта и файла. Обсуждение, состав доступа, активность и остальное для
+        // него не существуют
+        if (
+          !SAFE_METHODS.has(request.method) ||
+          typeof auth !== 'object' ||
+          !('action' in auth) ||
+          request.routeOptions?.config?.guest !== true
+        ) {
           throw errors.notFound()
         }
         request.ctx = { ...guestCtx, requestId: request.id }

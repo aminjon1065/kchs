@@ -12,7 +12,8 @@ import { requiredScope } from './scopes.js'
  *    правило одно и то же внутри и снаружи, список не ведётся руками.
  *
  * Всё остальное снаружи закрыто: вход и сессии, личный кабинет, администрирование,
- * гостевые ссылки, служебные маршруты движка, редактор и печать. Тот же расчёт
+ * учётные записи и доступ (`sessionOnly`, ADR-0225), гостевые ссылки, служебные
+ * маршруты движка, редактор и печать. Тот же расчёт
  * строит белый список шлюза (`pnpm --filter @kchs/api dmz:gen`) и проверяет запрос,
  * пришедший через шлюз, в самом api — вторым рубежом.
  */
@@ -24,7 +25,7 @@ const NEVER_PREFIXES = ['/auth', '/me', '/admin', '/internal', '/share', '/offic
 /** Признаки маршрута, по которым решается доступ снаружи. */
 export type GatewayRoute = Pick<
   RegisteredRoute,
-  'method' | 'url' | 'auth' | 'tags' | 'readOnly' | 'exposure'
+  'method' | 'url' | 'auth' | 'tags' | 'readOnly' | 'exposure' | 'sessionOnly'
 >
 
 function insideApi(url: string): string {
@@ -56,6 +57,7 @@ export function externalAccess(route: GatewayRoute): ExternalAccess | null {
     url: path,
     tags: route.tags,
     ...(route.readOnly ? { readOnly: true } : {}),
+    ...(route.sessionOnly ? { sessionOnly: true } : {}),
   })
   return scope ? 'token' : null
 }
@@ -294,6 +296,7 @@ export function requestExternalAccess(request: {
     apiTags?: string[]
     readOnly?: boolean
     exposure?: 'public'
+    sessionOnly?: boolean
   }
   if (!config.auth) return null
   const method = (request.method === 'HEAD' ? 'GET' : request.method) as HttpMethod
@@ -305,6 +308,7 @@ export function requestExternalAccess(request: {
       ...(config.apiTags ? { tags: config.apiTags } : {}),
       ...(config.readOnly ? { readOnly: true } : {}),
       ...(config.exposure ? { exposure: config.exposure } : {}),
+      ...(config.sessionOnly ? { sessionOnly: true as const } : {}),
     })
   } catch {
     return null

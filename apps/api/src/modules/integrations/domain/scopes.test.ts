@@ -31,6 +31,20 @@ describe('область доступа маршрута', () => {
     ).toBe('read:objects')
   })
 
+  it('учётные записи и доступ (sessionOnly) закрыты при открытом теге (ADR-0225)', () => {
+    const route = { method: 'POST', url: '/users/:id/reset-password', tags: ['org'] }
+    expect(requiredScope(route).scope).toBe('write:org')
+    expect(requiredScope({ ...route, sessionOnly: true }).scope).toBeNull()
+    expect(
+      requiredScope({
+        method: 'GET',
+        url: '/users/:id/facsimile',
+        tags: ['org'],
+        sessionOnly: true,
+      }).scope,
+    ).toBeNull()
+  })
+
   it('личные, входные и административные пути закрыты', () => {
     for (const url of [
       '/me',

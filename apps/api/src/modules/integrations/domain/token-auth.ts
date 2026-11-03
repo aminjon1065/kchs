@@ -102,6 +102,7 @@ export async function enforceTokenScope(request: FastifyRequest): Promise<void> 
     url: options?.url ?? request.url,
     tags: (options?.config as { apiTags?: string[] } | undefined)?.apiTags,
     readOnly: (options?.config as { readOnly?: boolean } | undefined)?.readOnly === true,
+    sessionOnly: (options?.config as { sessionOnly?: boolean } | undefined)?.sessionOnly === true,
   })
   if (scope && scopeSatisfied(token.scopes, scope)) return
 
