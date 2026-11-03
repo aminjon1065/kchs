@@ -1,5 +1,6 @@
 import { type LookupAddress, lookup } from 'node:dns'
 import { BlockList, isIP, type LookupFunction } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { Agent, Dispatcher, ProxyAgent, request, setGlobalDispatcher } from 'undici'
 import { config, type Env } from '~/shared/config/index.js'
 import { errors, isAppError } from '~/shared/errors.js'
@@ -36,8 +37,34 @@ privateNets.addSubnet('100.64.0.0', 10, 'ipv4')
 privateNets.addSubnet('fc00::', 7, 'ipv6')
 
 /**
- * Адрес закрыт для исходящего запроса: служебные сети — всегда (loopback — кроме
- * тестов и отладки), частные — если их закрывает политика вызова.
+ * Сети самой установки — подсети сетевых интерфейсов процесса: сеть compose, где
+ * живут почта, метрики, журналы, Redis и хранилище, или сеть пода в кластере
+ * (ADR-0225). Адрес задают люди, а частные сети лентам и подложкам открыты ради
+ * серверов закрытого контура (ADR-0132) — поэтому соседей по сети установки
+ * исходящий запрос не достаёт никогда, если явно не открыто
+ * `OUTBOUND_ALLOW_INSTALLATION_NETWORKS`. Список строится один раз.
+ */
+let installationNetworks: BlockList | null = null
+
+function installationNets(): BlockList {
+  if (installationNetworks) return installationNetworks
+  const nets = new BlockList()
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries ?? []) {
+      if (entry.internal || !entry.cidr) continue
+      const [address, prefix] = entry.cidr.split('/')
+      if (!address || !prefix) continue
+      nets.addSubnet(address, Number(prefix), entry.family === 'IPv6' ? 'ipv6' : 'ipv4')
+    }
+  }
+  installationNetworks = nets
+  return nets
+}
+
+/**
+ * Адрес закрыт для исходящего запроса: служебные сети и сети самой установки —
+ * всегда (loopback — кроме тестов и отладки), частные — если их закрывает
+ * политика вызова.
  */
 export function outboundAddressDenied(
   address: string,
@@ -45,10 +72,14 @@ export function outboundAddressDenied(
   allowLoopback = loopbackAllowed(),
 ): boolean {
   if (deniedAddress(address, allowLoopback)) return true
-  if (!denyPrivate) return false
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)
   const ip = mapped?.[1] ?? address
-  return privateNets.check(ip, isIP(ip) === 4 ? 'ipv4' : 'ipv6')
+  const family = isIP(ip) === 4 ? 'ipv4' : 'ipv6'
+  if (!config().OUTBOUND_ALLOW_INSTALLATION_NETWORKS && installationNets().check(ip, family)) {
+    return true
+  }
+  if (!denyPrivate) return false
+  return privateNets.check(ip, family)
 }
 
 /** Разрешение имени с проверкой каждого адреса (и списка при `all: true` у Happy Eyeballs). */

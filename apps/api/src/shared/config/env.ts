@@ -261,6 +261,14 @@ const EnvSchema = z.object({
   CALENDAR_FEEDS_ALLOW_PRIVATE: z.preprocess(unset, bool.default(false)),
 
   /**
+   * Исходящие запросы по адресу пользователя (ленты, подложки, ГИС-службы, ICS,
+   * интеграции, вебхуки) не ходят в сети самой установки — подсети интерфейсов
+   * процесса api (ADR-0225). Открывать только для особой схемы, где внешняя для
+   * kchs служба стоит в той же сети, что и api.
+   */
+  OUTBOUND_ALLOW_INSTALLATION_NETWORKS: z.preprocess(unset, bool.default(false)),
+
+  /**
    * Исходящий прокси (ADR-0132, 17-security.md §5): `http://[пользователь:пароль@]узел:порт`.
    * Через него идут ленты, подложки, ГИС-службы, ICS-подписки и глобальный `fetch`
    * (вебхуки, провайдеры ИИ); `HTTPS_PROXY` без значения берёт `HTTP_PROXY`.

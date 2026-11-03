@@ -109,6 +109,7 @@ x-app-env: &app-env
   ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-}
   # Подписки ICS на адреса внутренней сети (ADR-0081): пусто — запрещены
   CALENDAR_FEEDS_ALLOW_PRIVATE: ${CALENDAR_FEEDS_ALLOW_PRIVATE:-}
+  OUTBOUND_ALLOW_INSTALLATION_NETWORKS: ${OUTBOUND_ALLOW_INSTALLATION_NETWORKS:-}
   # Исходящий прокси (ADR-0132): ленты, подложки, ГИС-службы, ICS и вызовы api
   # наружу; службы установки идут мимо него сами. Пусто — запросы напрямую
   HTTP_PROXY: ${HTTP_PROXY:-}

@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { type AddressInfo, connect } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import type { Duplex } from 'node:stream'
 import { Agent, setGlobalDispatcher } from 'undici'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -137,19 +138,39 @@ describe('прямой запрос', () => {
       outboundGet('http://169.254.169.254/latest/meta-data', { what: 'лента', maxBytes: 100 }),
     ).rejects.toThrow('Адрес закрыт для исходящих запросов: лента')
     await expect(
-      outboundGet('http://10.1.2.3/feed', {
+      outboundGet('http://10.200.2.3/feed', {
         what: 'лента',
         maxBytes: 100,
         denyPrivateNetworks: true,
       }),
     ).rejects.toThrow('Адрес закрыт для исходящих запросов: лента')
-    expect(outboundAddressDenied('10.1.2.3')).toBe(false)
-    expect(outboundAddressDenied('10.1.2.3', true)).toBe(true)
+    // Адрес вне сетей самой машины: у раннеров CI основной интерфейс бывает в 10.1/16
+    expect(outboundAddressDenied('10.200.2.3')).toBe(false)
+    expect(outboundAddressDenied('10.200.2.3', true)).toBe(true)
     expect(outboundAddressDenied('::ffff:192.168.1.1', true)).toBe(true)
     expect(outboundAddressDenied('8.8.8.8', true)).toBe(false)
     await expect(
       outboundGet('ftp://example.org/feed', { what: 'лента', maxBytes: 100 }),
     ).rejects.toThrow('Адрес должен быть http или https: лента')
+  })
+})
+
+describe('сети самой установки (ADR-0225)', () => {
+  // Адрес из сети интерфейса процесса: в compose там почта, метрики, Redis
+  const own = Object.values(networkInterfaces())
+    .flat()
+    .find((entry) => entry && !entry.internal && entry.family === 'IPv4')
+
+  it.skipIf(!own)('закрыты всегда, даже когда частные сети вызову открыты', () => {
+    const address = own?.address ?? ''
+    expect(outboundAddressDenied(address)).toBe(true)
+    expect(outboundAddressDenied(`::ffff:${address}`)).toBe(true)
+    configure({ OUTBOUND_ALLOW_INSTALLATION_NETWORKS: 'true' })
+    try {
+      expect(outboundAddressDenied(address)).toBe(false)
+    } finally {
+      configure({ OUTBOUND_ALLOW_INSTALLATION_NETWORKS: undefined })
+    }
   })
 })
 
