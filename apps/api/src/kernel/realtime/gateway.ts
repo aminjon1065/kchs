@@ -150,9 +150,17 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   const log = logger().child({ module: 'realtime' })
   realtimeDeps = deps
 
+  const ownOrigin = new URL(env.KCHS_BASE_URL).origin
   io = new SocketServer<ClientMessages, RtServerEvents, DefaultEventsMap, SocketData>(app.server, {
     path: '/ws',
     cors: { origin: [env.KCHS_BASE_URL], credentials: true },
+    // CORS выше касается только опроса; рукопожатие WebSocket браузер шлёт с Origin
+    // любой страницы и с cookie сессии — чужой сайт иначе слушал бы события
+    // сотрудника (ADR-0225). Без Origin приходят не браузеры: cookie жертвы у них нет
+    allowRequest: (request, callback) => {
+      const origin = request.headers.origin
+      callback(null, !origin || origin === ownOrigin)
+    },
     serveClient: false,
     transports: ['websocket', 'polling'],
     pingInterval: 20_000,

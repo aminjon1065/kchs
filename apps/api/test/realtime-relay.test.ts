@@ -33,11 +33,11 @@ const opened: Socket[] = []
 /** Идентификатор уведомления, которого нет ни у одного другого процесса стенда. */
 const uniqueNotificationId = () => String(++sequence)
 
-function connect(user: TestUser): Promise<Socket> {
+function connect(user: TestUser, origin?: string): Promise<Socket> {
   const socket = connectSocket(base, {
     path: '/ws',
     transports: ['websocket'],
-    extraHeaders: { cookie: user.cookie },
+    extraHeaders: { cookie: user.cookie, ...(origin ? { origin } : {}) },
     reconnection: false,
   })
   opened.push(socket)
@@ -127,6 +127,13 @@ describe('узел api', () => {
     })
 
     expect(await got).toEqual({ id, aggregated: false })
+  })
+
+  it('рукопожатие с чужого сайта отклоняется, со своего — нет (ADR-0225)', async () => {
+    await expect(connect(fx.users.member, 'https://chuzhoy-sayt.invalid')).rejects.toThrow()
+    const own = new URL(process.env.KCHS_BASE_URL ?? 'http://localhost:5173').origin
+    const socket = await connect(fx.users.member, own)
+    expect(socket.connected).toBe(true)
   })
 
   it('событие вне протокола (ADR-0192) из канала не доставляет', async () => {
