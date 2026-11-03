@@ -19,7 +19,7 @@ registerLifecycle()
 
 const { startFakeIdp } = await import('./fake-idp.js')
 const { config } = await import('../src/shared/config/index.js')
-const { users } = await import('../src/db-schema.js')
+const { credentials, users } = await import('../src/db-schema.js')
 
 const BASE_DN = 'ou=people,dc=example,dc=org'
 const UNIT_DN = 'ou=units,dc=example,dc=org'
@@ -377,13 +377,20 @@ describe('каталог LDAP/AD: вход по паролю каталога', 
         payload: { login: 'petrov', password: 'не-тот-пароль' },
       })
     }
+    // Верный пароль во время блокировки получает тот же ответ, что неверный (ADR-0225)
     const response = await call(fx.app, {
       method: 'POST',
       url: '/auth/login',
       payload: { login: 'petrov', password: 'Another!Pass-2026' },
     })
     expect(response.statusCode).toBe(401)
-    expect(response.json().detail).toContain('заблокирована')
+    expect(response.json().detail).toBe('Неверный логин или пароль')
+    const [account] = await db()
+      .select({ lockedUntil: credentials.lockedUntil })
+      .from(credentials)
+      .innerJoin(users, eq(users.id, credentials.userId))
+      .where(eq(users.login, 'petrov'))
+    expect(account?.lockedUntil).not.toBeNull()
   })
 })
 
