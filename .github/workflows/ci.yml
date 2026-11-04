@@ -99,6 +99,8 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y -qq postgresql-client-17
+          # Обёртка /usr/bin/pg_dump выбирает версию локального кластера раннера (16)
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
 
       - name: Секреты и инфраструктура
         run: |
@@ -172,6 +174,8 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y -qq postgresql-client-17
+          # Обёртка /usr/bin/pg_dump выбирает версию локального кластера раннера (16)
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
 
       - name: Секреты и инфраструктура
         run: |
