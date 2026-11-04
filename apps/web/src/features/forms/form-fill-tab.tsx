@@ -27,7 +27,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardPen, Plus, Save } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -44,6 +44,7 @@ import {
   retryOfflineEntry,
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { useFieldControls } from '../data/field-controls.js'
 import { type CellErrors, type TableRow, validateRows, withNewRow } from './form-table.js'
 import { FormTableEditor } from './form-table-editor.js'
@@ -51,6 +52,14 @@ import { PhotoField } from './photo-field.js'
 import { formDutiesQuery, formKeys, formSchemaQuery, formsApi } from './queries.js'
 
 const NO_FIELDS: FieldDef[] = []
+
+/** Несохранённые значения сводки во вкладке: та же сводка — тот же период и субъект. */
+interface FillDraft {
+  periodKey: string
+  subjectId: string
+  values: Record<string, unknown>
+  rows: TableRow[]
+}
 
 /**
  * Сводка, открытая без сети (ADR-0208): черновик на устройстве с местным ключом.
@@ -99,17 +108,24 @@ const isLocal = (submission: FormSubmission | null) =>
  * Узкая колонка у одиночной формы и карточки строк у табличной на телефоне —
  * экран годится и для мобильного веба.
  */
-export function FormFillTab({ form }: { form: FormRecord }) {
+export function FormFillTab({ form, tabId }: { form: FormRecord; tabId: string }) {
   const t = useT()
   const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
+  const setTabState = useWorkspace((s) => s.setTabState)
+  const setTabDirty = useWorkspace((s) => s.setTabDirty)
 
   const { data: duties, isLoading } = useQuery(formDutiesQuery())
   const { data: schema } = useQuery(formSchemaQuery(form.id))
   const { data: me } = useQuery(meQuery())
   const queue = useOfflineQueue()
-  const [periodKey, setPeriodKey] = useState('')
+  // Несохранённые значения живут в состоянии вкладки (ADR-0228): переключение на
+  // другую вкладку и обратно, перезагрузка и запуск без сети их не теряют
+  const savedDraft = useRef<FillDraft | null>(
+    (useWorkspace.getState().tabs[tabId]?.state.fillDraft as FillDraft | undefined) ?? null,
+  )
+  const [periodKey, setPeriodKey] = useState(savedDraft.current?.periodKey ?? '')
   const [submission, setSubmission] = useState<FormSubmission | null>(null)
   const [values, setValues] = useState<Record<string, unknown>>({})
   const [rows, setRows] = useState<TableRow[]>([])
@@ -137,7 +153,10 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   const subject: FormSubject | null = duty?.subject ?? null
 
   useEffect(() => {
-    if (!periodKey && periods.length > 0) setPeriodKey(periods[0]?.key ?? '')
+    // Период из черновика вкладки мог закрыться — тогда первый из доступных
+    if (periods.length > 0 && !periods.some((period) => period.key === periodKey)) {
+      setPeriodKey(periods[0]?.key ?? '')
+    }
   }, [periodKey, periods])
 
   const input = useMemo(() => (table ? { values: {}, rows } : { values }), [table, rows, values])
@@ -159,8 +178,16 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     },
     onSuccess: (next) => {
       setSubmission(next)
-      setValues(next.values)
-      setRows(next.rows ?? [])
+      // Та же сводка, что была на экране до ухода с вкладки, — её несохранённые значения
+      const draft = savedDraft.current
+      savedDraft.current = null
+      const resume =
+        draft !== null &&
+        next.canSubmit &&
+        draft.periodKey === next.periodKey &&
+        draft.subjectId === next.subject.id
+      setValues(resume ? draft.values : next.values)
+      setRows(resume ? draft.rows : (next.rows ?? []))
       setCellErrors({})
       setRowErrors([])
       if (isLocal(next)) toast.show({ title: t('forms.offline.openedOffline') })
@@ -238,6 +265,46 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
+
+  // Вернулись на вкладку с несохранённой сводкой — открыть её сразу, с черновиком
+  const resumeOpened = useRef(false)
+  const openMutate = openSubmission.mutate
+  useEffect(() => {
+    const draft = savedDraft.current
+    if (!draft || resumeOpened.current || !subject || submission) return
+    if (draft.periodKey !== periodKey || draft.subjectId !== subject.id) return
+    resumeOpened.current = true
+    openMutate(periodKey)
+  }, [openMutate, periodKey, subject, submission])
+
+  // Правки, которых нет на сервере: точка на вкладке, предупреждение при закрытии и
+  // черновик во вкладке с паузой после набора (ADR-0228)
+  const dirty =
+    submission?.canSubmit === true &&
+    (table
+      ? JSON.stringify(rows) !== JSON.stringify(submission.rows ?? [])
+      : JSON.stringify(values) !== JSON.stringify(submission.values))
+  useEffect(() => setTabDirty(tabId, dirty), [dirty, setTabDirty, tabId])
+  const draftState: FillDraft | null =
+    dirty && submission
+      ? { periodKey: submission.periodKey, subjectId: submission.subject.id, values, rows }
+      : null
+  const latestDraft = useRef(draftState)
+  latestDraft.current = draftState
+  const draftJson = JSON.stringify(draftState)
+  useEffect(() => {
+    // draftJson — признак изменения; само значение — из последнего рендера
+    void draftJson
+    const timer = window.setTimeout(
+      () => setTabState(tabId, { fillDraft: latestDraft.current }),
+      400,
+    )
+    return () => window.clearTimeout(timer)
+  }, [draftJson, setTabState, tabId])
+  useEffect(
+    () => () => setTabState(tabId, { fillDraft: latestDraft.current }),
+    [setTabState, tabId],
+  )
 
   // Отправка из очереди дошла: открытая сводка показывает, что сдана
   const openId = submission?.id

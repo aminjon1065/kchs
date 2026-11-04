@@ -72,6 +72,19 @@ export function WorkspaceShell() {
     if (userId) claim(userId)
   }, [claim, userId])
 
+  // Несохранённые правки во вкладках — браузер переспросит перед закрытием страницы
+  // (ADR-0228). В управляемом браузере сквозных сценариев вопрос закрывался бы отказом
+  // и останавливал навигацию — там не спрашиваем
+  useEffect(() => {
+    if (navigator.webdriver) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!Object.values(useWorkspace.getState().tabs).some((tab) => tab.dirty)) return
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
+
   // Офлайн-очередь отправок (ADR-0204): досылается при входе, при появлении сети и
   // по таймеру, пока в ней что-то есть
   useEffect(() => (userId ? startOfflineQueue(userId) : undefined), [userId])

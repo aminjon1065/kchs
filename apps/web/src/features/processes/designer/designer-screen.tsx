@@ -100,9 +100,22 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   const client = useQueryClient()
   const setTabDirty = useWorkspace((s) => s.setTabDirty)
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
+  const setTabState = useWorkspace((s) => s.setTabState)
   const current = details.draft ?? details.published
+  // Несохранённая схема живёт в состоянии вкладки (ADR-0228): уход на другую вкладку и
+  // перезагрузка её не теряют. Черновик — к той версии, от которой начата правка
+  const base = current ? `${current.id}:${current.updatedAt}` : 'new'
+  const [restored] = useState(() => {
+    const saved = useWorkspace.getState().tabs[tabId]?.state.designerDraft as
+      | { base: string; definition: Definition }
+      | null
+      | undefined
+    return saved?.base === base ? saved.definition : null
+  })
   const [baseline, setBaseline] = useState<Definition | null>(current?.definition ?? null)
-  const [definition, setDefinition] = useState<Definition | null>(current?.definition ?? null)
+  const [definition, setDefinition] = useState<Definition | null>(
+    restored ?? current?.definition ?? null,
+  )
   const [issues, setIssues] = useState<DefinitionIssue[]>([])
   const [checking, setChecking] = useState(false)
   const [selection, setSelection] = useState<Selection>({ kind: 'route', section: 'general' })
@@ -124,6 +137,23 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
     [definition, baseline],
   )
   useEffect(() => setTabDirty(tabId, dirty), [dirty, setTabDirty, tabId])
+  const draftState = dirty && definition ? { base, definition } : null
+  const latestDraft = useRef(draftState)
+  latestDraft.current = draftState
+  const draftJson = JSON.stringify(draftState)
+  useEffect(() => {
+    // draftJson — признак изменения; значение — из последнего рендера
+    void draftJson
+    const timer = window.setTimeout(
+      () => setTabState(tabId, { designerDraft: latestDraft.current }),
+      400,
+    )
+    return () => window.clearTimeout(timer)
+  }, [draftJson, setTabState, tabId])
+  useEffect(
+    () => () => setTabState(tabId, { designerDraft: latestDraft.current }),
+    [setTabState, tabId],
+  )
   const title = definition ? localizedText(definition.name, locale) : details.key
   useEffect(() => {
     if (title.trim()) setTabTitle(tabId, title)

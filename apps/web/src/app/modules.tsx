@@ -681,7 +681,7 @@ export function registerModules(): void {
         type: 'form',
         render: (tab) => (
           <Suspense fallback={<LazyFallback />}>
-            <FormView objectId={tab.objectId!} />
+            <FormView objectId={tab.objectId!} tabId={tab.id} />
           </Suspense>
         ),
       },
