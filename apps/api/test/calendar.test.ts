@@ -300,6 +300,84 @@ describe('встреча с повтором и приглашения', () => {
   })
 })
 
+describe('правка серии: время экземпляров (ADR-0229)', () => {
+  /** Своя серия: восемь пятниц в 09:00, далеко от остальных тестов. */
+  async function weekly(title: string): Promise<{ id: string; day: (n: number) => string }> {
+    const friday = addDays(monday, 4 + 70)
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/events',
+      as: fx.users.member,
+      payload: {
+        title: `${title} ${run}`,
+        startsAt: at(friday, '09:00'),
+        endsAt: at(friday, '09:30'),
+        rrule: 'FREQ=WEEKLY;BYDAY=FR;COUNT=8',
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    return { id: created.json().id as string, day: (n: number) => addDays(friday, 7 * n) }
+  }
+
+  async function startOf(eventId: string, day: string): Promise<string | undefined> {
+    const view = await range(fx.users.member, at(day, '00:00'), at(addDays(day, 1), '00:00'))
+    return view.items.find((entry) => entry.eventId === eventId)?.startsAt
+  }
+
+  it('правка названия экземпляра не держит его на прежнем времени после переноса серии', async () => {
+    const series = await weekly('Сверка')
+    const renamed = await call(fx.app, {
+      method: 'PATCH',
+      url: `/events/${series.id}`,
+      as: fx.users.member,
+      payload: {
+        scope: 'occurrence',
+        recurrenceId: at(series.day(2), '09:00'),
+        title: `Сверка с отчётом ${run}`,
+      },
+    })
+    expect(renamed.statusCode, renamed.body).toBe(200)
+    const moved = await call(fx.app, {
+      method: 'PATCH',
+      url: `/events/${series.id}`,
+      as: fx.users.member,
+      payload: {
+        scope: 'series',
+        startsAt: at(series.day(0), '11:00'),
+        endsAt: at(series.day(0), '11:30'),
+      },
+    })
+    expect(moved.statusCode, moved.body).toBe(200)
+    expect(await startOf(series.id, series.day(2))).toBe(at(series.day(2), '11:00'))
+  })
+
+  it('«это и следующие» от перенесённого экземпляра — продолжение по времени серии', async () => {
+    const series = await weekly('Разбор')
+    const third = at(series.day(3), '09:00')
+    const movedOne = await call(fx.app, {
+      method: 'PATCH',
+      url: `/events/${series.id}`,
+      as: fx.users.member,
+      payload: {
+        scope: 'occurrence',
+        recurrenceId: third,
+        startsAt: at(series.day(3), '15:00'),
+        endsAt: at(series.day(3), '15:30'),
+      },
+    })
+    expect(movedOne.statusCode, movedOne.body).toBe(200)
+    const split = await call(fx.app, {
+      method: 'PATCH',
+      url: `/events/${series.id}`,
+      as: fx.users.member,
+      payload: { scope: 'following', recurrenceId: third, title: `Разбор итогов ${run}` },
+    })
+    expect(split.statusCode, split.body).toBe(200)
+    const tailId = split.json().id as string
+    expect(await startOf(tailId, series.day(4))).toBe(at(series.day(4), '09:00'))
+  })
+})
+
 describe('правка серии', () => {
   it('«только это»: перенос одного экземпляра', async () => {
     const third = at(addDays(monday, 14), '10:00')

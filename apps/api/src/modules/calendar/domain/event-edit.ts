@@ -94,12 +94,16 @@ export async function updateOccurrence(
   const change: OccurrenceOverride = {
     ...((row.overrides as Record<string, OccurrenceOverride>)[key] ?? {}),
   }
-  if (row.allDay) {
-    if (time.startDate) change.startDate = time.startDate
-    if (time.endDate) change.endDate = time.endDate
-  } else {
-    change.startsAt = iso(time.startsAt)
-    change.endsAt = iso(time.endsAt)
+  // Время экземпляра закрепляется, только если его меняли (ADR-0229): правка названия
+  // или места не должна держать экземпляр на прежнем времени после переноса серии
+  if (timeChanged) {
+    if (row.allDay) {
+      if (time.startDate) change.startDate = time.startDate
+      if (time.endDate) change.endDate = time.endDate
+    } else {
+      change.startsAt = iso(time.startsAt)
+      change.endsAt = iso(time.endsAt)
+    }
   }
   if (input.title !== undefined) change.title = input.title
   if (input.location !== undefined) change.location = text(input.location)
@@ -426,9 +430,13 @@ export async function splitSeries(
   const effective = occurrenceOf(series, recurrenceId)
   if (!base || !effective) throw errors.notFound('Экземпляр события')
   const effectiveTime = timeOfOccurrence(row, effective)
+  const baseTime = timeOfOccurrence(row, base)
   const timezone = input.timezone ?? row.timezone
-  const time = timeOf(input, timezone, effectiveTime)
-  const timeChanged = !sameTime(time, effectiveTime)
+  const requested = timeOf(input, timezone, effectiveTime)
+  const timeChanged = !sameTime(requested, effectiveTime)
+  // Время перенесённого экземпляра не становится временем продолжения (ADR-0229): правка
+  // без смены времени продолжает серию по её собственному времени
+  const time = timeChanged ? requested : baseTime
   const tail = input.rrule === undefined ? tailRule(series, recurrenceId) : input.rrule
   const rrule = ruleOf(tail, time)
 
@@ -461,7 +469,6 @@ export async function splitSeries(
 
   // Исключения продолжения — вслед за его началом; правки отдельных экземпляров не переносятся
   const later = row.exdates.filter((key) => Date.parse(key) > recurrenceId)
-  const baseTime = timeOfOccurrence(row, base)
   const tailExdates = sameTime(time, baseTime)
     ? later
     : shiftSeriesKeys({ ...baseTime, rrule: row.rrule, exdates: later, overrides: {} }, time)
