@@ -1,4 +1,4 @@
-import { rawSql } from './client.js'
+import { lockSql } from './client.js'
 
 /** Ключи advisory-блокировок платформы — в одном месте, чтобы не совпали. */
 export const ADVISORY_LOCKS = {
@@ -19,7 +19,7 @@ export const ADVISORY_LOCKS = {
  * видят сделанное: их проверки находят, что делать нечего.
  */
 export async function withAdvisoryLock<T>(key: number, run: () => Promise<T>): Promise<T> {
-  const connection = await rawSql().reserve()
+  const connection = await lockSql().reserve()
   try {
     await connection`SELECT pg_advisory_lock(${key})`
     try {

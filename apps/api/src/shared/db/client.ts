@@ -140,7 +140,33 @@ export function rawSql(): postgres.Sql {
   return sqlClient!
 }
 
+/**
+ * Соединения под сессионные advisory-блокировки (одиночные задания, мигратор, ADR-0228) —
+ * отдельно от основного пула: задание держит блокировку всё время работы, и в общем пуле
+ * каждое такое задание отнимало бы соединение у запросов и у самой работы. Больше
+ * одновременных блокировок, чем соединений, — следующая ждёт свободного.
+ */
+const LOCK_POOL_MAX = 16
+let lockClient: postgres.Sql | null = null
+
+export function lockSql(): postgres.Sql {
+  if (lockClient) return lockClient
+  const env = config()
+  lockClient = postgres(env.DATABASE_URL, {
+    max: LOCK_POOL_MAX,
+    idle_timeout: 30,
+    connect_timeout: env.DATABASE_CONNECT_TIMEOUT_S,
+    prepare: false,
+    onnotice: (notice) => logger().debug({ notice }, 'postgres notice'),
+  })
+  return lockClient
+}
+
 export async function closeDb(): Promise<void> {
+  if (lockClient) {
+    await lockClient.end({ timeout: 5 })
+    lockClient = null
+  }
   if (sqlClient) {
     await sqlClient.end({ timeout: 5 })
     sqlClient = null
