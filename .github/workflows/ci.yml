@@ -94,7 +94,11 @@ jobs:
       # Клиент pg_dump той же версии, что сервер (17): у раннера свой 16-й, и копия
       # отказывает «server version mismatch» (в образе api клиент нужной версии есть)
       - name: Клиент PostgreSQL 17
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+        # В репозиториях Ubuntu раннера только 16-й — клиент из репозитория PGDG
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
 
       - name: Секреты и инфраструктура
         run: |
@@ -163,7 +167,11 @@ jobs:
       # Клиент pg_dump той же версии, что сервер (17): у раннера свой 16-й, и копия
       # отказывает «server version mismatch» (в образе api клиент нужной версии есть)
       - name: Клиент PostgreSQL 17
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+        # В репозиториях Ubuntu раннера только 16-й — клиент из репозитория PGDG
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
 
       - name: Секреты и инфраструктура
         run: |
