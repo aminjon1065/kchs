@@ -14,6 +14,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
+import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { clearanceLimit, effectiveConfidentialityMany } from '../access/confidentiality.js'
 import { links } from '../links/schema.js'
 import { objectType } from '../objects/registry.js'
@@ -346,7 +347,7 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
       )
     : new Map<string, string>()
 
-  const hits: SearchHit[] = result.hits.map((hit) => {
+  const indexed: SearchHit[] = result.hits.map((hit) => {
     const formatted = (hit as unknown as { _formatted?: { title?: string; body?: string } })
       ._formatted
     const definition = objectType(hit.type)
@@ -363,6 +364,7 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
       meta: hit.meta,
     }
   })
+  const hits = await visibleNow(ctx, indexed)
 
   // Смысл поверх слов (ADR-0099): списки сливаются рангами (RRF), поэтому
   // точное совпадение слов не тонет, а близкий по смыслу текст находится
@@ -386,6 +388,35 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
     })),
     tookMs: Date.now() - started,
   }
+}
+
+/**
+ * Пост-проверка выдачи (ADR-0017, ADR-0228): права в индексе догоняют изменения
+ * асинхронно — после разрыва наследования, отзыва или ухода из пространства документ
+ * какое-то время несёт прежних читателей. Найденное перепроверяется по базе: одним
+ * запросом — предикатом списков с политикой типа, а не прошедшее — точным
+ * `authorize(view)`: вложение читают читатели объекта-хозяина, предикат списков этого
+ * не знает. При свежем индексе это один запрос.
+ */
+async function visibleNow(ctx: UserCtx, hits: SearchHit[]): Promise<SearchHit[]> {
+  if (hits.length === 0) return hits
+  const ids = hits.map((hit) => hit.objectId)
+  const types = [...new Set(hits.map((hit) => hit.type as string))]
+  const byType = sql.join(
+    types.map((type) => sql`(${objects.type} = ${type} AND ${visibleObjectsSql(ctx, type)})`),
+    sql` OR `,
+  )
+  const rows = await db()
+    .select({ id: objects.id })
+    .from(objects)
+    .where(and(inArray(objects.id, ids), isNull(objects.deletedAt), sql`(${byType})`))
+  const visible = new Set(rows.map((row) => row.id))
+  const doubtful = ids.filter((id) => !visible.has(id))
+  const confirmed = await mapLimited(doubtful, 4, async (id) =>
+    (await authorize(ctx, 'view', id, { soft: true })).allowed ? id : null,
+  )
+  for (const id of confirmed) if (id) visible.add(id)
+  return hits.filter((hit) => visible.has(hit.objectId))
 }
 
 function epochSeconds(value: string): number {

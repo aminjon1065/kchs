@@ -3,12 +3,20 @@ import type { EventEnvelope } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Subscriber } from '../src/kernel/events/types.js'
-import { db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  createUser,
+  db,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Надёжность поисковой проекции (ADR-0228): события подписчика поиска, ушедшие в
  * DLQ, возвращаются в поток сами, а ночная сверка приводит индекс к реестру —
- * читатели по текущим правам, документов без объекта в индексе не остаётся.
+ * читатели по текущим правам, документов без объекта в индексе не остаётся. Пока индекс
+ * не догнал права, выдачу режет пост-проверка по базе (ADR-0017).
  */
 registerLifecycle()
 
@@ -151,5 +159,44 @@ describe('ночная сверка индекса (ADR-0228)', () => {
       async () =>
         JSON.stringify((await documentOf(real))?.aclPrincipals.sort()) === JSON.stringify(expected),
     )
+  })
+})
+
+describe('пост-проверка выдачи (ADR-0017)', () => {
+  it('устаревшие читатели в индексе не открывают объект, законный читатель находит', async () => {
+    const title = `Пост-проверка ${randomUUID().slice(0, 8)}`
+    const folder = await createFolder(title)
+    await indexObjects([folder])
+    const outsider = await createUser(fx.app, `search_stale_${Date.now().toString(36)}`)
+    const found = async () => {
+      const response = await call(fx.app, {
+        url: `/search?q=${encodeURIComponent(title)}`,
+        as: outsider,
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return (response.json().hits as Array<{ objectId: string }>).map((hit) => hit.objectId)
+    }
+
+    // Индекс отстал от прав: в документе читатель, которому объект не открыт
+    await objectsIndex()
+      .updateDocuments([
+        {
+          id: folder,
+          aclPrincipals: [...(await readPrincipalsFor(folder)), `user:${outsider.id}`],
+        },
+      ])
+      .waitTask()
+    expect(await found()).not.toContain(folder)
+    expect((await call(fx.app, { url: `/objects/${folder}`, as: outsider })).statusCode).toBe(404)
+
+    // Участник пространства читает папку по праву — пост-проверка его не режет
+    const joined = await call(fx.app, {
+      method: 'POST',
+      url: `/spaces/${fx.spaceId}/members`,
+      as: fx.admin,
+      payload: { userId: outsider.id, role: 'viewer' },
+    })
+    expect(joined.statusCode, joined.body).toBe(200)
+    expect(await found()).toContain(folder)
   })
 })
