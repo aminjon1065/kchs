@@ -20,6 +20,9 @@ overrides:
   "fast-uri@>=4.0.0 <4.2.3": ^4.2.3
   "ip-address@<10.7.4": ^10.7.4
   "fflate@>=0.7.0 <0.7.5": ~0.7.5
+  "source-map-js@>=1.0.0 <1.2.2": ^1.2.2
+  "happy-dom@<21.0.4": ^21.0.4
+  "vite@>=7.0.0 <7.3.7": ^7.3.7
 
 # Разобранные уязвимости зависимостей. `pnpm audit --audit-level high` ломает
 # сборку (17-security.md §5, ADR-0121), поэтому каждая строка здесь — разбор, а
@@ -27,6 +30,12 @@ overrides:
 # обновления — вопрос N80 в docs/04-delivery/05-risks-and-open-questions.md.
 auditConfig:
   ignoreGhsas:
+    # tinypool 1.x (vitest 3 → пул воркеров тестов): загрязнение прототипа через
+    # параметры воркера. Только запуск тестов, параметры задаёт сам vitest, чужого
+    # ввода нет; исправление — в tinypool 2, то есть vitest 4+. Пересмотреть при
+    # переходе на vitest 4 (разбор 03.11.2026).
+    - GHSA-5gmw-xhrv-c9v3
+    - GHSA-85c8-ppgw-ccpr
     # image-size <= 2.0.2 (deck.gl → loaders.gl → texture-compressor): сжатые
     # текстуры glTF мы не грузим, этот код в сборку web не попадает.
     - GHSA-w3rx-r6r6-pgpr
