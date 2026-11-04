@@ -1,9 +1,10 @@
 import type { AccessReason, Level } from '@kchs/contracts'
-import { and, eq, ne, or, type SQL, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, or, type SQL, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import type { ObjectLike, TypePolicy } from '../access/types.js'
 import { objects } from '../objects/schema.js'
+import { INBOX_KIND, stepTypesCovered } from './delegation-scope.js'
 import { processInstances, processSteps } from './schema.js'
 
 /**
@@ -46,8 +47,23 @@ function stepScope(options: ProcessParticipantOptions): SQL {
     : participant
 }
 
-function people(ctx: UserCtx): string[] {
-  return [ctx.userId, ...ctx.principals.actingFor.map((item) => item.userId)]
+/**
+ * Шаги, где пользователь — назначенный сам или за отсутствующего в пределах области его
+ * замещения (ADR-0229): заместитель «только по встречам» не видит документы маршрутов
+ * согласования отсутствующего.
+ */
+function participantOf(ctx: UserCtx): SQL {
+  const conditions: SQL[] = [assigneeOf([ctx.userId])]
+  for (const item of ctx.principals.actingFor) {
+    if (item.scope === 'all') {
+      conditions.push(assigneeOf([item.userId]))
+      continue
+    }
+    const types = stepTypesCovered(item.scope, Object.keys(INBOX_KIND))
+    if (types.length === 0) continue
+    conditions.push(and(assigneeOf([item.userId]), inArray(processSteps.kind, types)) as SQL)
+  }
+  return (conditions.length === 1 ? conditions[0] : or(...conditions)) as SQL
 }
 
 export function processParticipantPolicy(
@@ -61,11 +77,7 @@ export function processParticipantPolicy(
         .from(processSteps)
         .innerJoin(processInstances, eq(processInstances.id, processSteps.instanceId))
         .where(
-          and(
-            eq(processInstances.objectId, object.id),
-            stepScope(options),
-            assigneeOf(people(ctx)),
-          ),
+          and(eq(processInstances.objectId, object.id), stepScope(options), participantOf(ctx)),
         )
         .limit(50)
       if (rows.length === 0) return []
@@ -76,7 +88,7 @@ export function processParticipantPolicy(
       sql`${objects.id} IN (
         SELECT ${processInstances.objectId} FROM ${processInstances}
           JOIN ${processSteps} ON ${processSteps.instanceId} = ${processInstances.id}
-         WHERE ${stepScope(options)} AND ${assigneeOf(people(ctx))}
+         WHERE ${stepScope(options)} AND ${participantOf(ctx)}
       )`,
     principals: async (object: ObjectLike, executor: Executor) => {
       const rows = await executor

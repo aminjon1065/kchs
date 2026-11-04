@@ -115,6 +115,10 @@ export const adminApi = {
   putUsersClearance: (id: string, body: ApiBody<'PUT /users/:id/clearance'>) =>
     http.put('/users/:id/clearance', { params: { id }, body }),
   getUsersPasskeys: (id: string) => http.get('/users/:id/passkeys', { params: { id } }),
+  getUsersDelegations: (id: string) => http.get('/users/:id/delegations', { params: { id } }),
+  postUsersDelegations: (id: string, body: ApiBody<'POST /users/:id/delegations'>) =>
+    http.post('/users/:id/delegations', { params: { id }, body }),
+  removeDelegation: (id: string) => http.delete('/me/delegations/:id', { params: { id } }),
   removeUsersPasskeys: (id: string) => http.delete('/users/:id/passkeys', { params: { id } }),
   postUsersImport: (body: ApiBody<'POST /admin/users/import'>) =>
     http.post('/admin/users/import', { body }),

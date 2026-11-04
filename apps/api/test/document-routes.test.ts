@@ -14,7 +14,14 @@ import {
   type TestUser,
   uploadFile,
 } from './helpers.js'
-import { actInbox, createPeople, inboxOf, type ProcessPeople, route } from './process-fixtures.js'
+import {
+  actInbox,
+  createPeople,
+  inboxOf,
+  type ProcessPeople,
+  publishDefinition,
+  route,
+} from './process-fixtures.js'
 
 /**
  * Маршруты документов на движке процессов (P3-E02 S04, ADR-0083): стартовые
@@ -610,6 +617,154 @@ describe('допуск к грифу', () => {
     expect(started.statusCode).toBe(409)
     expect(started.json().detail).toContain('допуска')
     expect((await getDocument(people.author, doc.id)).status).toBe('draft')
+  })
+})
+
+describe('«Согласован» — не тупик (ADR-0229)', () => {
+  const visas = `document_visas_${run}`
+  const signing = `document_signing_${run}`
+  const end = { done: { type: 'end', name: { ru: 'Готово' } } }
+
+  beforeAll(async () => {
+    await publishDefinition(fx, {
+      version: 1,
+      key: visas,
+      objectType: 'document',
+      name: { ru: 'Визы' },
+      variables: { reviewers: { type: 'users', label: { ru: 'Визирующие' }, required: true } },
+      start: 'review',
+      steps: {
+        review: {
+          type: 'approval',
+          name: { ru: 'Визирование' },
+          assignees: ['var:reviewers'],
+          next: 'done',
+        },
+        ...end,
+      },
+    })
+    await publishDefinition(fx, {
+      version: 1,
+      key: signing,
+      objectType: 'document',
+      name: { ru: 'Подпись' },
+      variables: { signer: { type: 'user', label: { ru: 'Подписант' }, required: true } },
+      start: 'sign',
+      steps: {
+        sign: { type: 'sign', name: { ru: 'Подпись' }, assignees: ['var:signer'], next: 'done' },
+        ...end,
+      },
+    })
+  })
+
+  async function approvedDocument(): Promise<string> {
+    const doc = await createDraft(people.author, 'order', {
+      subject: `Согласованный приказ ${run}`,
+      signerId: people.signer.id,
+    })
+    await addVersion(people.author, doc, `визы-${run}-${Date.now()}.pdf`)
+    const started = await startRoute(people.author, doc.id, {
+      definitionKey: visas,
+      variables: { reviewers: [people.a1.id] },
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const [item] = await inboxOf(fx, people.a1, doc.id)
+    const approved = await actInbox(fx, people.a1, item?.id ?? '', 'approve')
+    expect(approved.statusCode, approved.body).toBe(200)
+    expect((await getDocument(people.author, doc.id)).status).toBe('approved')
+    return doc.id
+  }
+
+  it('после маршрута виз согласованный документ идёт на подпись следующим маршрутом', async () => {
+    const id = await approvedDocument()
+    const signed = await startRoute(people.author, id, {
+      definitionKey: signing,
+      variables: { signer: people.signer.id },
+    })
+    expect(signed.statusCode, signed.body).toBe(200)
+    expect((await getDocument(people.author, id)).status).toBe('on_signing')
+  })
+
+  it('согласованный документ аннулируется', async () => {
+    const id = await approvedDocument()
+    const cancelled = await call(fx.app, {
+      method: 'POST',
+      url: `/documents/${id}/cancel`,
+      as: people.author,
+      payload: { reason: 'Отменён после согласования' },
+    })
+    expect(cancelled.statusCode, cancelled.body).toBe(200)
+    expect(cancelled.json().status).toBe('cancelled')
+  })
+})
+
+describe('пул с грифом (ADR-0229)', () => {
+  const key = `document_pool_${run}`
+  const definition = {
+    version: 1,
+    key,
+    objectType: 'document',
+    name: { ru: 'Согласование пулом' },
+    variables: { reviewers: { type: 'users', label: { ru: 'Согласующие' }, required: true } },
+    start: 'review',
+    steps: {
+      review: {
+        type: 'approval',
+        name: { ru: 'Согласование любым' },
+        mode: 'any',
+        quorum: 'any',
+        assignees: ['var:reviewers'],
+        next: 'done',
+      },
+      done: { type: 'end', name: { ru: 'Готово' } },
+    },
+  }
+
+  async function confidentialDraft(title: string) {
+    const doc = await createDraft(people.author, 'order', {
+      subject: `${title} ${run}`,
+      signerId: people.signer.id,
+      confidentiality: 'confidential',
+    })
+    await addVersion(people.author, doc, `пул-${title}-${run}.pdf`)
+    return doc
+  }
+
+  beforeAll(async () => {
+    await publishDefinition(fx, definition)
+    for (const user of [people.author, people.a2]) {
+      const granted = await call(fx.app, {
+        method: 'PUT',
+        url: `/users/${user.id}/clearance`,
+        as: fx.admin,
+        payload: { clearance: 'confidential', reason: 'Допуск для проверки пула' },
+      })
+      expect(granted.statusCode, granted.body).toBe(200)
+    }
+  })
+
+  it('шаг «любой» идёт тем, у кого есть допуск, а не встаёт целиком', async () => {
+    const doc = await confidentialDraft('Пул')
+    const started = await startRoute(people.author, doc.id, {
+      definitionKey: key,
+      variables: { reviewers: [people.a1.id, people.a2.id] },
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const view = await route(fx, people.author, started.json().id)
+    const review = view.steps.find((step: { key: string }) => step.key === 'review')
+    expect(review.assignees.map((entry: { user: { id: string } }) => entry.user.id)).toEqual([
+      people.a2.id,
+    ])
+  })
+
+  it('допуска нет ни у кого из пула — маршрут не стартует', async () => {
+    const doc = await confidentialDraft('Пул без допуска')
+    const started = await startRoute(people.author, doc.id, {
+      definitionKey: key,
+      variables: { reviewers: [people.a1.id] },
+    })
+    expect(started.statusCode).toBe(400)
+    expect(started.json().detail).toContain('нет допуска')
   })
 })
 

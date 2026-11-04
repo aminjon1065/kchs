@@ -1010,6 +1010,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       'Корманд бо рамз ворид мешавад ва омили дуюмро аз нав пайваст мекунад. Агар сиёсат барои нақши ӯ MFA талаб кунад, то пайваст кардан фазои корӣ дастнорас мешавад.',
     mfaResetDone: 'Омили дуюм бекор карда шуд',
     facsimile: 'Факсимиле',
+    delegations: 'Ивазкуниҳо',
     facsimileTitle: 'Факсимиле — {name}',
     facsimileHint:
       'Тасвири имзои кормандро танҳо худи ӯ мебинад. Дар ин ҷо онро иваз ё нест кардан мумкин аст — ин ба журнали аудит дохил мешавад.',
@@ -1149,6 +1150,10 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     note: 'Шарҳ',
     created: '{name} ҷойгузини шумо шуд',
     stopped: 'Ивазкунӣ анҷом ёфт',
+    planned: 'Ба нақша гирифта шуд',
+    cancel: 'Бекор кардан',
+    ofUser: 'Ивазкуниҳо: {name}',
+    createdFor: '{name} ҷойгузини корманд шуд',
   },
   audit: {
     export: 'Содироти CSV',

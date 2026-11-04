@@ -520,6 +520,17 @@ describe('запуск и печать', () => {
     )
     expect(outgoing, 'в установке есть исходящий вид документа').toBeTruthy()
 
+    // Документом становится свой прогон (ADR-0229): администратор строит отчёт сам
+    const own = await call(fx.app, {
+      method: 'POST',
+      url: `/reports/${reportId}/runs`,
+      as: fx.admin,
+      payload: { formats: ['pdf'] },
+    })
+    expect(own.statusCode, own.body).toBe(200)
+    const ownRun = own.json().id as string
+    await engineRender(ownRun, await engineStart(ownRun))
+
     const created = await call(fx.app, {
       method: 'POST',
       url: `/reports/${reportId}/document`,
@@ -552,6 +563,19 @@ describe('запуск и печать', () => {
       payload: { typeId: outgoing?.id },
     })
     expect(empty.statusCode).toBe(409)
+
+    // Чужой прогон документом не станет (ADR-0229): у участника своих прогонов нет, а
+    // файлы чужих построены под чужими правами
+    expect(
+      (await call(fx.app, { url: `/reports/${reportId}`, as: fx.users.member })).statusCode,
+    ).toBe(200)
+    const others = await call(fx.app, {
+      method: 'POST',
+      url: `/reports/${reportId}/document`,
+      as: fx.users.member,
+      payload: { typeId: outgoing?.id },
+    })
+    expect(others.statusCode).toBe(409)
   })
 
   it('сбой задания: запуск failed, событие, токен отозван', async () => {

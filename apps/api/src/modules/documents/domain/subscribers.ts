@@ -296,6 +296,20 @@ export const documentSubscribers: Subscriber[] = [
   },
   { name: 'documents-execution', types: ['task.source_closed'], handle: executed },
   {
+    // Согласованное продление поручения — срок резолюции и документа (ADR-0229)
+    name: 'documents-instruction-extension',
+    types: ['task.extension_decided'],
+    handle: async (event) => {
+      const payload = event.payload as { decision?: string; to?: string | null }
+      if (payload.decision !== 'approved' || !payload.to || event.object?.type !== 'task') return
+      const taskId = event.object.id
+      const due = payload.to
+      await db().transaction((tx) =>
+        ResolutionService.extended(tx, systemCtx('documents.instruction_extended'), taskId, due),
+      )
+    },
+  },
+  {
     // Ответ отправлен — исполнителю поручения готовый отчёт (N22, ADR-0136)
     name: 'documents-reply-report',
     types: ['document.dispatched'],

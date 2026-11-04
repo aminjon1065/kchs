@@ -15,7 +15,13 @@ export type RouteTarget = 'on_approval' | 'approved' | 'on_signing' | 'signed' |
  * согласованием и подписью.
  */
 const PATHS: Record<RouteTarget, Partial<Record<DocumentStatus, DocumentStatus[]>>> = {
-  on_approval: { draft: ['on_approval'], returned: ['on_approval'], on_approval: [] },
+  on_approval: {
+    draft: ['on_approval'],
+    returned: ['on_approval'],
+    // Повторное согласование согласованного документа (ADR-0229)
+    approved: ['on_approval'],
+    on_approval: [],
+  },
   approved: { on_approval: ['approved'], approved: [] },
   on_signing: {
     draft: ['on_signing'],

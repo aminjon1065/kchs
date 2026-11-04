@@ -13,7 +13,7 @@ import {
   type UserStatus,
 } from '@kchs/contracts'
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import {
   employments,
@@ -247,6 +247,9 @@ export const UserService = {
           object: { id: userId, type: 'user' },
           payload: { userId, unitId: change.to.unitId },
         })
+        if (change.from.unitId && change.from.unitId !== change.to.unitId) {
+          await releaseHeadship(tx, ctx, userId, change.from.unitId)
+        }
       }
     }
 
@@ -570,6 +573,39 @@ type Assignment = { unitId: string | null; positionId: string | null }
  * Не переданное поле не меняется; в том же подразделении должность правится на месте.
  * Возвращает было/стало или `null`, если ничего не изменилось.
  */
+/**
+ * Переведённый руководитель больше не возглавляет прежнее подразделение (ADR-0229):
+ * иначе принципал `unit_head` и «руководитель» в маршрутах и эскалациях оставались
+ * бы за ушедшим. Подразделение без главы ведёт ближайший вышестоящий руководитель
+ * (`OrgService.manager`), пока кадры не назначат нового.
+ */
+async function releaseHeadship(tx: Tx, ctx: Ctx, userId: string, unitId: string): Promise<void> {
+  const released = await tx
+    .update(orgUnits)
+    .set({ headUserId: null })
+    .where(and(eq(orgUnits.id, unitId), eq(orgUnits.headUserId, userId)))
+    .returning({ id: orgUnits.id, name: orgUnits.name })
+  const unit = released[0]
+  if (!unit) return
+  await bumpPrincipalsVersion(tx)
+  await publishEvent(tx, ctx, {
+    type: 'org.unit_changed',
+    object: { id: unit.id, type: 'unit', title: unit.name.ru },
+    payload: { unitId: unit.id, change: 'updated' },
+  })
+  await audit(
+    ctx,
+    {
+      action: AUDIT_ACTIONS.orgChanged,
+      objectId: unit.id,
+      objectType: 'unit',
+      severity: 'notice',
+      details: { change: 'head_released', fields: ['headUserId'], userId, reason: 'transfer' },
+    },
+    tx,
+  )
+}
+
 async function assignPrimary(
   tx: Executor,
   userId: string,

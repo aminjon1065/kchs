@@ -249,4 +249,40 @@ describe('должности и назначение в консоли', () => {
     })
     expect(positionOnly.statusCode, positionOnly.body).toBe(400)
   })
+
+  it('переведённый руководитель больше не возглавляет прежнее подразделение (ADR-0229)', async () => {
+    const unit = async (code: string) =>
+      (
+        await call(fx.app, {
+          method: 'POST',
+          url: '/org/units',
+          as: fx.admin,
+          payload: { name: { ru: `Управление ${code}` }, code, createSpace: false },
+        })
+      ).json().id as string
+    const from = await unit(`HEAD-FROM-${run}`)
+    const to = await unit(`HEAD-TO-${run}`)
+    const head = await createUser(fx.app, `head_transfer_${run}`, ['employee'], from)
+    const appointed = await call(fx.app, {
+      method: 'PATCH',
+      url: `/org/units/${from}`,
+      as: fx.admin,
+      payload: { headUserId: head.id },
+    })
+    expect(appointed.statusCode, appointed.body).toBe(200)
+    expect((await computePrincipalSet(head.id)).keys).toContain(`unit_head:${from}`)
+
+    const moved = await call(fx.app, {
+      method: 'PATCH',
+      url: `/users/${head.id}`,
+      as: fx.admin,
+      payload: { unitId: to },
+    })
+    expect(moved.statusCode, moved.body).toBe(200)
+    const [row] = await db().execute<{ head_user_id: string | null }>(
+      sql`SELECT head_user_id FROM org_units WHERE id = ${from}`,
+    )
+    expect(row?.head_user_id).toBeNull()
+    expect((await computePrincipalSet(head.id)).keys).not.toContain(`unit_head:${from}`)
+  })
 })

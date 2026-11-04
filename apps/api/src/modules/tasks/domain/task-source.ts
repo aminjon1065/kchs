@@ -21,7 +21,8 @@ export interface InstructionSourceStatus {
 }
 
 /** Источники, закрытие поручений которых что-то значит: документ (резолюция) или объект. */
-const TRACKED_KINDS = ['object', 'resolution']
+/** Источники, поручения которых ведёт контроль: закрытие всех — событие источнику. */
+export const TRACKED_KINDS: readonly string[] = ['object', 'resolution']
 
 function sourceCondition(sourceObjectId: string) {
   return and(

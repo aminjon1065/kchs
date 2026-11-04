@@ -83,6 +83,8 @@ export const ActiveDelegation = z.object({
   startsAt: Timestamp,
   endsAt: Timestamp,
   note: z.string().nullable(),
+  /** Ещё не началось (ADR-0229): видно заранее, его можно отменить. */
+  upcoming: z.boolean().optional(),
 })
 export type ActiveDelegation = z.infer<typeof ActiveDelegation>
 

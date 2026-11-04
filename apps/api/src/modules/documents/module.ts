@@ -130,14 +130,22 @@ export function registerDocumentsObjectTypes(): void {
     summary: documentSummaries,
     searchable: documentSearchContent,
     lifecycle: {
-      // Зарегистрированный документ не удаляется — только аннулируется (08-documents.md §3)
+      // Зарегистрированный документ не удаляется — только аннулируется (08-documents.md §3).
+      // Аннулированный после регистрации — тоже (ADR-0229): очистка корзины унесла бы
+      // запись из журнала, а номер в нём должен остаться с отметкой об аннулировании
       beforeTrash: async (tx, _ctx, object) => {
         const [row] = await tx
-          .select({ status: documents.status })
+          .select({ status: documents.status, regNumber: documents.regNumber })
           .from(documents)
           .where(eq(documents.id, object.id))
           .limit(1)
-        if (row && row.status !== 'draft' && row.status !== 'cancelled') {
+        if (!row) return
+        if (row.regNumber) {
+          throw errors.conflict(
+            'Зарегистрированный документ не удаляется — он остаётся в журнале аннулированным',
+          )
+        }
+        if (row.status !== 'draft' && row.status !== 'cancelled') {
           throw errors.conflict('Документ после черновика не удаляется — только аннулируется')
         }
       },

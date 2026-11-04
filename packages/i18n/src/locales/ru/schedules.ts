@@ -19,6 +19,7 @@ export const schedules = {
   toggled: 'Расписание обновлено',
   history: { title: 'История запусков', empty: 'Запусков пока нет', open: 'История' },
   jobs: {
+    delegationsSync: 'Замещения: начало и окончание по датам',
     inboxWakeSnoozed: 'Входящие: возврат отложенных дел',
     notificationsDigest: 'Уведомления: почтовый дайджест',
     outboxPrune: 'Очистка журнала событий',

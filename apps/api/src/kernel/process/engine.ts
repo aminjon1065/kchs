@@ -1,4 +1,4 @@
-import type { InboxItem, InboxKind } from '@kchs/contracts'
+import type { InboxItem } from '@kchs/contracts'
 import {
   assignStep,
   completeStep,
@@ -29,7 +29,9 @@ import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
 import { objects } from '../objects/schema.js'
+import { INBOX_KIND } from './delegation-scope.js'
 import { kernelDirectory } from './directory.js'
+import { isPoolStep } from './pool.js'
 import {
   type ProcessInstanceInfo,
   type ProcessObjectData,
@@ -58,13 +60,7 @@ import {
  */
 
 /** Вид элемента Входящих шага решения. */
-export const INBOX_KIND: Record<string, InboxKind> = {
-  approval: 'approve',
-  sign: 'sign',
-  acknowledge: 'acknowledge',
-  register: 'register',
-  return: 'revise',
-}
+export { INBOX_KIND }
 
 const MAX_WORK = 1000
 
@@ -351,7 +347,17 @@ export class Execution {
       },
       kernelDirectory,
     )
-    return result.assignees
+    if (!isPoolStep(step) || result.assignees.length === 0) return result.assignees
+    const filter = processObjectProvider(this.loaded.object.type)?.assigneeFilter
+    if (!filter) return result.assignees
+    const allowed = new Set(
+      await filter(
+        this.tx,
+        this.loaded.object.id,
+        result.assignees.map((entry) => entry.userId),
+      ),
+    )
+    return result.assignees.filter((entry) => allowed.has(entry.userId))
   }
 
   /** Автоматический шаг: уведомление и поле — сразу, `call`/`task`/`register` — модуль. */

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { ReportFormat } from '@kchs/contracts'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, copyObject, storageKey } from '~/kernel/storage/s3.js'
@@ -42,19 +42,21 @@ export const ReportToDocument = {
     await authorize(ctx, 'view', reportId)
     const report = await ReportService.get(reportId)
 
+    // Только свой прогон (ADR-0229): файл построен под правами того, кто строил, и в
+    // чужом — строки вне прав смотрящего; скачать чужой прогон тоже нельзя
     const [lastRun] = await db()
       .select({ id: reportRuns.id })
       .from(reportRuns)
-      .where(eq(reportRuns.reportId, reportId))
+      .where(and(eq(reportRuns.reportId, reportId), eq(reportRuns.runAs, ctx.userId)))
       .orderBy(desc(reportRuns.createdAt))
-      .limit(20)
-    if (!lastRun) throw errors.conflict('Отчёт ещё не строился — сначала постройте его')
+      .limit(1)
+    if (!lastRun) throw errors.conflict('Вы ещё не строили этот отчёт — сначала постройте его')
 
-    // Берём последний прогон, у которого есть файлы: пустые и упавшие пропускаем
+    // Берём последний свой прогон, у которого есть файлы: пустые и упавшие пропускаем
     const runs = await ReportRuns.list(ctx, reportId)
     let picked: { runId: string; format: ReportFormat } | null = null
     for (const run of runs) {
-      if (run.status !== 'succeeded') continue
+      if (run.status !== 'succeeded' || !run.canDownload) continue
       const format = ORDER.find((item) => run.files.some((file) => file.format === item))
       if (format) {
         picked = { runId: run.id, format }

@@ -19,6 +19,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { credentials } from './credentials.js'
+import { DelegationService } from './delegation-service.js'
 import { FacsimileService } from './facsimile.js'
 import { GroupService } from './group-service.js'
 import { OrgService } from './org-service.js'
@@ -175,6 +176,31 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       // После коммита: новые роли и статус действуют со следующего запроса
       await invalidatePrincipalSet(request.params.id)
       return { ok: true }
+    },
+  })
+
+  route({
+    route: 'GET /users/:id/delegations',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Замещения сотрудника: действующие и запланированные',
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      return { items: await DelegationService.listFor(request.params.id) }
+    },
+  })
+
+  route({
+    route: 'POST /users/:id/delegations',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Назначить заместителя за сотрудника',
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      const id = await db().transaction((tx) =>
+        DelegationService.create(tx, request.ctx, request.body, request.params.id),
+      )
+      return { id }
     },
   })
 

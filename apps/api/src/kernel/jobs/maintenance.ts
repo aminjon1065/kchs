@@ -5,6 +5,7 @@ import { ensureAuditPartitions } from '~/shared/db/partitions.js'
 import { logger } from '~/shared/logger/index.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { BackupService } from '../backup/service.js'
+import { DelegationService } from '../directory/delegation-service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
 import { pruneEventConsumptions, redriveProjections, trimStreams } from '../events/streams.js'
 import { InboxService } from '../inbox/service.js'
@@ -171,6 +172,31 @@ export function registerMaintenanceJobs(): void {
     handle: async () => ({ woken: await InboxService.wakeSnoozed() }),
   })
 
+  // Замещения по датам (ADR-0229): истёкшие закрываются событием, у начавшихся по дате
+  // заместитель получает копии ждущих дел — событие о создании пришло раньше начала
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'delegations.sync',
+    concurrency: 1,
+    handle: async () => {
+      const expired = await DelegationService.expireDue()
+      const pairs = await DelegationService.effectivePairs()
+      let opened = 0
+      for (const pair of pairs) {
+        const result = await db().transaction((tx) =>
+          InboxService.syncDeputyCopies(
+            tx,
+            systemCtx('delegations.sync'),
+            pair.fromUserId,
+            pair.toUserId,
+          ),
+        )
+        opened += result.opened
+      }
+      return { expired: expired.length, pairs: pairs.length, opened }
+    },
+  })
+
   registerJobHandler({
     queue: 'maintenance',
     name: 'recent.trim',
@@ -224,6 +250,12 @@ export function declareMaintenanceSchedules(): void {
     name: 'inbox.wake-snoozed',
     pattern: '*/5 * * * *',
     labelKey: 'schedules.jobs.inboxWakeSnoozed',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'delegations.sync',
+    pattern: '*/5 * * * *',
+    labelKey: 'schedules.jobs.delegationsSync',
   })
   declareSchedule({
     queue: 'maintenance',

@@ -59,3 +59,13 @@ export function registerInboxKind(kind: InboxKind, options: InboxKindOptions): v
 export function inboxKind(kind: InboxKind): InboxKindOptions | undefined {
   return kinds.get(kind)
 }
+
+/** Области замещения, покрывающие дела вида `kind`: «все дела» и объявленные видом. */
+export function delegationScopes(kind: InboxKind): string[] {
+  return ['all', ...(inboxKind(kind)?.delegationScopes ?? [])]
+}
+
+/** Замещение с областью `scope` распространяется на дела вида `kind`. */
+export function delegationCovers(kind: InboxKind, scope: string): boolean {
+  return delegationScopes(kind).includes(scope)
+}
