@@ -33,7 +33,7 @@ test.describe('Знания: страница базы знаний', () => {
     const blocks = page.getByRole('article', { name: 'Текст' })
     const fresh = blocks.last()
     await fresh.getByRole('textbox', { name: 'Подпись блока' }).fill('Кто оповещает')
-    await fresh.getByRole('textbox', { name: 'Текст блока' }).fill('Дежурный по управлению')
+    await fresh.getByRole('textbox', { name: 'Текст блока' }).fill(`Дежурный по управлению ${run}`)
 
     // Публикация: текущий текст становится версией 1
     await page.getByRole('button', { name: 'Опубликовать' }).first().click()
@@ -65,9 +65,10 @@ test.describe('Знания: страница базы знаний', () => {
     await expect(page.getByRole('dialog', { name: 'Кого ознакомить со страницей' })).toBeVisible()
     await page.getByRole('button', { name: 'Отмена' }).click()
 
-    // Поиск по базе знаний находит страницу по словам из её текста
+    // Поиск по базе знаний находит страницу по словам из её текста. «Дежурный» есть во многих
+    // регламентах пакета ЧС — слово прогона в запросе поднимает эту страницу первой
     await page.goto('/knowledge')
-    await page.getByRole('textbox', { name: 'Поиск по базе знаний' }).fill('Дежурный')
+    await page.getByRole('textbox', { name: 'Поиск по базе знаний' }).fill(`Дежурный ${run}`)
     await expect(page.getByRole('button').filter({ hasText: title })).toBeVisible({
       timeout: 20_000,
     })

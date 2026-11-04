@@ -193,9 +193,12 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
         .getByRole('button', { name: new RegExp(channel.title) })
         .first()
         .click()
-      await expect(page.getByText(`Паводок: сработал алерт «${alertName}»`)).toBeVisible({
-        timeout: 30_000,
-      })
+      // В ленте канала, а не в превью списка чатов: там тот же текст
+      await expect(
+        page
+          .getByRole('region', { name: 'Сегодня' })
+          .getByText(`Паводок: сработал алерт «${alertName}»`),
+      ).toBeVisible({ timeout: 30_000 })
     } finally {
       await employee.dispose()
       // Сценарий убирает за собой: правило и алерт на общем стенде не нужны
