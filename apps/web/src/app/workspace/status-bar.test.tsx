@@ -76,14 +76,17 @@ describe('StatusBar', () => {
       })
       await flushOfflineQueue()
     })
-    // k3 отклонён сервером — ждёт человека, а не сети; k4 — чужая
+    // k3 отклонён сервером — ждёт человека, а не сети, и виден отдельно (ADR-0228); k4 — чужая
     expect(screen.getByText('2 отправки ждут сети')).toBeVisible()
+    expect(screen.getByText('1 отправка не прошла')).toBeVisible()
 
     setOfflineSender(async (entry) => ({ id: entry.submissionId }) as never)
     await act(async () => {
       await flushOfflineQueue()
     })
     expect(screen.queryByText(/ждут? сети/)).toBeNull()
+    // Отклонённая не гаснет вместе с дошедшими: её решает человек
+    expect(screen.getByText('1 отправка не прошла')).toBeVisible()
   })
 
   it('замещение — бейдж с именем замещаемого', () => {

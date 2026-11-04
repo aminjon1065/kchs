@@ -1,7 +1,7 @@
 import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { t as translate, useT } from '~/shared/i18n.js'
 import { startOfflineQueue } from '~/shared/offline/queue.js'
@@ -28,6 +28,7 @@ import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
 import { Navigator } from './navigator.js'
+import { MobileOfflineStrip, OfflineQueueSignals } from './offline-signals.js'
 import { PaneArea } from './pane-area.js'
 import { usePresenceHeartbeat } from './presence.js'
 import { Rail } from './rail.js'
@@ -62,6 +63,27 @@ export function WorkspaceShell() {
 
   const { data: me } = useQuery(meQuery())
   const userId = me?.user.id
+
+  // Вкладки в хранилище браузера — этого сотрудника (ADR-0228): на общем компьютере
+  // вкладки прежнего не показываются и не сохраняются к нему на сервер. До первого
+  // кадра и до восстановления с сервера
+  const claim = useWorkspace((s) => s.claim)
+  useLayoutEffect(() => {
+    if (userId) claim(userId)
+  }, [claim, userId])
+
+  // Несохранённые правки во вкладках — браузер переспросит перед закрытием страницы
+  // (ADR-0228). В управляемом браузере сквозных сценариев вопрос закрывался бы отказом
+  // и останавливал навигацию — там не спрашиваем
+  useEffect(() => {
+    if (navigator.webdriver) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!Object.values(useWorkspace.getState().tabs).some((tab) => tab.dirty)) return
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   // Офлайн-очередь отправок (ADR-0204): досылается при входе, при появлении сети и
   // по таймеру, пока в ней что-то есть
@@ -272,10 +294,15 @@ export function WorkspaceShell() {
       </div>
 
       {isMobile ? (
-        <MobileNav onOpenPalette={() => setPaletteOpen(true)} />
+        <>
+          <MobileOfflineStrip />
+          <MobileNav onOpenPalette={() => setPaletteOpen(true)} />
+        </>
       ) : (
         <StatusBar onShowShortcuts={() => setShortcutsOpen(true)} />
       )}
+      {/* Доставка и отказ отправок из очереди — на любом экране (ADR-0228) */}
+      <OfflineQueueSignals />
 
       {/* Оверлеи модулей: входящий звонок приходит realtime в любой вкладке (ADR-0091) */}
       {listShellSlots('overlay').map((slot) => (

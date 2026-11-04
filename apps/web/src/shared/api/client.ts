@@ -40,6 +40,7 @@ function requestHeaders(
   method: HttpMethod,
   hasBody: boolean,
   extra?: Record<string, string>,
+  onBehalfOfOverride?: string | null,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     accept: 'application/json',
@@ -54,7 +55,8 @@ function requestHeaders(
   const shareToken = getShareToken()
   if (shareToken) headers['x-kchs-share-token'] = shareToken
   // Личные запросы идут от себя: иначе выход из режима был бы невозможен
-  const onBehalfOf = getOnBehalfOf()
+  // Досылка офлайн-очереди задаёт режим записи сама (ADR-0228)
+  const onBehalfOf = onBehalfOfOverride !== undefined ? onBehalfOfOverride : getOnBehalfOf()
   if (onBehalfOf && !path.startsWith('/me') && !path.startsWith('/auth')) {
     headers['x-kchs-on-behalf-of'] = onBehalfOf
   }
@@ -98,7 +100,13 @@ export async function send(
 ): Promise<Response> {
   const response = await fetch(requestUrl(path, options).toString(), {
     method,
-    headers: requestHeaders(path, method, options.body !== undefined, options.headers),
+    headers: requestHeaders(
+      path,
+      method,
+      options.body !== undefined,
+      options.headers,
+      options.onBehalfOf,
+    ),
     credentials: 'same-origin',
     signal: options.signal,
     keepalive: options.keepalive,

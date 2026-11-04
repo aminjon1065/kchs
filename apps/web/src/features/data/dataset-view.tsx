@@ -39,6 +39,7 @@ import { LazyChoroplethButton, LazyShowOnMapButton } from '~/features/gis/index.
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
+import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { AccessTab } from './access-tab.js'
@@ -89,7 +90,12 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   const [analysisOpen, setAnalysisOpen] = useState(false)
 
   const { data: object } = useQuery(objectQuery(objectId))
-  const { data: dataset, isLoading } = useQuery(datasetQuery(objectId))
+  const {
+    data: dataset,
+    isLoading,
+    error: datasetError,
+    refetch: refetchDataset,
+  } = useQuery(datasetQuery(objectId))
   const { data: ai } = useQuery(aiStatusQuery())
 
   const rename = useMutation({
@@ -126,7 +132,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
       </div>
     )
   }
-  if (!dataset) return <EmptyState title={t('common.states.notFound')} />
+  if (!dataset) return <LoadFailure error={datasetError} onRetry={() => void refetchDataset()} />
 
   const level = object?.level ?? 'view'
   const openExplore = () =>

@@ -1,10 +1,10 @@
+import type { MeResponse } from '@kchs/contracts'
 import { Button } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogOut, ShieldAlert } from 'lucide-react'
 import { keys } from '~/shared/api/queries.js'
-import { setCsrfToken } from '~/shared/api/session.js'
+import { finishSignOut, prepareSignOut } from '~/shared/auth/sign-out.js'
 import { useT } from '~/shared/i18n.js'
-import { forgetProfile } from '~/shared/offline/profile.js'
 import { MfaSetup } from './mfa-setup.js'
 import { authApi } from './queries.js'
 
@@ -21,11 +21,12 @@ export function MfaEnrollmentScreen() {
     // Профиль на устройстве стирается до выхода: открыть приложение без сети после
     // выхода нельзя (ADR-0207)
     mutationFn: async () => {
-      await forgetProfile()
+      // До выхода: профиль, push и справочники устройства (ADR-0207, ADR-0228)
+      await prepareSignOut(client.getQueryData<MeResponse>(keys.me)?.user.id)
       return authApi.logout()
     },
     onSettled: () => {
-      setCsrfToken(null)
+      finishSignOut()
       window.location.reload()
     },
   })

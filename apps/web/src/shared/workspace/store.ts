@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { http } from '~/shared/api/client.js'
 import { t } from '~/shared/i18n.js'
-import { rememberUnsavedWorkspace } from '~/shared/workspace/snapshot.js'
+import { forgetUnsavedWorkspace, rememberUnsavedWorkspace } from '~/shared/workspace/snapshot.js'
 import type {
   ContextTabKey,
   OpenTabInput,
@@ -97,6 +97,14 @@ export interface WorkspaceStore extends WorkspaceSnapshot {
   /** Открыть именованное рабочее пространство: его вкладки заменяют текущие. */
   applyLayout: (layout: WorkspaceLayout) => void
   reset: () => void
+  /**
+   * Сотрудник, чьи вкладки лежат в хранилище браузера (ADR-0228). На общем компьютере
+   * следующий вошедший не должен увидеть вкладки прежнего (заголовки объектов,
+   * черновики во вкладках) и сохранить их к себе на сервер.
+   */
+  ownerId: string | null
+  /** Вкладки — этого сотрудника: чужие (или без владельца) сбрасываются. */
+  claim: (userId: string) => void
 }
 
 function sameTarget(tab: TabState, input: OpenTabInput): boolean {
@@ -112,6 +120,7 @@ export const useWorkspace = create<WorkspaceStore>()(
     (set, get) => ({
       ...initialSnapshot(),
       closedStack: [],
+      ownerId: null,
       discussionAnchor: null,
 
       openTab: (input) => {
@@ -500,6 +509,11 @@ export const useWorkspace = create<WorkspaceStore>()(
       },
 
       reset: () => set({ ...initialSnapshot(), closedStack: [] }),
+
+      claim: (userId) => {
+        if (get().ownerId === userId) return
+        set({ ...initialSnapshot(), closedStack: [], ownerId: userId })
+      },
     }),
     {
       name: STORAGE_KEY,
@@ -514,6 +528,7 @@ export const useWorkspace = create<WorkspaceStore>()(
         contextTab: state.contextTab,
         navigatorModule: state.navigatorModule,
         version: state.version,
+        ownerId: state.ownerId,
       }),
     },
   ),
@@ -594,6 +609,26 @@ export function flushWorkspaceSave(userId?: string): void {
   void http
     .put('/me/workspace-state', { body: { state: snapshot() }, keepalive: true, anonymous: true })
     .catch(() => undefined)
+}
+
+/**
+ * Выход (ADR-0228): вкладки этого браузера стираются вместе с хранилищем, и ничего не
+ * уходит на сервер — пустой снимок затёр бы «Продолжить» сотрудника. Следующий вошедший
+ * на этом компьютере начинает с чистого рабочего пространства.
+ */
+export function forgetWorkspace(): void {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  pendingSave = false
+  restoring = true
+  try {
+    useWorkspace.setState({ ...initialSnapshot(), closedStack: [], ownerId: null })
+  } finally {
+    restoring = false
+  }
+  savedJson = JSON.stringify(snapshot())
+  useWorkspace.persist.clearStorage()
+  forgetUnsavedWorkspace()
 }
 
 function markWorkspaceSaved(): void {

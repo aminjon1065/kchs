@@ -46,6 +46,7 @@ import { dashboardPrintPath } from '~/features/reports/index.js'
 import { ApiError, staleVersion } from '~/shared/api/errors.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
+import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { DrillSheet } from './dashboard-drill.js'
@@ -87,7 +88,12 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const locale = useLocale()
 
   const { data: object } = useQuery(objectQuery(objectId))
-  const { data: dashboard, isLoading } = useQuery(dashboardQuery(objectId))
+  const {
+    data: dashboard,
+    isLoading,
+    error: dashboardError,
+    refetch: refetchDashboard,
+  } = useQuery(dashboardQuery(objectId))
   const refresh = dashboard?.spec.refreshInterval
   const data = useQuery({
     ...dashboardDataQuery(objectId, values),
@@ -151,7 +157,9 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
       </div>
     )
   }
-  if (!dashboard) return <EmptyState title={t('common.states.notFound')} />
+  if (!dashboard) {
+    return <LoadFailure error={dashboardError} onRetry={() => void refetchDashboard()} />
+  }
 
   const level = object?.level ?? 'view'
   const canEdit = ['edit', 'manage', 'owner'].includes(level)

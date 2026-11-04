@@ -2,7 +2,6 @@ import type { Bbox, FilterNode, LayerRecord, LayerStyle, MapCamera, MapSpec } fr
 import {
   AlertDialog,
   Button,
-  EmptyState,
   IconButton,
   InlineEdit,
   MapCanvas,
@@ -22,6 +21,7 @@ import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { LazyImportWizard } from '~/features/data/index.js'
 import { ApiError, staleVersion } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddLayerDialog } from './add-layer-dialog.js'
@@ -113,7 +113,7 @@ export function MapStudio({
   const theme = useMapTheme(root)
 
   const { data: object } = useQuery(objectQuery(objectId))
-  const { data: map, isLoading, error } = useQuery(mapQuery(objectId))
+  const { data: map, isLoading, error, refetch } = useQuery(mapQuery(objectId))
   const [spec, setSpec] = useState<MapSpec | null>(savedState?.spec ?? null)
   const [camera, setCamera] = useState<MapCamera | null>(savedState?.camera ?? null)
   const [fit, setFit] = useState<{ bbox: Bbox; key: number } | null>(null)
@@ -358,7 +358,7 @@ export function MapStudio({
     )
   }
   if (error || !map || !current || !view) {
-    return <EmptyState title={t('common.states.notFound')} />
+    return <LoadFailure error={error} onRetry={() => void refetch()} />
   }
 
   const showAll = () => {

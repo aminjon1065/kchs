@@ -194,6 +194,7 @@ export const documents = {
     pending: 'Донесение «{title}» ждёт отправки',
     failed: 'Донесение «{title}» не отправлено: {error}',
     discard: 'Убрать из очереди',
+    retry: 'Повторить',
   },
   create: {
     title: 'Новый документ',

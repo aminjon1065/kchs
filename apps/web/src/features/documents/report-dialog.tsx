@@ -28,6 +28,7 @@ import {
   type DocumentCreateEntry,
   discardOfflineEntry,
   OFFLINE_AWARE,
+  retryOfflineEntry,
   submitDocument,
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
@@ -256,7 +257,7 @@ function ReportPhoto({ id, userId }: { id: string; userId: string | null }) {
 
 /**
  * Донесения вошедшего, ждущие сети или решения человека: отказ по существу показывается
- * с причиной и кнопкой «Убрать из очереди».
+ * с причиной и кнопками «Повторить» (причину исправили) и «Убрать из очереди» (ADR-0228).
  */
 export function QueuedReports() {
   const t = useT()
@@ -272,13 +273,22 @@ export function QueuedReports() {
           tone={entry.state === 'failed' ? 'danger' : 'info'}
           action={
             entry.state === 'failed' ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => void discardOfflineEntry(entry.id)}
-              >
-                {t('documents.report.discard')}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void retryOfflineEntry(entry.id)}
+                >
+                  {t('documents.report.retry')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void discardOfflineEntry(entry.id)}
+                >
+                  {t('documents.report.discard')}
+                </Button>
+              </div>
             ) : undefined
           }
         >

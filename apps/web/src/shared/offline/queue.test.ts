@@ -16,6 +16,7 @@ vi.stubGlobal('window', {
 
 const queue = await import('./queue.js')
 const photos = await import('./photos.js')
+const session = await import('~/shared/api/session.js')
 
 const result = { id: 's1', status: 'submitted' } as unknown as FormSubmission
 const problem = (status: number) =>
@@ -30,6 +31,8 @@ const problem = (status: number) =>
 let stop: () => void = () => undefined
 
 beforeEach(() => {
+  // Сессия есть: токен CSRF досылка берёт из /me (ADR-0228)
+  queue.setCsrfRefresher(async () => 'csrf-test')
   stop = queue.startOfflineQueue('u1')
 })
 
@@ -38,6 +41,7 @@ afterEach(async () => {
   queue.setOfflineSender(null)
   queue.setOfflineOpener(null)
   photos.setPhotoUploader(null)
+  queue.setCsrfRefresher(null)
   stop()
 })
 
@@ -201,5 +205,109 @@ describe('очередь отправок без сети', () => {
         throw problem(409)
       }),
     ).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('досылка после запуска без сети (ADR-0228)', () => {
+  const blank = (submissionId: string) => ({
+    userId: 'u1',
+    submissionId,
+    formId: 'f1',
+    body: { values: {} },
+  })
+
+  afterEach(() => {
+    session.setOnBehalfOf(null)
+  })
+
+  it('без токена CSRF сначала перечитывает сессию; нет сессии — запись ждёт', async () => {
+    session.setCsrfToken(null)
+    const send = vi.fn(async () => result)
+    queue.setOfflineSender(send)
+    queue.setCsrfRefresher(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    await queue.enqueueFormSubmit(blank('c1'))
+    await queue.flushOfflineQueue()
+    expect(send).not.toHaveBeenCalled()
+    expect((await snapshot())[0]).toMatchObject({ state: 'pending', attempts: 0 })
+
+    queue.setCsrfRefresher(async () => 'csrf-new')
+    await queue.flushOfflineQueue()
+    expect(session.getCsrfToken()).toBe('csrf-new')
+    expect(send).toHaveBeenCalledOnce()
+    expect(await snapshot()).toEqual([])
+  })
+
+  it('403 от устаревшего токена — один повтор со свежим; сбой сервера — позже, а не «не сдана»', async () => {
+    let calls = 0
+    queue.setOfflineSender(async () => {
+      calls++
+      if (calls === 1) throw problem(403)
+      return result
+    })
+    const refresh = vi.fn(async () => 'csrf-fresh')
+    queue.setCsrfRefresher(refresh)
+    await queue.enqueueFormSubmit(blank('c2'))
+    await queue.flushOfflineQueue()
+    expect(calls).toBe(2)
+    expect(refresh).toHaveBeenCalled()
+    expect(await snapshot()).toEqual([])
+
+    queue.setOfflineSender(async () => {
+      throw problem(500)
+    })
+    await queue.enqueueFormSubmit(blank('c3'))
+    await queue.flushOfflineQueue()
+    expect((await snapshot())[0]).toMatchObject({ state: 'pending', attempts: 1 })
+  })
+
+  it('«Повторить» возвращает отклонённую запись в досылку', async () => {
+    queue.setOfflineSender(async () => {
+      throw problem(409)
+    })
+    await queue.enqueueFormSubmit(blank('c4'))
+    await queue.flushOfflineQueue()
+    const [failed] = await snapshot()
+    expect(failed).toMatchObject({ state: 'failed' })
+
+    const send = vi.fn(async () => result)
+    queue.setOfflineSender(send)
+    await queue.retryOfflineEntry(failed?.id ?? '')
+    expect(send).toHaveBeenCalledOnce()
+    expect(await snapshot()).toEqual([])
+  })
+
+  it('выход стирает справочники сотрудника; неотправленное — только по его выбору', async () => {
+    const store = await import('./store.js')
+    await queue.cachedFetch('forms.duties', async () => ({ items: [1] }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await store.write(store.CACHE_STORE, { key: 'u2:forms.duties', value: 1, at: 0 })
+    queue.setOfflineSender(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    await queue.enqueueFormSubmit(blank('c6'))
+
+    await queue.forgetOfflineData('u1', { discardQueue: false })
+    const keysLeft = (await store.readAll<{ key: string }>(store.CACHE_STORE)).map((i) => i.key)
+    expect(keysLeft).toEqual(['u2:forms.duties'])
+    expect(await snapshot()).toHaveLength(1)
+
+    await queue.forgetOfflineData('u1', { discardQueue: true })
+    expect(await snapshot()).toEqual([])
+    await store.remove(store.CACHE_STORE, 'u2:forms.duties')
+  })
+
+  it('досылка идёт в режиме «от имени», в котором запись создана', async () => {
+    const seen: Array<string | null | undefined> = []
+    queue.setOfflineSender(async (entry) => {
+      seen.push(entry.onBehalfOf)
+      throw new TypeError('Failed to fetch')
+    })
+    session.setOnBehalfOf('boss-1')
+    await queue.enqueueFormSubmit(blank('c5'))
+    session.setOnBehalfOf(null)
+    await queue.flushOfflineQueue()
+    expect(seen).toEqual(['boss-1'])
   })
 })

@@ -1,10 +1,12 @@
 import { formatRelativeTime } from '@kchs/fields'
 import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import {
+  AlertDialog,
   Avatar,
   Badge,
   Button,
   Card,
+  Checkbox,
   Field,
   PasswordInput,
   SegmentedControl,
@@ -18,10 +20,10 @@ import { SigningKeyCard } from '~/features/pki/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
-import { setCsrfToken } from '~/shared/api/session.js'
 import { useAppearance, useLocale } from '~/shared/appearance.js'
+import { finishSignOut, prepareSignOut } from '~/shared/auth/sign-out.js'
 import { useT } from '~/shared/i18n.js'
-import { forgetProfile } from '~/shared/offline/profile.js'
+import { useOfflineQueue } from '~/shared/offline/queue.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
 import { FacsimileCard } from './facsimile-card.js'
@@ -69,15 +71,20 @@ export function ProfileScreen() {
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.me }),
   })
 
+  // Неотправленное на устройстве — спросить перед выходом (ADR-0228)
+  const unsent = useOfflineQueue().length
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [discardUnsent, setDiscardUnsent] = useState(false)
+
   const signOut = useMutation({
-    // Профиль на устройстве стирается до выхода: открыть приложение без сети после
-    // выхода нельзя (ADR-0207)
-    mutationFn: async () => {
-      await forgetProfile()
+    // До выхода, пока сессия жива: профиль запуска без сети (ADR-0207), подписка push,
+    // справочники сотрудника на устройстве (ADR-0228)
+    mutationFn: async (options: { discardQueue: boolean }) => {
+      await prepareSignOut(me?.user.id, options)
       return profileApi.postAuthLogout()
     },
     onSuccess: (result) => {
-      setCsrfToken(null)
+      finishSignOut()
       // Выход из корпоративного IdP, если он настроен (ADR-0098): иначе
       // следующий вход через него пройдёт молча, без спроса
       if (result.endSessionUrl) window.location.assign(result.endSessionUrl)
@@ -137,10 +144,31 @@ export function ProfileScreen() {
             className="ml-auto"
             variant="secondary"
             icon={<LogOut className="size-4" />}
-            onClick={() => signOut.mutate()}
+            loading={signOut.isPending}
+            onClick={() =>
+              unsent > 0 ? setConfirmSignOut(true) : signOut.mutate({ discardQueue: false })
+            }
           >
             {t('auth.signOut')}
           </Button>
+          <AlertDialog
+            open={confirmSignOut}
+            onOpenChange={setConfirmSignOut}
+            destructive={discardUnsent}
+            title={t('auth.signOutUnsent.title')}
+            description={t('auth.signOutUnsent.description', { count: unsent })}
+            consequences={
+              <Checkbox
+                id="sign-out-discard"
+                checked={discardUnsent}
+                onCheckedChange={(next) => setDiscardUnsent(next === true)}
+                label={t('auth.signOutUnsent.discard')}
+              />
+            }
+            confirmLabel={t('auth.signOut')}
+            loading={signOut.isPending}
+            onConfirm={() => signOut.mutate({ discardQueue: discardUnsent })}
+          />
         </header>
 
         <Card title={t('profile.appearance')}>

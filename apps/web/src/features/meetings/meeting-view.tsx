@@ -7,7 +7,6 @@ import {
   Callout,
   Dialog,
   DialogContent,
-  EmptyState,
   Input,
   Skeleton,
   Tabs,
@@ -21,6 +20,7 @@ import { Link2, Users, Video } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
+import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
 import { onRealtimeEvent } from '~/shared/realtime/client.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -52,7 +52,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
   const [join, setJoin] = useState<MeetingJoin | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
 
-  const { data: meeting, isLoading, error } = useQuery(meetingQuery(objectId))
+  const { data: meeting, isLoading, error, refetch } = useQuery(meetingQuery(objectId))
 
   useEffect(() => {
     if (tabId && meeting?.title) setTabTitle(tabId, meeting.title)
@@ -135,7 +135,12 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
   if (error || !meeting) {
     return (
       <div className="p-6">
-        <EmptyState icon={<Video />} title={t('meetings.errors.notFound')} />
+        <LoadFailure
+          error={error}
+          onRetry={() => void refetch()}
+          icon={<Video />}
+          notFoundTitle={t('meetings.errors.notFound')}
+        />
       </div>
     )
   }

@@ -11,7 +11,7 @@ import { formQuery } from './queries.js'
  * Карточка формы сбора данных (ADR-0103): заполнение для назначенного,
  * контроль сдачи для ведущего форму и её настройка.
  */
-export function FormView({ objectId }: { objectId: string }) {
+export function FormView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
   const { data: form, isLoading, error, refetch } = useQuery(formQuery(objectId))
   // Вкладка по умолчанию — заполнение назначенному, контроль сдачи остальным
@@ -52,7 +52,7 @@ export function FormView({ objectId }: { objectId: string }) {
           ) : null}
         </TabsList>
         <TabsContent value="fill" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <FormFillTab form={form} />
+          <FormFillTab form={form} tabId={tabId} />
         </TabsContent>
         <TabsContent value="control" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <FormControlTab form={form} />

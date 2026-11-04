@@ -33,6 +33,8 @@ const problem = (status: number) =>
 let stop: () => void = () => undefined
 
 beforeEach(() => {
+  // Сессия есть: токен CSRF досылка берёт из /me (ADR-0228)
+  queue.setCsrfRefresher(async () => 'csrf-test')
   stop = queue.startOfflineQueue('u1')
 })
 
@@ -42,6 +44,7 @@ afterEach(async () => {
   }
   queue.setOfflineDocumentSender(null)
   photos.setDocumentPhotoUploader(null)
+  queue.setCsrfRefresher(null)
   stop()
 })
 

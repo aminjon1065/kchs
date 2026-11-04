@@ -102,4 +102,10 @@ export const auth: DeepPartial<Dictionary['auth']> = {
     unknownDevice: 'Unknown device',
   },
   signOut: 'Sign out',
+  signOutUnsent: {
+    title: 'Not everything was sent',
+    description:
+      '{count, plural, one {# submission is still on this device} other {# submissions are still on this device}}. If you sign out, they will wait for your next sign-in here — other employees will not see them',
+    discard: 'Delete them from the device — they will not be sent',
+  },
 }

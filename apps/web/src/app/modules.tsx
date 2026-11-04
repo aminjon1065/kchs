@@ -531,6 +531,8 @@ export function registerModules(): void {
     objectViews: [
       {
         type: 'meeting',
+        // Звонок не обрывается при переключении вкладки (ADR-0228)
+        keepMounted: true,
         render: (tab) => (
           <Suspense fallback={<Skeleton className="m-4 h-40" />}>
             <MeetingView objectId={tab.objectId!} tabId={tab.id} />
@@ -679,7 +681,7 @@ export function registerModules(): void {
         type: 'form',
         render: (tab) => (
           <Suspense fallback={<LazyFallback />}>
-            <FormView objectId={tab.objectId!} />
+            <FormView objectId={tab.objectId!} tabId={tab.id} />
           </Suspense>
         ),
       },
