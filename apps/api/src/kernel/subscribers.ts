@@ -1,5 +1,6 @@
 import type { EventEnvelope, EventPayload } from '@kchs/contracts'
 import { systemCtx } from '~/shared/context.js'
+import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import { usersWithAccess } from './access/acl-service.js'
@@ -10,7 +11,7 @@ import { acknowledgmentSubscribers } from './acknowledgments/subscribers.js'
 import { activitySubscriber } from './activity/service.js'
 import { COLLAB_CHANNEL, collabType } from './collab/registry.js'
 import { registerSubscriber } from './events/bus.js'
-import { invalidateCounts } from './inbox/service.js'
+import { InboxService, invalidateCounts } from './inbox/service.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { declaredRefreshEvents, declaredReindexEvents, objectType } from './objects/registry.js'
@@ -229,6 +230,20 @@ export function registerKernelSubscribers(): void {
       if (userId) await invalidatePrincipalSet(userId)
       const fromUserId = event.payload.fromUserId as string | undefined
       if (fromUserId) await invalidatePrincipalSet(fromUserId)
+    },
+  })
+
+  // Замещение (ADR-0229): начало открывает заместителю копии уже ждущих дел отсутствующего,
+  // окончание и отмена — закрывает их. Наступившие даты сверяет задание delegations.sync
+  registerSubscriber({
+    name: 'kernel-inbox-delegations',
+    types: ['delegation.started', 'delegation.ended'],
+    handle: async (event) => {
+      const { fromUserId, toUserId } = event.payload as { fromUserId?: string; toUserId?: string }
+      if (!fromUserId || !toUserId) return
+      await db().transaction((tx) =>
+        InboxService.syncDeputyCopies(tx, systemCtx('delegation.sync'), fromUserId, toUserId),
+      )
     },
   })
 

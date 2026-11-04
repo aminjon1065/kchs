@@ -22,6 +22,7 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
   toggled: 'Schedule updated',
   history: { title: 'Run history', empty: 'No runs yet', open: 'History' },
   jobs: {
+    delegationsSync: 'Delegations: start and end by date',
     inboxWakeSnoozed: 'Inbox: wake snoozed items',
     notificationsDigest: 'Notifications: email digest',
     outboxPrune: 'Event log cleanup',

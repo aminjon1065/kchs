@@ -17,7 +17,7 @@ import {
   ServiceAccountCreateInput,
   ServiceAccountPatchInput,
 } from '../../admin/service-accounts.js'
-import { UserKind, UserRef } from '../../auth/session.js'
+import { ActiveDelegation, DelegationScope, UserKind, UserRef } from '../../auth/session.js'
 import { LangText } from '../../common/primitives.js'
 import { defineRoutes } from '../../http/route-contract.js'
 
@@ -76,6 +76,25 @@ export const kernelDirectoryRoutes = defineRoutes({
     params: z.object({ id: z.uuid() }),
     body: AdminUserPatchInput,
     response: { 200: z.object({ ok: z.boolean() }) },
+  },
+  // Замещение за сотрудника (ADR-0229): кадры назначают заместителя заболевшему,
+  // который сам в систему не войдёт; видят и отменяют его замещения
+  'GET /users/:id/delegations': {
+    sessionOnly: true,
+    params: z.object({ id: z.uuid() }),
+    response: { 200: z.object({ items: z.array(ActiveDelegation) }) },
+  },
+  'POST /users/:id/delegations': {
+    sessionOnly: true,
+    params: z.object({ id: z.uuid() }),
+    body: z.object({
+      toUserId: z.uuid(),
+      scope: DelegationScope.default('all'),
+      startsAt: z.iso.datetime({ offset: true }),
+      endsAt: z.iso.datetime({ offset: true }),
+      note: z.string().max(500).nullable().optional(),
+    }),
+    response: { 200: z.object({ id: z.uuid() }) },
   },
   'POST /users/:id/reset-password': {
     sessionOnly: true,

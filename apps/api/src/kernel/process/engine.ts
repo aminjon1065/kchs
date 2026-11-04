@@ -1,4 +1,4 @@
-import type { InboxItem, InboxKind } from '@kchs/contracts'
+import type { InboxItem } from '@kchs/contracts'
 import {
   assignStep,
   completeStep,
@@ -29,6 +29,7 @@ import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
 import { objects } from '../objects/schema.js'
+import { INBOX_KIND } from './delegation-scope.js'
 import { kernelDirectory } from './directory.js'
 import {
   type ProcessInstanceInfo,
@@ -58,13 +59,7 @@ import {
  */
 
 /** Вид элемента Входящих шага решения. */
-export const INBOX_KIND: Record<string, InboxKind> = {
-  approval: 'approve',
-  sign: 'sign',
-  acknowledge: 'acknowledge',
-  register: 'register',
-  return: 'revise',
-}
+export { INBOX_KIND }
 
 const MAX_WORK = 1000
 

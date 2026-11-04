@@ -207,8 +207,9 @@ export function registerMeRoutes(route: RouteRegistrar): void {
     route: 'GET /me/delegations',
     auth: 'session',
     tags: ['me'],
-    summary: 'Мои замещения',
-    handler: async (request) => ({ items: await DelegationService.activeFor(request.ctx.userId) }),
+    summary: 'Мои замещения: действующие и запланированные',
+    // Действующие и запланированные (ADR-0229): запланированное видно и отменяемо заранее
+    handler: async (request) => ({ items: await DelegationService.listFor(request.ctx.userId) }),
   })
 
   route({

@@ -16,6 +16,7 @@ import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { authorize, hasCapability } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
+import { actingForStep } from './delegation-scope.js'
 import { processDefinitions, processInstances, processStepActions, processSteps } from './schema.js'
 import { loadInstance, readContext } from './store.js'
 
@@ -170,7 +171,11 @@ export const ProcessView = {
             .orderBy(asc(processStepActions.at))
         : []
     const actingFor = ctx.principals.actingFor.map((item) => item.userId)
-    const mine = availableActions(def, state, { userId: ctx.userId, actingFor })
+    // Кнопки «от имени» — только на шагах, которые покрывает замещение (ADR-0229): сервер
+    // такое действие всё равно отклонит (assertActingFor), а кнопка вводила бы в заблуждение
+    const mine = availableActions(def, state, { userId: ctx.userId, actingFor }).filter(
+      (item) => !item.onBehalfOf || actingForStep(ctx, item.type).includes(item.onBehalfOf),
+    )
 
     const refs = await refsOf([
       instance.startedBy,

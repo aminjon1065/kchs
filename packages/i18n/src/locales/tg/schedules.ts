@@ -32,6 +32,7 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     open: 'Таърих',
   },
   jobs: {
+    delegationsSync: 'Ивазкуниҳо: оғоз ва анҷом аз рӯи сана',
     inboxWakeSnoozed: 'Воридшудаҳо: баргардонидани корҳои мавқуфгузошта',
     notificationsDigest: 'Огоҳиномаҳо: хулосаи почтавӣ',
     outboxPrune: 'Тоза кардани журнали рӯйдодҳо',

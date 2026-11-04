@@ -474,6 +474,33 @@ describe('кто и как накладывает резолюцию', () => {
     expect(await inboxOf(deputy, id, 'resolve')).toHaveLength(0)
   })
 
+  it('заместитель «только по встречам» резолюцию за руководителя не пишет (ADR-0229)', async () => {
+    const now = Date.now()
+    const meetingsDeputy = await createUser(fx.app, `meet_deputy_${run}`, ['employee'])
+    await json(head, '/me/delegations', 'POST', {
+      toUserId: meetingsDeputy.id,
+      scope: 'meetings',
+      startsAt: new Date(now - 60_000).toISOString(),
+      endsAt: new Date(now + 7 * 86_400_000).toISOString(),
+    })
+    await redis().del(`kchs:principals:${meetingsDeputy.id}`)
+    const id = await registeredIncoming()
+    // Документ ему виден своим правом — замещение «по встречам» резолюцию всё равно не даёт
+    await json(fx.admin, `/objects/${id}/access`, 'POST', {
+      grants: [{ principal: { type: 'user', id: meetingsDeputy.id }, level: 'view' }],
+    })
+    await redis().del(`kchs:principals:${meetingsDeputy.id}`)
+    const denied = await json(
+      meetingsDeputy,
+      `/documents/${id}/resolutions`,
+      'POST',
+      { text: 'К исполнению', responsibleId: exec1.id, dueWorkingDays: 3 },
+      403,
+      { 'x-kchs-on-behalf-of': head.id },
+    )
+    expect(denied.detail).toContain('Замещение не распространяется')
+  })
+
   it('переадресация: получатель направляет другому руководителю', async () => {
     const id = await registeredIncoming()
     const view = await json(head, `/documents/${id}/resolution-requests`, 'POST', {

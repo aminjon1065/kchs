@@ -52,6 +52,18 @@ function actsFor(ctx: UserCtx, userId: string): boolean {
   )
 }
 
+/**
+ * Действие «от имени» в делах резолюций — только по замещению, которое их покрывает
+ * (ADR-0229): заголовок «от имени» принимается по любому действующему замещению, а
+ * заместитель «только по встречам» не пишет резолюцию за руководителя.
+ */
+function assertResolveDelegation(ctx: UserCtx): void {
+  if (!ctx.onBehalfOf || actsFor(ctx, ctx.onBehalfOf)) return
+  throw errors.forbidden('Замещение не распространяется на резолюции', {
+    reason: 'delegation_scope',
+  })
+}
+
 /** Название поручения по резолюции: первая строка текста, не длиннее 200 символов. */
 function instructionTitle(text: string): string {
   const line = text.trim().split('\n')[0]?.trim() ?? ''
@@ -238,6 +250,7 @@ export const ResolutionService = {
       })
     }
 
+    assertResolveDelegation(ctx)
     const principal = ctx.onBehalfOf ?? ctx.userId
     const registrar = (await authorize(ctx, 'register', documentId, { soft: true })).allowed
     let authorId = principal
@@ -415,6 +428,7 @@ export const ResolutionService = {
 
     let forwardedFrom: string | null = null
     if (!options.auto && ctx.kind === 'user') {
+      assertResolveDelegation(ctx)
       const principal = ctx.onBehalfOf ?? ctx.userId
       const registrar = (await authorize(ctx, 'register', documentId, { soft: true })).allowed
       const own = await openRequestOf(tx, documentId, principal)
@@ -543,6 +557,7 @@ export const ResolutionService = {
         status: document.status,
       })
     }
+    assertResolveDelegation(ctx)
     const principal = ctx.onBehalfOf ?? ctx.userId
     const own = await openRequestOf(tx, documentId, principal)
     const registrar = (await authorize(ctx, 'register', documentId, { soft: true })).allowed

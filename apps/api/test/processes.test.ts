@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   db,
+  redis,
   registerLifecycle,
   setupFixture,
   TEST_PASSWORD,
@@ -1098,6 +1099,55 @@ describe('исполнение', () => {
     )
     expect(message?.kind).toBe('decision')
     expect(message?.attachments.map((item) => item.fileId)).toEqual([own.id])
+  })
+
+  it('заместитель вне области замещения не видит документ и кнопок шага (ADR-0229)', async () => {
+    const key = `scope_view_${run}`
+    await publishDefinition(fx, documentRoute(key))
+    const delegate = async (scope: string) =>
+      (
+        await call(fx.app, {
+          method: 'POST',
+          url: '/me/delegations',
+          as: people.a2,
+          payload: {
+            toUserId: people.signer.id,
+            scope,
+            startsAt: new Date(Date.now() - 60_000).toISOString(),
+            endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+          },
+        })
+      ).json().id as string
+    const narrow = await delegate('meetings')
+    await redis().del(`kchs:principals:${people.signer.id}`)
+    const doc = await createDocument(fx, people.author, `Видимость замещения ${run}`)
+    const instanceId = await startProcess(fx, people.author, {
+      objectId: doc,
+      definitionKey: key,
+      variables: { reviewers: [people.a2.id], signer: people.boss.id },
+    })
+    const asDeputy = { 'x-kchs-on-behalf-of': people.a2.id }
+    const seen = () =>
+      call(fx.app, { url: `/objects/${doc}`, as: people.signer, headers: asDeputy })
+    // «Только встречи»: шаг согласования отсутствующего — не его, документ не виден
+    expect((await seen()).statusCode).toBe(404)
+
+    await call(fx.app, { method: 'DELETE', url: `/me/delegations/${narrow}`, as: people.a2 })
+    await delegate('approvals')
+    await redis().del(`kchs:principals:${people.signer.id}`)
+    expect((await seen()).statusCode).toBe(200)
+    const view = await call(fx.app, {
+      url: `/processes/${instanceId}`,
+      as: people.signer,
+      headers: asDeputy,
+    })
+    expect(
+      view
+        .json()
+        .myActions.some(
+          (item: { onBehalfOf: { id: string } | null }) => item.onBehalfOf?.id === people.a2.id,
+        ),
+    ).toBe(true)
   })
 
   it('«от имени» через API: только в пределах области замещения', async () => {

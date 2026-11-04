@@ -26,7 +26,10 @@ import { delegations, users } from '../directory/schema.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
-import { inboxActionHandler, inboxKind } from './actions.js'
+import { delegationCovers, delegationScopes, inboxActionHandler, inboxKind } from './actions.js'
+
+export { delegationCovers } from './actions.js'
+
 import { inboxItems } from './schema.js'
 
 /** Действие открытого дела: элемент, его вид, объект и описание кнопки. */
@@ -165,6 +168,116 @@ export const InboxService = {
     // ещё не видно другим соединениям, пересчёт здесь закешировал бы прежнее число
     await dropCounts([input.userId, ...deputies])
     return id
+  },
+
+  /**
+   * Копии дел отсутствующего у заместителя — по замещениям пары, действующим сейчас
+   * (ADR-0229). Начало замещения (событие или наступившая дата) открывает заместителю
+   * копии уже ждущих дел в пределах области; окончание или отмена — закрывает копии,
+   * которые больше не покрыты. Повторный вызов ничего не меняет.
+   */
+  async syncDeputyCopies(
+    tx: Tx,
+    ctx: Ctx,
+    fromUserId: string,
+    toUserId: string,
+  ): Promise<{ opened: number; closed: number }> {
+    const effective = await tx
+      .select({ scope: delegations.scope })
+      .from(delegations)
+      .innerJoin(users, eq(users.id, delegations.toUserId))
+      .where(
+        and(
+          eq(delegations.fromUserId, fromUserId),
+          eq(delegations.toUserId, toUserId),
+          eq(delegations.status, 'active'),
+          eq(users.status, 'active'),
+          sql`${delegations.startsAt} <= now() AND ${delegations.endsAt} > now()`,
+        ),
+      )
+    const scopes = effective.map((row) => row.scope)
+    const covered = (kind: string) =>
+      scopes.some((scope) => delegationCovers(kind as InboxKind, scope))
+
+    const originals = await tx
+      .select()
+      .from(inboxItems)
+      .where(
+        and(
+          eq(inboxItems.userId, fromUserId),
+          isNull(inboxItems.onBehalfOf),
+          inArray(inboxItems.state, ['open', 'snoozed']),
+        ),
+      )
+    const wanted = new Map(
+      originals
+        .filter((item) => item.dedupeKey && covered(item.kind))
+        .map((item) => [`${item.dedupeKey}:for:${fromUserId}`, item]),
+    )
+
+    const copies = await tx
+      .select({ id: inboxItems.id, dedupeKey: inboxItems.dedupeKey })
+      .from(inboxItems)
+      .where(
+        and(
+          eq(inboxItems.userId, toUserId),
+          eq(inboxItems.onBehalfOf, fromUserId),
+          inArray(inboxItems.state, ['open', 'snoozed']),
+        ),
+      )
+    const present = new Set(copies.map((copy) => copy.dedupeKey))
+
+    let opened = 0
+    for (const [dedupeKey, item] of wanted) {
+      if (present.has(dedupeKey)) continue
+      const inserted = await tx
+        .insert(inboxItems)
+        .values({
+          id: newId(),
+          userId: toUserId,
+          kind: item.kind,
+          objectId: item.objectId,
+          processStepId: item.processStepId,
+          titleKey: item.titleKey,
+          params: item.params,
+          actorId: item.actorId,
+          onBehalfOf: fromUserId,
+          dueAt: item.dueAt,
+          priority: item.priority,
+          state: 'open',
+          dedupeKey,
+          payload: item.payload,
+        })
+        .onConflictDoNothing()
+        .returning({ id: inboxItems.id })
+      opened += inserted.length
+    }
+
+    const stale = copies.filter((copy) => !copy.dedupeKey || !wanted.has(copy.dedupeKey))
+    if (stale.length > 0) {
+      const closed = await tx
+        .update(inboxItems)
+        .set({ state: 'dismissed', resolvedAt: sql`now()`, resolution: 'delegation_ended' })
+        .where(
+          inArray(
+            inboxItems.id,
+            stale.map((copy) => copy.id),
+          ),
+        )
+        .returning({ id: inboxItems.id })
+      for (const item of closed) {
+        await publishEvent(tx, ctx, {
+          type: 'inbox.resolved',
+          object: null,
+          payload: { userId: toUserId, itemId: item.id, outcome: 'dismissed' },
+        })
+      }
+    }
+    if (opened > 0 || stale.length > 0) {
+      await dropCounts([toUserId])
+      await afterCommit(tx, () => invalidateCounts([toUserId]))
+    }
+    return { opened, closed: stale.length }
   },
 
   /**
@@ -621,15 +734,6 @@ function defaultActions(kind: InboxKind): InboxItem['actions'] {
 }
 
 /** Области замещения, которые распространяются на дела вида: `all` и объявленные видом. */
-function delegationScopes(kind: InboxKind): string[] {
-  return ['all', ...(inboxKind(kind)?.delegationScopes ?? [])]
-}
-
-/** Замещение с областью `scope` распространяется на дела вида `kind`. */
-export function delegationCovers(kind: InboxKind, scope: string): boolean {
-  return delegationScopes(kind).includes(scope)
-}
-
 async function activeDeputies(tx: Executor, userId: string, kind: InboxKind): Promise<string[]> {
   const scopes = delegationScopes(kind)
   const rows = await tx
