@@ -609,7 +609,11 @@ export const ResolutionService = {
     await tx.update(resolutions).set({ deadline: date }).where(eq(resolutions.id, row.id))
     if (!row.parentId) {
       const document = await DocumentService.load(tx, row.documentId, true)
-      if (document?.deadline && document.deadline < date && !isDocumentClosed(document.status)) {
+      if (
+        document?.deadline &&
+        document.deadline < date &&
+        !isDocumentClosed(document.status as DocumentStatus)
+      ) {
         await DocumentService.applyExecutionControl(tx, ctx, row.documentId, { deadline: date })
       }
     }
