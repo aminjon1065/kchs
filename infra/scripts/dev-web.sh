@@ -14,7 +14,11 @@ lsof -ti tcp:5173 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 sleep 1
 
 cd "$ROOT/apps/web"
-nohup bash -c 'while true; do pnpm exec vite --host 127.0.0.1; echo "[supervisor] vite остановился, перезапуск через 2 с"; sleep 2; done' \
+# Только loopback (стенд закрыт для сети, ADR-0225). На Linux движок в Docker ходит к
+# хосту через мост (host-gateway), а не через loopback, — там, где печать отчётов
+# нужна (CI), адрес задаётся KCHS_WEB_HOST=0.0.0.0
+export KCHS_WEB_HOST="${KCHS_WEB_HOST:-127.0.0.1}"
+nohup bash -c 'while true; do pnpm exec vite --host "$KCHS_WEB_HOST"; echo "[supervisor] vite остановился, перезапуск через 2 с"; sleep 2; done' \
   > "$LOG" 2>&1 < /dev/null &
 echo $! > "$PIDFILE"
 echo "web запущен (супервизор pid $(cat "$PIDFILE")), лог: $LOG"

@@ -195,9 +195,13 @@ jobs:
 
       - name: Поднять api и web
         # Сценарии идут одним администратором быстрее человека — общий лимит выше.
-        # ИИ — поддельный OpenAI-совместимый сервер сценария «Спросить данные» (data-ask.spec.ts)
+        # ИИ — поддельный OpenAI-совместимый сервер сценария «Спросить данные» (data-ask.spec.ts).
+        # Как у временного стенда (e2e-stack.sh): приёмник вебхуков сценария слушает 127.0.0.1,
+        # а движок печатает отчёт со страницы web через мост Docker — на Linux это не loopback
         env:
           RATE_LIMIT_PER_MINUTE: '20000'
+          WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: 'true'
+          KCHS_WEB_HOST: 0.0.0.0
           AI_PROVIDER: openai-compat
           OPENAI_COMPAT_URL: http://127.0.0.1:8782/v1
           AI_MODEL: kchs-e2e
