@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Callout,
+  Checkbox,
   cn,
   Dialog,
   DialogContent,
@@ -85,6 +86,9 @@ export function EventDetails({
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [proposing, setProposing] = useState(false)
+  // Ответ на одно повторение серии (ADR-0229): «не смогу в этот четверг»
+  const [onlyThis, setOnlyThis] = useState(false)
+  const onlyThisId = useId()
   const occurrence = record.occurrence
   const time = {
     startsAt: occurrence?.startsAt ?? record.startsAt,
@@ -359,7 +363,12 @@ export function EventDetails({
                 variant={record.myStatus === status ? 'primary' : 'secondary'}
                 aria-pressed={record.myStatus === status}
                 loading={respond.isPending && respond.variables?.status === status}
-                onClick={() => respond.mutate({ status })}
+                onClick={() =>
+                  respond.mutate({
+                    status,
+                    ...(onlyThis && occurrence ? { recurrenceId: occurrence.recurrenceId } : {}),
+                  })
+                }
               >
                 {t(`calendar.respond.${status}`)}
               </Button>
@@ -368,6 +377,14 @@ export function EventDetails({
               {t('calendar.respond.propose')}
             </Button>
           </div>
+          {record.rrule && occurrence ? (
+            <Checkbox
+              id={onlyThisId}
+              checked={onlyThis}
+              onCheckedChange={(next) => setOnlyThis(next === true)}
+              label={t('calendar.respond.onlyThis')}
+            />
+          ) : null}
         </fieldset>
       ) : null}
 

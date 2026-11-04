@@ -251,6 +251,7 @@ export const calendar = {
     tentative: 'Возможно',
     declined: 'Нет',
     propose: 'Предложить другое время',
+    onlyThis: 'Ответ только на это повторение',
     proposalTitle: 'Другое время',
     comment: 'Комментарий организатору',
     send: 'Отправить',

@@ -351,6 +351,51 @@ describe('правка серии: время экземпляров (ADR-0229)'
     expect(await startOf(series.id, series.day(2))).toBe(at(series.day(2), '11:00'))
   })
 
+  it('«не смогу в этот четверг»: ответ на одно повторение, ответ на серию остаётся', async () => {
+    const friday = addDays(monday, 4 + 140)
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/events',
+      as: fx.users.member,
+      payload: {
+        title: `Совещание отдела ${run}`,
+        startsAt: at(friday, '16:00'),
+        endsAt: at(friday, '16:30'),
+        rrule: 'FREQ=WEEKLY;BYDAY=FR;COUNT=4',
+        attendees: [{ userId: fx.users.stranger.id }],
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const id = created.json().id as string
+    const respond = (payload: Record<string, unknown>) =>
+      call(fx.app, { method: 'POST', url: `/events/${id}/respond`, as: fx.users.stranger, payload })
+    expect((await respond({ status: 'accepted' })).statusCode).toBe(200)
+    const second = at(addDays(friday, 7), '16:00')
+    const declined = await respond({ status: 'declined', recurrenceId: second })
+    expect(declined.statusCode, declined.body).toBe(200)
+
+    const series = await call(fx.app, { url: `/events/${id}`, as: fx.users.stranger })
+    expect(series.json().myStatus).toBe('accepted')
+    const one = await call(fx.app, {
+      url: `/events/${id}?recurrenceId=${encodeURIComponent(second)}`,
+      as: fx.users.stranger,
+    })
+    expect(one.json().myStatus).toBe('declined')
+    const view = await range(
+      fx.users.stranger,
+      at(friday, '00:00'),
+      at(addDays(friday, 15), '00:00'),
+    )
+    const statuses = view.items
+      .filter((item) => item.eventId === id)
+      .map((item) => [item.startsAt, item.myStatus])
+    expect(statuses).toEqual([
+      [at(friday, '16:00'), 'accepted'],
+      [second, 'declined'],
+      [at(addDays(friday, 14), '16:00'), 'accepted'],
+    ])
+  })
+
   it('«это и следующие» от перенесённого экземпляра — продолжение по времени серии', async () => {
     const series = await weekly('Разбор')
     const third = at(series.day(3), '09:00')

@@ -255,6 +255,7 @@ export const calendar: DeepPartial<Dictionary['calendar']> = {
     tentative: 'Шояд',
     declined: 'Не',
     propose: 'Пешниҳоди вақти дигар',
+    onlyThis: 'Ҷавоб танҳо ба ҳамин рӯйдод',
     proposalTitle: 'Вақти дигар',
     comment: 'Шарҳ ба ташкилкунанда',
     send: 'Фиристодан',
