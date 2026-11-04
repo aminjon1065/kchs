@@ -245,8 +245,8 @@ upload_basemap() {
 
 health_check() {
   local api_port="${API_PORT:-$(env_get API_PORT)}"
-  local attempt
-  for attempt in $(seq 1 30); do
+  local _
+  for _ in $(seq 1 30); do
     if curl -fsS -m 5 -o /dev/null "http://127.0.0.1:${api_port:-3000}/health"; then
       say "api: работает"
       return 0
@@ -333,7 +333,8 @@ cmd_update() {
   say "── Версия: $(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '?') ──"
   if [[ -f "$BACKUP_SCRIPT" ]]; then
     say "── Резервная копия перед обновлением ──"
-    bash "$BACKUP_SCRIPT" run || die "копия не сделана — обновление остановлено. Причина — выше; без копии — --skip-backup (не советую)"
+    # Копия — этой установки: тот же проект compose и то же окружение
+    KCHS_ENV_FILE="$ENV_FILE" KCHS_COMPOSE_PROJECT="$PROJECT" bash "$BACKUP_SCRIPT" run || die "копия не сделана — обновление остановлено. Причина — выше; без копии — --skip-backup (не советую)"
   elif [[ "$SKIP_BACKUP" == 1 ]]; then
     say "Внимание: обновление без свежей копии (--skip-backup)."
   else
