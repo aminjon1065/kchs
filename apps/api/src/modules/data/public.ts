@@ -4,6 +4,8 @@
  */
 import type {
   DashboardCreateInput,
+  DashboardRecord,
+  DashboardUpdateInput,
   DatasetRecord,
   DatasetRow,
   DatasetRowPatch,
@@ -94,6 +96,10 @@ export const Dashboards = {
     }
     return id
   },
+  /** Запись дашборда — для правок, которые модуль или пакет вносит сам (ADR-0229). */
+  get: (id: string): Promise<DashboardRecord> => DashboardService.get(id),
+  update: (tx: Tx, ctx: Ctx, id: string, input: DashboardUpdateInput): Promise<void> =>
+    DashboardService.update(tx, ctx, id, input),
 }
 
 /** Снимок тетради — «Экспорт в отчёт» (P2-E05 S03); право `view` проверяет вызывающий. */

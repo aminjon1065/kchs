@@ -2,8 +2,10 @@ import '~/shared/config/load-env.js'
 import './quiet.js'
 import { parseArgs } from 'node:util'
 import { ZodError } from 'zod'
+import { bootstrapPlatform } from '~/bootstrap.js'
 import { seedCommand } from '~/seed/command.js'
-import { importHistory } from '~/seed/history/index.js'
+import { importHistory, upgradeHistory } from '~/seed/history/index.js'
+import { installEmergencyPack } from '~/seed/packs/emergency/index.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
@@ -33,6 +35,11 @@ const HELP = `kchs — служебные команды установки
                  история ЧС Комитета из каталога разбора исходников (manifest.json, data,
                  gis, archive) → пакет ЧС, реестры, слои и карты, дашборд, архив файлов;
                  нужны запущенные api, worker и engine; повторный запуск досоздаёт недостающее
+  kchs pack upgrade [--admin-login <логин>]
+                 привести установленный пакет ЧС к версии кода: недостающие объекты
+                   досоздаются, правила, ленты, поля датасетов и дашборд истории, которые
+                   остались как у пакета, обновляются; изменённое администратором не
+                   трогается, демо-данных и оргструктуры не добавляет (ADR-0229)
   kchs basemaps upload <каталог> [--key <ключ>] [--no-register]
                  сборка infra/basemaps/build-pmtiles.sh → хранилище (шрифты, спрайты,
                    PMTiles, манифест), затем регистрация в реестре базовых карт
@@ -142,6 +149,26 @@ async function run(argv: string[]): Promise<number> {
           `  виды: новых ${result.types.inserted}, обновлено ${result.types.updated}`,
           `  происшествий ${result.incidents}, актов ущерба ${result.damage}, строк статистики ${result.stats}`,
           `  слоёв ${result.layers}, файлов архива ${result.files}`,
+          '',
+        ].join('\n'),
+      )
+      return 0
+    }
+    case 'pack': {
+      if (positionals[1] !== 'upgrade') {
+        process.stderr.write(`kchs pack upgrade\n\n${HELP}`)
+        return 2
+      }
+      const adminLogin = values['admin-login'] || process.env.KCHS_ADMIN_LOGIN || 'admin'
+      await bootstrapPlatform()
+      const pack = await installEmergencyPack(adminLogin, { demo: false })
+      const history = await upgradeHistory(adminLogin)
+      process.stdout.write(
+        [
+          'Пакет ЧС приведён к версии кода:',
+          `  датасетов ${pack.datasets}, дашбордов ${pack.dashboards}, новых страниц регламентов ${pack.pages}`,
+          `  дашборд истории: ${history ? 'обновлён' : 'без изменений или не загружен'}`,
+          '  подробности по правилам и лентам — с --verbose',
           '',
         ].join('\n'),
       )

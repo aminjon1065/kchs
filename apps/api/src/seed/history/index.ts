@@ -676,16 +676,28 @@ function statsBy(
   } as unknown as QuerySpec
 }
 
+/**
+ * Число явлений строки реестра (ADR-0229): поле заполняет разбор истории, а строка из
+ * суточной сводки, донесения или от дежурного — одно явление. `sum(occurrences)` без
+ * этого не рос с началом работы: у новых строк поле пустое.
+ */
+const OCCURRENCES = {
+  name: 'occurrences_n',
+  expr: 'coalesce(inc.occurrences, 1)',
+  type: 'integer',
+} as const
+
 function registryByYear(incidentsId: string): QuerySpec {
   return {
     version: 1,
     source: source(incidentsId, 'inc'),
     steps: [
+      { type: 'compute', fields: [OCCURRENCES] },
       {
         type: 'aggregate',
         groupBy: [{ field: 'inc.occurred_at', bucket: 'year', alias: 'year' }],
         measures: [
-          { alias: 'incidents', agg: 'sum', field: 'inc.occurrences' },
+          { alias: 'incidents', agg: 'sum', field: OCCURRENCES.name },
           { alias: 'deaths', agg: 'sum', field: 'inc.deaths' },
         ],
       },
@@ -705,11 +717,12 @@ function registryByKind(incidentsId: string, typesId: string): QuerySpec {
         on: [{ left: 'inc.type_code', right: 'kinds.code' }],
         kind: 'left',
       },
+      { type: 'compute', fields: [OCCURRENCES] },
       {
         type: 'aggregate',
         groupBy: [{ field: 'kinds.name', alias: 'kind' }],
         measures: [
-          { alias: 'incidents', agg: 'sum', field: 'inc.occurrences' },
+          { alias: 'incidents', agg: 'sum', field: OCCURRENCES.name },
           { alias: 'deaths', agg: 'sum', field: 'inc.deaths' },
         ],
       },
@@ -728,13 +741,14 @@ function registryByRegion(incidentsId: string): QuerySpec {
         type: 'compute',
         fields: [
           { name: 'region', expr: "territory_level(inc.territory, 'region')", type: 'territory' },
+          OCCURRENCES,
         ],
       },
       {
         type: 'aggregate',
         groupBy: [{ field: 'region', alias: 'region' }],
         measures: [
-          { alias: 'incidents', agg: 'sum', field: 'inc.occurrences' },
+          { alias: 'incidents', agg: 'sum', field: OCCURRENCES.name },
           { alias: 'deaths', agg: 'sum', field: 'inc.deaths' },
           { alias: 'damage', agg: 'sum', field: 'inc.damage' },
         ],
@@ -744,13 +758,76 @@ function registryByRegion(incidentsId: string): QuerySpec {
   } as unknown as QuerySpec
 }
 
+/**
+ * Запрос плитки: мера `sum(inc.occurrences)` → `sum(coalesce(inc.occurrences, 1))` через
+ * вычисляемое поле. `true` — запрос изменён. Запрос, который правил человек (другая
+ * мера), не трогается.
+ */
+export function upgradeOccurrences(query: unknown): boolean {
+  const steps = (query as { steps?: Array<Record<string, unknown>> } | null)?.steps
+  if (!Array.isArray(steps)) return false
+  const at = steps.findIndex(
+    (step) =>
+      step.type === 'aggregate' &&
+      Array.isArray(step.measures) &&
+      (step.measures as Array<Record<string, unknown>>).some(
+        (measure) => measure.field === 'inc.occurrences' && measure.agg === 'sum',
+      ),
+  )
+  if (at < 0) return false
+  const aggregate = steps[at] as { measures: Array<Record<string, unknown>> }
+  for (const measure of aggregate.measures) {
+    if (measure.field === 'inc.occurrences' && measure.agg === 'sum') {
+      measure.field = OCCURRENCES.name
+    }
+  }
+  const previous = steps[at - 1]
+  if (previous?.type === 'compute' && Array.isArray(previous.fields)) {
+    ;(previous.fields as unknown[]).push({ ...OCCURRENCES })
+  } else {
+    steps.splice(at, 0, { type: 'compute', fields: [{ ...OCCURRENCES }] })
+  }
+  return true
+}
+
+/** Дашборд истории, уже установленный (ADR-0229): меры числа происшествий — по `occurrences_n`. */
+async function upgradeHistoryDashboard(
+  pack: Pick<PackContext, 'ctx'>,
+  id: string,
+): Promise<boolean> {
+  const current = await Dashboards.get(id)
+  const spec = structuredClone(current.spec)
+  let changed = false
+  for (const item of spec.tiles) {
+    const query = (item as { spec?: { data?: { query?: unknown } } }).spec?.data?.query
+    if (query && upgradeOccurrences(query)) changed = true
+  }
+  if (!changed) return false
+  await db().transaction((tx) => Dashboards.update(tx, pack.ctx, id, { spec }))
+  return true
+}
+
+/**
+ * История, уже загруженная в установку (ADR-0229): правки её дашборда без каталога разбора
+ * (`kchs pack upgrade`). `false` — истории нет или менять нечего.
+ */
+export async function upgradeHistory(adminLogin: string): Promise<boolean> {
+  const found = await findPackObject('dashboard', 'history.dashboard')
+  if (!found) return false
+  const base = await packContext(adminLogin, { demo: false }, () => undefined)
+  return upgradeHistoryDashboard(base, found)
+}
+
 async function ensureDashboard(
   pack: PackContext,
   ids: { stats: string; incidents: string; types: string; mapId: string },
 ): Promise<string> {
   const key = 'history.dashboard'
   const found = await findPackObject('dashboard', key)
-  if (found) return found
+  if (found) {
+    await upgradeHistoryDashboard(pack, found)
+    return found
+  }
   const tiles: DashboardTile[] = [
     {
       id: 'title',
