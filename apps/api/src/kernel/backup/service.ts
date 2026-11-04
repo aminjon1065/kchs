@@ -74,7 +74,10 @@ async function dumpTo(key: string): Promise<number> {
   // Отказ приходит в поток: без своего слушателя `destroy(err)` падал бы
   // необработанным исключением процесса, пока выгрузка ещё не подписалась
   stream.on('error', () => undefined)
-  const child = spawn('pg_dump', ['--format=custom', '--no-owner', '--no-acl', env.DATABASE_URL], {
+  // Владельцы, права ролей и настройки самой базы (--create) — в дампе (ADR-0227):
+  // без них восстановленная суперпользователем база принадлежала бы ему, приложение
+  // теряло права на таблицы, а мигратор не мог их вернуть — он не владелец
+  const child = spawn('pg_dump', ['--format=custom', '--create', env.DATABASE_URL], {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stderr = ''
