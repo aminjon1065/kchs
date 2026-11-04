@@ -16,7 +16,10 @@
 
 ```bash
 git fetch --tags && git checkout v0.<фаза>.<патч>
-docker compose --profile app pull            # либо build при локальной сборке
+# Рабочая установка (ADR-0227): копия, сборка, перезапуск, проверка — одной командой
+sudo bash infra/scripts/pilot.sh update
+# Вручную: образы kchs/* только собираются (pull_policy: never) — pull их не тянет
+docker compose --profile app build
 pnpm db:migrate                              # миграции идемпотентны и защищены advisory lock
 docker compose --profile app up -d
 ```

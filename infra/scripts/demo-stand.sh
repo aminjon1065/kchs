@@ -8,7 +8,8 @@
 #                                                            # территории и подложка
 #   bash infra/scripts/demo-stand.sh up --domain demo.example.org --email you@example.org
 #                                                            # VPS: HTTPS, сертификат Let's Encrypt
-#   bash infra/scripts/demo-stand.sh reset [--build]         # перед показом: данные заново
+#   bash infra/scripts/demo-stand.sh reset [--build] [--yes] # перед показом: данные заново
+#                                                            # (стирает всё; спросит подтверждение)
 #   bash infra/scripts/demo-stand.sh status                  # адрес, учётки, состояние служб
 #   bash infra/scripts/demo-stand.sh history <каталог>       # история ЧС Комитета из каталога
 #                                                            # infra/history/build-bundle.sh
@@ -64,6 +65,23 @@ env_set() {
   fi
   cat "$tmp" >"$ENV_FILE"
   rm -f "$tmp"
+}
+
+# Рабочая установка (pilot.sh, ADR-0227): демо-данные, сброс и удаление томов на ней
+# недопустимы, а надстройки compose у неё свои
+refuse_pilot() {
+  [[ "$(env_get KCHS_INSTALL_KIND)" == pilot ]] || return 0
+  die "$ENV_FILE — рабочая установка с реальными данными: demo-stand.sh её не трогает. Обновление и состояние — bash infra/scripts/pilot.sh update | status"
+}
+
+# Сброс стирает все данные стенда: подтверждение — ключом --yes или вводом имени проекта
+confirm_reset() {
+  [[ "$YES" == 1 ]] && return 0
+  [[ -t 0 ]] || die "reset стирает все данные стенда — добавьте --yes"
+  local answer
+  printf 'Сброс стирает все данные стенда «%s» (документы, файлы, учётки). Введите имя проекта для подтверждения: ' "$PROJECT"
+  read -r answer
+  [[ "$answer" == "$PROJECT" ]] || die "сброс отменён"
 }
 
 demo_password() { printf 'Demo!%s-Kc' "$(openssl rand -hex 6)"; }
@@ -219,6 +237,7 @@ cmd_up() {
 
 cmd_reset() {
   [[ -f "$ENV_FILE" ]] || die "стенда нет — сначала up"
+  confirm_reset
   say "── Сброс: данные стираются, окружение, пароли и сертификаты остаются ──"
   compose down --remove-orphans
   local volume
@@ -284,6 +303,7 @@ YES=0
 
 case "$COMMAND" in
   up | reset | status | down)
+    [[ "$COMMAND" == status ]] || refuse_pilot
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --domain) DOMAIN="${2:?укажите домен}"; shift ;;
@@ -305,6 +325,7 @@ case "$COMMAND" in
     ;;
   basemap)
     [[ -f "$ENV_FILE" ]] || die "стенда нет — сначала up"
+    refuse_pilot
     BASEMAP="${1:-}"
     upload_basemap
     ;;

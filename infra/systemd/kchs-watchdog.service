@@ -1,0 +1,16 @@
+# Сторож рабочей установки kchs (ADR-0227): диск, службы, копия, api — сообщения в
+# Telegram. Шаблон: @ROOT@, @ENV_FILE@ и @PROJECT@ подставляет infra/scripts/pilot.sh при
+# установке в /etc/systemd/system. Запускает kchs-watchdog.timer.
+[Unit]
+Description=Сторож рабочей установки kchs
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+Environment=KCHS_PILOT_ENV_FILE=@ENV_FILE@
+Environment=KCHS_PILOT_PROJECT=@PROJECT@
+ExecStart=/bin/bash @ROOT@/infra/scripts/watchdog.sh
+# Сторож только читает состояние, перезапускает контейнеры и шлёт сообщения
+Nice=10
+TimeoutStartSec=120

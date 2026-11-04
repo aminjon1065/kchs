@@ -1,0 +1,13 @@
+# Сторож рабочей установки kchs (ADR-0227): каждые 5 минут, первый раз — через 5 минут
+# после загрузки сервера (службам нужно время подняться).
+[Unit]
+Description=Сторож рабочей установки kchs — каждые 5 минут
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

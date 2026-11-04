@@ -190,6 +190,9 @@ if [[ "$MODE" == app ]]; then
   # а он в api — тоже по имени
   set_kv ONLYOFFICE_INTERNAL_URL "http://onlyoffice"
   set_kv ONLYOFFICE_CALLBACK_URL "http://api:3000"
+  # Поиск в установке — в рабочем режиме: без открытого интерфейса и с обязательным
+  # ключом (ADR-0227); development — только для разработки
+  set_kv MEILI_ENV production
 fi
 
 echo "Создан $ENV_FILE (режим 600, $MODE). Секреты сгенерированы."
