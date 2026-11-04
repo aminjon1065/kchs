@@ -72,6 +72,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Конфигурация api проверяется при первом обращении: unit-тесты исходящего
+      # клиента, хранилища и криптографии читают её, хотя служб не трогают
+      - run: bash infra/scripts/generate-secrets.sh
       - run: pnpm test
 
   integration:
