@@ -30,6 +30,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { pages } from '../schema.js'
 import { loadPage, type PageRow, pageDependencies, pageOutline, pageText } from './page-core.js'
@@ -280,7 +281,7 @@ export const PageService = {
       .from(pages)
       .innerJoin(objects, eq(objects.id, pages.id))
       .where(and(...conditions))
-      .orderBy(asc(objects.title))
+      .orderBy(asc(natural(objects.title)))
       .limit(TREE_LIMIT)
     const ids = new Set(rows.map((row) => row.id))
     const withChildren = new Set(

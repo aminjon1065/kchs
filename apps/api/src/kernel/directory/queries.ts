@@ -9,6 +9,7 @@ import {
   users,
 } from '~/kernel/directory/schema.js'
 import { type Database, db } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import type { DirectoryAccount } from './port.js'
 
 /**
@@ -49,7 +50,7 @@ export const DirectoryQueries = {
           isPerson,
         ),
       )
-      .orderBy(asc(users.displayName), asc(users.id))
+      .orderBy(asc(natural(users.displayName)), asc(users.id))
     return rows.map((row) => row.id)
   },
 
@@ -68,7 +69,7 @@ export const DirectoryQueries = {
       .from(groupMembers)
       .innerJoin(users, eq(users.id, groupMembers.userId))
       .where(and(eq(groupMembers.groupId, groupId), eq(users.status, 'active'), isPerson))
-      .orderBy(asc(users.displayName), asc(users.id))
+      .orderBy(asc(natural(users.displayName)), asc(users.id))
     return rows.map((row) => row.id)
   },
 
@@ -94,7 +95,7 @@ export const DirectoryQueries = {
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .innerJoin(users, eq(users.id, userRoles.userId))
       .where(and(eq(roles.key, roleKey), eq(users.status, 'active'), isPerson, scope))
-      .orderBy(asc(users.displayName), asc(users.id))
+      .orderBy(asc(natural(users.displayName)), asc(users.id))
     return rows.map((row) => row.id)
   },
 

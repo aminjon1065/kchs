@@ -16,6 +16,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { DatasetGeo, datasetRecord } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { layers } from '../schema.js'
 import { type LayerSourceRef, systemLayerGeometry } from './layer-source.js'
@@ -253,7 +254,7 @@ export const LayerService = {
           visibleObjectsSql(ctx, 'layer'),
         ),
       )
-      .orderBy(objects.title)
+      .orderBy(natural(objects.title))
     return rows
   },
 

@@ -7,6 +7,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import type { Ctx } from '~/shared/context.js'
 import { afterCommit, type Database, db, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { UserService } from './service.js'
@@ -15,7 +16,10 @@ import { UserService } from './service.js'
 
 export const GroupService = {
   async list(database: Database = db()) {
-    const rows = await database.select().from(groups).orderBy(asc(groups.name))
+    const rows = await database
+      .select()
+      .from(groups)
+      .orderBy(asc(natural(groups.name)))
     const counts = await database
       .select({ groupId: groupMembers.groupId, count: sql<number>`count(*)::int` })
       .from(groupMembers)

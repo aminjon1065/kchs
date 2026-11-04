@@ -9,6 +9,7 @@ import {
 import { dayRange, needsValue, operatorsFor, relativeRange } from '@kchs/fields'
 import { type SQL, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { directory } from '../directory/port.js'
 import type { ListFieldDef } from './list-fields.js'
@@ -253,7 +254,9 @@ export function compileObjectSort(
       ])
     }
     const order = item.direction === 'desc' ? sql`DESC NULLS LAST` : sql`ASC NULLS FIRST`
-    clauses.push(sql`${field.sql} ${order}`)
+    // Текст — в человеческом порядке (ADR-0229): названия по алфавиту, номера по значению
+    const key = field.type === 'text' ? natural(field.sql) : field.sql
+    clauses.push(sql`${key} ${order}`)
   }
   clauses.push(sql`${idColumn} ASC`)
   return clauses

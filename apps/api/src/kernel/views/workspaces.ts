@@ -9,6 +9,7 @@ import {
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
@@ -93,7 +94,7 @@ export const WorkspaceViews = {
           visibleObjectsSql(ctx, 'view'),
         ),
       )
-      .orderBy(desc(views.pinned), asc(objects.title))
+      .orderBy(desc(views.pinned), asc(natural(objects.title)))
       .limit(100)
     return rows.map(({ layout: _layout, ...row }) => row)
   },

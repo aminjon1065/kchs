@@ -23,6 +23,7 @@ import { TerritoryService, territoryIndex } from '~/modules/territories/public.j
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { AppError } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { LayerService } from './layer-service.js'
@@ -276,7 +277,7 @@ async function linkedMetrics(ctx: Ctx, territoryId: string): Promise<PassportMet
         isNull(objects.deletedAt),
       ),
     )
-    .orderBy(asc(objects.title))
+    .orderBy(asc(natural(objects.title)))
   const values: PassportMetric[] = []
   for (const { id } of rows) {
     const allowed = await authorize(ctx, 'view', id, { soft: true })

@@ -19,6 +19,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { documentTypes, journals } from '../schema.js'
 import { documentsSpaceId } from './space.js'
@@ -209,7 +210,7 @@ export const DocumentTypeService = {
           ...(options.includeInactive ? [] : [eq(documentTypes.isActive, true)]),
         ),
       )
-      .orderBy(asc(sql`${documentTypes.name}->>'ru'`))
+      .orderBy(asc(natural(sql`${documentTypes.name}->>'ru'`)))
     return DocumentTypeService.records(ctx, rows.map(toRow))
   },
 

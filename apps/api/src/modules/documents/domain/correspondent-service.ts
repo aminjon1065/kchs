@@ -15,6 +15,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
 import { correspondents, documents } from '../schema.js'
@@ -68,7 +69,7 @@ export const CorrespondentService = {
       .from(correspondents)
       .innerJoin(objects, eq(objects.id, correspondents.id))
       .where(and(...conditions))
-      .orderBy(asc(correspondents.name), asc(correspondents.id))
+      .orderBy(asc(natural(correspondents.name)), asc(correspondents.id))
       .limit(query.limit + 1)
     const page = rows.slice(0, query.limit)
     return {

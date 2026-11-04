@@ -2,6 +2,7 @@ import { type SavedView, type ViewCreateInput, ViewDefinition } from '@kchs/cont
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
@@ -130,7 +131,7 @@ export const ViewService = {
           spaceId ? sql`(${objects.spaceId} = ${spaceId} OR ${views.shared} = false)` : undefined,
         ),
       )
-      .orderBy(desc(views.pinned), asc(objects.title))
+      .orderBy(desc(views.pinned), asc(natural(objects.title)))
       .limit(200)
     return rows.map(toSavedView)
   },

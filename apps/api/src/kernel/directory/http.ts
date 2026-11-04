@@ -16,6 +16,7 @@ import {
 } from '~/kernel/directory/schema.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { credentials } from './credentials.js'
@@ -52,6 +53,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
               sql`(${users.displayName} ilike ${q} OR ${users.login} ilike ${q})`,
             ),
           )
+          // По алфавиту (ADR-0229): первыми — первые по имени, а не как лежат строки
+          .orderBy(natural(users.displayName), users.id)
           .limit(request.query.limit)
         found.push(...rows.map((r) => ({ type: 'user', id: r.id })))
       }
@@ -60,6 +63,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           .select({ id: groups.id })
           .from(groups)
           .where(sql`${groups.name} ilike ${q}`)
+          .orderBy(natural(groups.name), groups.id)
           .limit(10)
         found.push(...rows.map((r) => ({ type: 'group', id: r.id })))
       }
@@ -68,6 +72,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           .select({ id: orgUnits.id })
           .from(orgUnits)
           .where(and(eq(orgUnits.isActive, true), sql`${orgUnits.name}->>'ru' ilike ${q}`))
+          .orderBy(natural(sql`${orgUnits.name}->>'ru'`), orgUnits.id)
           .limit(10)
         found.push(...rows.map((r) => ({ type: 'unit', id: r.id })))
       }
@@ -76,6 +81,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           .select({ id: positions.id })
           .from(positions)
           .where(sql`${positions.name}->>'ru' ilike ${q}`)
+          .orderBy(natural(sql`${positions.name}->>'ru'`), positions.id)
           .limit(10)
         found.push(...rows.map((r) => ({ type: 'position', id: r.id })))
       }
@@ -83,8 +89,11 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
         found.push({ type: 'everyone', id: '*' })
       }
 
+      // Описание собирается по типам — порядок выдачи возвращается порядку поиска
       const refs = await describePrincipals(found as never)
-      return { items: [...refs.values()] }
+      const ordered = found.flatMap((p) => refs.get(`${p.type}:${p.id}`) ?? [])
+      const rest = [...refs.values()].filter((ref) => !ordered.includes(ref))
+      return { items: [...ordered, ...rest] }
     },
   })
 

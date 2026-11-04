@@ -22,6 +22,7 @@ import { registerStoredFile } from '~/modules/files/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cache } from '~/shared/redis/index.js'
@@ -216,7 +217,7 @@ export const ServiceLayerService = {
       .from(serviceLayers)
       .innerJoin(objects, eq(objects.id, serviceLayers.id))
       .where(isNull(objects.deletedAt))
-      .orderBy(asc(objects.title))
+      .orderBy(asc(natural(objects.title)))
     const visible: ServiceLayerRecord[] = []
     for (const row of rows) {
       const decision = await authorize(ctx, 'view', row.id, { soft: true })

@@ -22,6 +22,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { fileBriefs } from '~/modules/files/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { documentTypes, templates } from '../schema.js'
 import { DocumentService } from './document-service.js'
@@ -122,7 +123,7 @@ export const DocumentTemplateService = {
             : []),
         ),
       )
-      .orderBy(asc(templates.name))
+      .orderBy(asc(natural(templates.name)))
     return DocumentTemplateService.records(ctx, rows)
   },
 
