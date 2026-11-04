@@ -53,7 +53,7 @@ export async function openScreen(page: Page, query: string): Promise<void> {
   // до обработчика: щёлкаем по оболочке и при необходимости повторяем
   const input = page.getByPlaceholder(/Поиск объектов/)
   await page.locator('body').click({ position: { x: 5, y: 5 } })
-  await page.keyboard.press('Meta+k')
+  await page.keyboard.press('ControlOrMeta+k')
   if (!(await input.isVisible().catch(() => false))) {
     await page.keyboard.press('Control+k')
   }

@@ -27,7 +27,8 @@ const { resetConfigCache } = await import('../src/shared/config/env.js')
 const { resetMailer } = await import('../src/shared/mail/index.js')
 
 const run = Date.now().toString(36)
-const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8026'
+// Порт веб-морды Mailpit — из окружения стенда (на машине разработки он бывает смещён)
+const MAILPIT = process.env.MAILPIT_URL ?? `http://localhost:${process.env.MAILPIT_UI_PORT ?? 8025}`
 const SMTP_URL = process.env.SMTP_URL
 
 let fx: TestContext

@@ -25,7 +25,7 @@ test.describe('Именованные рабочие пространства', 
     // Закрыть «Файлы» — остаётся только «Мой день»
     // Кнопка закрытия — для мыши; с клавиатуры вкладка закрывается ⌘W
     await page.getByRole('tab', { name: /Файлы/ }).click()
-    await page.keyboard.press('Meta+w')
+    await page.keyboard.press('ControlOrMeta+w')
     await expect(page.getByRole('tab', { name: /Файлы/ })).toHaveCount(0)
 
     // Открыть из меню — вкладки возвращаются, «Вернуть» отменяет
@@ -37,7 +37,7 @@ test.describe('Именованные рабочие пространства', 
     await expect(page.getByRole('tab', { name: /Файлы/ })).toHaveCount(0)
 
     // Одно действие из палитры команд
-    await page.keyboard.press('Meta+k')
+    await page.keyboard.press('ControlOrMeta+k')
     await page.getByPlaceholder(/Поиск объектов/).fill(`Рабочее пространство: ${name}`)
     // Пункт — когда результаты палитры пришли: Enter по таймеру под нагрузкой
     // выбирал то, что успело загрузиться

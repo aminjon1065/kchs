@@ -467,7 +467,7 @@ test('5. Пять вкладок и разделение переживают п
     await openScreen(page, screen)
   }
   await expect(page.getByRole('tab')).toHaveCount(5)
-  await page.keyboard.press('Meta+\\')
+  await page.keyboard.press('ControlOrMeta+\\')
   await expect(page.getByRole('tablist')).toHaveCount(2)
   await page.waitForTimeout(3000)
   await page.reload()

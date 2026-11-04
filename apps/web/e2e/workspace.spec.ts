@@ -27,10 +27,10 @@ test.describe('Оболочка рабочего пространства', () =
     await openScreen(page, 'Пространства')
     await expect(page.getByRole('tab', { name: /Пространства/ })).toBeVisible()
 
-    await page.keyboard.press('Meta+w')
+    await page.keyboard.press('ControlOrMeta+w')
     await expect(page.getByRole('tab', { name: /Пространства/ })).toHaveCount(0)
 
-    await page.keyboard.press('Meta+Shift+t')
+    await page.keyboard.press('ControlOrMeta+Shift+t')
     await expect(page.getByRole('tab', { name: /Пространства/ })).toBeVisible()
   })
 
@@ -43,7 +43,7 @@ test.describe('Оболочка рабочего пространства', () =
     await openScreen(page, 'Файлы')
     await expect(page.getByRole('tab', { name: /Файлы/ })).toBeVisible()
 
-    await page.keyboard.press('Meta+\\')
+    await page.keyboard.press('ControlOrMeta+\\')
     await expect(page.getByRole('tablist')).toHaveCount(2)
 
     // Состояние сохраняется с дебаунсом и досылается при уходе со страницы
@@ -58,9 +58,9 @@ test.describe('Оболочка рабочего пространства', () =
 
     const navigator = page.getByRole('complementary', { name: 'Навигатор' })
     await expect(navigator).toBeVisible()
-    await page.keyboard.press('Meta+b')
+    await page.keyboard.press('ControlOrMeta+b')
     await expect(navigator).toBeHidden()
-    await page.keyboard.press('Meta+b')
+    await page.keyboard.press('ControlOrMeta+b')
     await expect(navigator).toBeVisible()
   })
 

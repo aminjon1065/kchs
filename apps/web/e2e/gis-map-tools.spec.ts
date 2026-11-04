@@ -82,7 +82,7 @@ test.describe('GIS: инструменты карты', () => {
     const run = Date.now().toString(36)
     const fx = await prepare(request, run)
     await openWorkspace(page, request)
-    await page.keyboard.press('Meta+.')
+    await page.keyboard.press('ControlOrMeta+.')
     const tiles = waitForTiles(page)
     await page.goto(`/o/${fx.mapId}`)
     const map = page.getByRole('region', { name: fx.mapName })

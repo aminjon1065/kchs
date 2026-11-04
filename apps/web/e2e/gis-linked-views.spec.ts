@@ -126,8 +126,8 @@ test.describe('GIS: связанные представления', () => {
     await page.goto(`/o/${fx.mapId}`)
     await expect(page.getByRole('region', { name: fx.mapName })).toBeVisible({ timeout: 20_000 })
     // Место под две панели: навигатор и контекстная панель свёрнуты
-    await page.keyboard.press('Meta+b')
-    await page.keyboard.press('Meta+.')
+    await page.keyboard.press('ControlOrMeta+b')
+    await page.keyboard.press('ControlOrMeta+.')
     await page.getByRole('button', { name: 'Открыть в разделении' }).click()
     const tabBars = page.getByRole('tablist', { name: 'Вкладки' })
     await expect(tabBars).toHaveCount(2)

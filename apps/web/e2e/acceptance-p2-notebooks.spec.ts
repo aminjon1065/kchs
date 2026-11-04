@@ -256,7 +256,7 @@ test.describe('Приёмка фазы 2: тетрадь и ИИ', () => {
 
     // Палитра команд: «Хатлон» находит область — открывается её паспорт
     await openWorkspace(page, request)
-    await page.keyboard.press('Meta+k')
+    await page.keyboard.press('ControlOrMeta+k')
     const palette = page.getByPlaceholder(/Поиск объектов/)
     await expect(palette).toBeVisible()
     await palette.fill('Хатлон')

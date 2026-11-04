@@ -7,7 +7,7 @@ test.describe('Права рядового сотрудника', () => {
     await openWorkspace(page, request)
 
     // Способности admin.system нет — команда не предлагается в палитре
-    await page.keyboard.press('Meta+k')
+    await page.keyboard.press('ControlOrMeta+k')
     await page.getByPlaceholder(/Поиск объектов/).fill('Администрирование')
     await expect(page.getByText('Ничего не найдено')).toBeVisible()
     await page.keyboard.press('Escape')
