@@ -41,6 +41,7 @@ import {
   ShieldCheck,
   ShieldOff,
   Signature,
+  UserCheck,
   UserCog,
 } from 'lucide-react'
 import { useId, useState } from 'react'
@@ -50,6 +51,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { positionsQuery } from './positions-card.js'
 import { adminApi } from './queries.js'
+import { UserDelegationsDialog } from './user-delegations-dialog.js'
 import { UserFacsimileDialog } from './user-facsimile-dialog.js'
 import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
@@ -330,6 +332,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const [clearanceOpen, setClearanceOpen] = useState(false)
   const [passkeysOpen, setPasskeysOpen] = useState(false)
   const [facsimileOpen, setFacsimileOpen] = useState(false)
+  const [delegationsOpen, setDelegationsOpen] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const { data: me } = useQuery(meQuery())
   const canSetClearance = me?.capabilities.includes('admin.system') ?? false
@@ -444,6 +447,12 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
           >
             {t('admin.users.facsimile')}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<UserCheck className="size-4" />}
+            onSelect={() => setDelegationsOpen(true)}
+          >
+            {t('admin.users.delegations')}
+          </DropdownMenuItem>
           {canSetClearance ? (
             <DropdownMenuItem
               icon={<LockKeyhole className="size-4" />}
@@ -516,6 +525,9 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
         loading={resetMfa.isPending}
         onConfirm={() => resetMfa.mutate()}
       />
+      {delegationsOpen ? (
+        <UserDelegationsDialog user={user} onClose={() => setDelegationsOpen(false)} />
+      ) : null}
       {facsimileOpen ? (
         <UserFacsimileDialog user={user} onClose={() => setFacsimileOpen(false)} />
       ) : null}
