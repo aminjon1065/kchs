@@ -359,6 +359,19 @@ export function registerDocumentProcess(): void {
     objectType: DOCUMENT_OBJECT_TYPE,
     load,
     fieldHints,
+    // Пул делопроизводителей (дежурной смены) с грифом: шаг идёт тем, у кого есть
+    // допуск, а не встаёт из-за одного без него (ADR-0229)
+    assigneeFilter: async (executor, documentId, userIds) => {
+      const [row] = await executor
+        .select({ confidentiality: documents.confidentiality })
+        .from(documents)
+        .where(eq(documents.id, documentId))
+        .limit(1)
+      const denied = new Set(
+        await withoutClearance(userIds, parseConfidentiality(row?.confidentiality, 'internal')),
+      )
+      return userIds.filter((userId) => !denied.has(userId))
+    },
     setField: async (tx, ctx, documentId, field, value) => {
       const path = field.startsWith('fields.') ? field.slice('fields.'.length) : field
       const requisite = SETTABLE[path]

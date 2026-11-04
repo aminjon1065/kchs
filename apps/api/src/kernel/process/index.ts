@@ -70,3 +70,4 @@ export function registerProcessEngine(): void {
   // Маршруты переносятся между контурами пакетом конфигурации (ADR-0097)
   registerProcessConfigSection()
 }
+export { isPoolStep } from './pool.js'

@@ -109,6 +109,13 @@ export interface ProcessObjectProvider {
     ctx: Ctx,
     event: { instance: ProcessInstanceInfo; status: 'finished' | 'cancelled'; outcome: string },
   ) => Promise<void>
+  /**
+   * Кто из назначенных шага-«пула» может работать с объектом (ADR-0229): у документа —
+   * допуск к грифу. Шаг, где решает любой один (регистрация, согласование «любой»),
+   * идёт тем, кому можно, а не встаёт целиком из-за одного без допуска. Шаг, где
+   * решают все, не фильтруется — отсутствие допуска там остаётся ошибкой.
+   */
+  assigneeFilter?: (executor: Executor, objectId: string, userIds: string[]) => Promise<string[]>
 }
 
 export interface StepHandlerInput {

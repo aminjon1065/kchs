@@ -22,7 +22,7 @@ import {
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
-import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
+import { isPoolStep, ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { qualifiedSignature } from '~/kernel/signature/port.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
@@ -283,27 +283,39 @@ export const DocumentRoutes = {
     const required = unconditionalSteps(effective)
     const problems: Array<{ path: string; message: string; code: string }> = []
     const people = new Set<string>()
+    const confidentiality = parseConfidentiality(row.confidentiality, 'internal')
     for (const step of preview.steps) {
       const definition = effective.steps[step.key]
       if (!definition || !required.has(step.key) || !isDecisionStep(definition)) continue
       if (definition.type === 'acknowledge' || definition.type === 'return') continue
+      const name = step.name?.ru ?? step.key
       if (step.assignees.length === 0) {
-        const name = step.name?.ru ?? step.key
         problems.push({
           path: `steps.${step.key}`,
           message: `Не удалось определить назначенных шага «${name}»`,
           code: 'no_assignees',
         })
       }
-      for (const assignee of step.assignees) people.add(assignee.user.id)
+      const ids = step.assignees.map((assignee) => assignee.user.id)
+      if (isPoolStep(definition)) {
+        // Пул (решает любой один): без допуска — уйдут из шага сами (ADR-0229); встать
+        // шаг может, только если допуска нет ни у кого
+        const denied = new Set(await withoutClearance(ids, confidentiality))
+        if (ids.length > 0 && ids.every((id) => denied.has(id))) {
+          problems.push({
+            path: `steps.${step.key}`,
+            message: `Ни у кого из назначенных шага «${name}» нет допуска к грифу документа`,
+            code: 'clearance',
+          })
+        }
+        continue
+      }
+      for (const id of ids) people.add(id)
     }
     if (problems.length > 0) {
       throw errors.validation(problems[0]?.message ?? 'Проверьте назначенных', problems)
     }
-    const denied = await withoutClearance(
-      [...people],
-      parseConfidentiality(row.confidentiality, 'internal'),
-    )
+    const denied = await withoutClearance([...people], confidentiality)
     if (denied.length > 0) {
       throw errors.conflict(
         `Нет допуска к грифу документа: ${await names(denied)} — выберите других участников`,

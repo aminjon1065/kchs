@@ -31,6 +31,7 @@ import { InboxService } from '../inbox/service.js'
 import { objects } from '../objects/schema.js'
 import { INBOX_KIND } from './delegation-scope.js'
 import { kernelDirectory } from './directory.js'
+import { isPoolStep } from './pool.js'
 import {
   type ProcessInstanceInfo,
   type ProcessObjectData,
@@ -346,7 +347,17 @@ export class Execution {
       },
       kernelDirectory,
     )
-    return result.assignees
+    if (!isPoolStep(step) || result.assignees.length === 0) return result.assignees
+    const filter = processObjectProvider(this.loaded.object.type)?.assigneeFilter
+    if (!filter) return result.assignees
+    const allowed = new Set(
+      await filter(
+        this.tx,
+        this.loaded.object.id,
+        result.assignees.map((entry) => entry.userId),
+      ),
+    )
+    return result.assignees.filter((entry) => allowed.has(entry.userId))
   }
 
   /** Автоматический шаг: уведомление и поле — сразу, `call`/`task`/`register` — модуль. */
