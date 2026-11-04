@@ -20,6 +20,10 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     versionHint: 'Reload the page to open this view. Save unsaved changes in other tabs first',
     reload: 'Reload page',
   },
+  loadError: {
+    offlineTitle: 'Cannot reach the server',
+    offlineHint: 'Check the network connection and retry',
+  },
   reauth: {
     label: 'Sign in again',
     hint: 'Your session has ended. Sign in again — open tabs and unsaved forms are still here',
