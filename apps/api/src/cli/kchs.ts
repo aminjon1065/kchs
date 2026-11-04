@@ -147,7 +147,8 @@ async function run(argv: string[]): Promise<number> {
         [
           'История ЧС загружена:',
           `  виды: новых ${result.types.inserted}, обновлено ${result.types.updated}`,
-          `  происшествий ${result.incidents}, актов ущерба ${result.damage}, строк статистики ${result.stats}`,
+          `  новых происшествий ${result.incidents}, актов ущерба ${result.damage}, строк статистики ${result.stats}`,
+          `  уточнено по новой выгрузке: происшествий ${result.updated.incidents}, актов ${result.updated.damage}`,
           `  слоёв ${result.layers}, файлов архива ${result.files}`,
           '',
         ].join('\n'),

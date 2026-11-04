@@ -11,6 +11,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { invalidatePrincipalSet } from '../access/principal-set.js'
 import { isServiceAccount } from '../access/service-accounts.js'
@@ -288,7 +289,7 @@ export const SpaceService = {
       // меняли порядок после любой правки
       .orderBy(
         sql`CASE ${spaces.kind} WHEN 'org' THEN 0 WHEN 'unit' THEN 1 WHEN 'team' THEN 2 ELSE 3 END`,
-        objects.title,
+        natural(objects.title),
         spaces.id,
       )
 
@@ -379,7 +380,7 @@ export const SpaceService = {
       .from(spaces)
       .innerJoin(objects, eq(objects.id, spaces.id))
       .where(and(...conditions))
-      .orderBy(objects.title)
+      .orderBy(natural(objects.title))
       .limit(500)
     if (rows.length === 0) return []
 
@@ -440,6 +441,8 @@ export const SpaceService = {
       .leftJoin(positions, eq(positions.id, employments.positionId))
       .leftJoin(orgUnits, eq(orgUnits.id, employments.unitId))
       .where(eq(spaceMembers.spaceId, spaceId))
+      // По алфавиту (ADR-0229); без порядка Postgres отдавал строки как лежат
+      .orderBy(natural(users.displayName), spaceMembers.userId)
 
     return rows.map((row) => ({
       spaceId: row.spaceId,

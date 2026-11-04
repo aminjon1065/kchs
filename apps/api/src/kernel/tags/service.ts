@@ -2,6 +2,7 @@ import { TAG_NAME_MAX, TAGS_PER_OBJECT_MAX, type TagColor, type TagView } from '
 import { and, asc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
@@ -59,7 +60,7 @@ export const TagService = {
       .from(objectTags)
       .innerJoin(tags, eq(tags.id, objectTags.tagId))
       .where(eq(objectTags.objectId, objectId))
-      .orderBy(asc(tags.name))
+      .orderBy(asc(natural(tags.name)))
   },
 
   async add(
@@ -123,7 +124,7 @@ export const TagService = {
       .select({ id: tags.id, name: tags.name, color: tags.color })
       .from(tags)
       .where(q ? and(scope, ilike(tags.name, `${escaped}%`)) : scope)
-      .orderBy(asc(tags.name))
+      .orderBy(asc(natural(tags.name)))
       .limit(limit)
   },
 
@@ -136,7 +137,7 @@ export const TagService = {
       .from(objectTags)
       .innerJoin(tags, eq(tags.id, objectTags.tagId))
       .where(inArray(objectTags.objectId, objectIds))
-      .orderBy(asc(tags.name))
+      .orderBy(asc(natural(tags.name)))
     for (const row of rows) {
       const names = result.get(row.objectId) ?? []
       names.push(row.name)

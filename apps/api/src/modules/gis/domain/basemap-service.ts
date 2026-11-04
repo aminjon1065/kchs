@@ -37,6 +37,7 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { basemaps } from '../schema.js'
@@ -132,7 +133,7 @@ async function overlayRow(): Promise<Row | null> {
     .from(basemaps)
     .innerJoin(objects, eq(objects.id, basemaps.id))
     .where(and(eq(basemaps.kind, 'vector'), isNull(objects.deletedAt)))
-    .orderBy(desc(basemaps.isDefault), asc(objects.title))
+    .orderBy(desc(basemaps.isDefault), asc(natural(objects.title)))
     .limit(1)
   return (row as Row | undefined) ?? null
 }
@@ -391,7 +392,7 @@ export const BasemapService = {
       .from(basemaps)
       .innerJoin(objects, eq(objects.id, basemaps.id))
       .where(and(isNull(objects.deletedAt), visibleObjectsSql(ctx, 'basemap')))
-      .orderBy(desc(basemaps.isDefault), asc(objects.title))
+      .orderBy(desc(basemaps.isDefault), asc(natural(objects.title)))
     const manager = hasCapability(ctx, MANAGE)
     return rows.map((row) => toBasemap(row as Row, manager))
   },

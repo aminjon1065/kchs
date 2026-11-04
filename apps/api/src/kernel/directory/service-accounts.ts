@@ -17,6 +17,7 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
 import { assertCanAssignRoles, assertCanManageUser } from './role-policy.js'
@@ -264,7 +265,7 @@ export const ServiceAccountService = {
       })
       .from(users)
       .where(eq(users.kind, 'service'))
-      .orderBy(asc(users.displayName), asc(users.id))
+      .orderBy(asc(natural(users.displayName)), asc(users.id))
     return describe(rows, database)
   },
 

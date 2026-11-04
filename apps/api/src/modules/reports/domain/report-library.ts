@@ -22,6 +22,7 @@ import { getObjectStream } from '~/kernel/storage/s3.js'
 import { fileBriefs, fileBuckets, watermarkLevel } from '~/modules/files/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { reports, reportVersions } from '../schema.js'
@@ -287,7 +288,7 @@ export const ReportTemplates = {
       .from(reports)
       .innerJoin(objects, eq(objects.id, reports.id))
       .where(and(isNull(objects.deletedAt), sql`${objects.meta} ->> 'template' = 'true'`))
-      .orderBy(objects.title)
+      .orderBy(natural(objects.title))
       .limit(100)
     const own: ReportTemplate[] = []
     for (const row of rows) {

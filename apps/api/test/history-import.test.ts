@@ -247,6 +247,7 @@ describe('дашборд истории: новые строки реестра 
         }))
         .filter((step) => step.type !== 'compute' || (step.fields ?? []).length > 0)
     }
+    // Спецификация прежней версии пакета — та же, что лежит в базе, с прежней мерой
     await db().transaction((tx) => Dashboards.update(tx, ctx, dashboardId, { spec: old as never }))
     expect(JSON.stringify(await yearsQuery())).not.toContain('occurrences_n')
     expect(await total()).toBe(7)
@@ -256,4 +257,78 @@ describe('дашборд истории: новые строки реестра 
     // Второй раз менять нечего
     expect(await upgradeHistory('admin')).toBe(false)
   }, 120_000)
+})
+
+describe('новая выгрузка истории: по содержанию, а не по номеру (ADR-0229)', () => {
+  it('сдвинутые номера не дают дублей и не теряют строк; уточнение применяется, новая добавляется', async () => {
+    const dir = await bundle()
+    const incident = (code: string, extra: Record<string, unknown>) => ({
+      code,
+      occurred_at: '2019-07-23T13:00:00+05:00',
+      date_precision: 'day',
+      type_code: 'FLOOD',
+      type_raw: 'баландшавии сатҳи об',
+      territory: 'TJ-SU-08',
+      occurrences: 1,
+      description: 'Подъём уровня воды',
+      deaths: null,
+      origin: 'Disaster 2019 .xlsx, лист «2019», строка 2',
+      ...extra,
+    })
+    // Новая выгрузка: в начале года появился сель — номера прежних строк сдвинулись,
+    // у первого паводка уточнено число погибших
+    await writeFile(
+      path.join(dir, 'data/incidents.json'),
+      JSON.stringify([
+        incident('H2019-0001', {
+          occurred_at: '2019-07-01T09:30:00+05:00',
+          type_raw: 'сел',
+          description: 'Сход селя',
+        }),
+        incident('H2019-0002', { deaths: 3, deaths_from_text: false }),
+        incident('H2019-0003', { type_code: 'SNOW', date_precision: 'month', occurrences: 6 }),
+        incident('H2022-D2022-012', {
+          description: `${LONG.slice(0, 999)}…`,
+          full_text: LONG,
+          damage: 2585500,
+        }),
+      ]),
+    )
+
+    const result = await importHistory(dir, { adminLogin: 'admin' })
+    expect(result).toMatchObject({ incidents: 1, damage: 0 })
+    expect(result.updated.damage).toBe(0)
+
+    const incidents = await datasetByKey('dataset.incidents')
+    const column = async (key: string) => {
+      const [found] = await db()
+        .select({ name: datasetFields.physicalColumn })
+        .from(datasetFields)
+        .where(and(eq(datasetFields.datasetId, incidents.id), eq(datasetFields.key, key)))
+      return found?.name as string
+    }
+    const code = await column('code')
+    const deaths = await column('deaths')
+    const typeRaw = await column('type_raw')
+    const loaded = (await rows(incidents.table)).map((row) => ({
+      code: String(row[code]),
+      deaths: row[deaths] === null ? null : Number(row[deaths]),
+      typeRaw: row[typeRaw],
+    }))
+    // Четыре события — по строке на каждое, без дублей
+    expect(loaded.map((row) => row.code).sort()).toEqual([
+      'H2019-0001',
+      'H2019-0002',
+      'H2019-0003',
+      'H2022-D2022-012',
+    ])
+    // Уточнение легло в прежнюю строку с прежним кодом
+    expect(loaded.find((row) => row.code === 'H2019-0001')?.deaths).toBe(3)
+    // Новая строка — со свободным кодом года, а не с занятым номером выгрузки
+    expect(loaded.find((row) => row.code === 'H2019-0003')?.typeRaw).toBe('сел')
+
+    // Та же выгрузка ещё раз — ни новых, ни правок
+    const again = await importHistory(dir, { adminLogin: 'admin' })
+    expect(again).toMatchObject({ incidents: 0, damage: 0, updated: { incidents: 0, damage: 0 } })
+  }, 180_000)
 })

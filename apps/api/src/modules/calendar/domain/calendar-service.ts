@@ -24,6 +24,7 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { calendars } from '../schema.js'
 import { calendarSettings } from './settings.js'
@@ -413,7 +414,7 @@ export const CalendarService = {
     }
     const rows = await selectCalendars(db())
       .where(and(...conditions))
-      .orderBy(objects.title)
+      .orderBy(natural(objects.title))
       .limit(query.scope === 'mine' ? 300 : 50)
     const decided: Array<{ row: CalendarRow; level: Level }> = []
     for (const row of rows) {

@@ -21,6 +21,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import {
@@ -152,7 +153,7 @@ export const JournalService = {
           ...(options.includeInactive ? [] : [eq(journals.isActive, true)]),
         ),
       )
-      .orderBy(asc(journals.name))
+      .orderBy(asc(natural(journals.name)))
     return JournalService.records(ctx, rows.map(toRow))
   },
 

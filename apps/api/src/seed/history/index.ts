@@ -20,7 +20,7 @@ import { z } from 'zod'
 import { bootstrapPlatform } from '~/bootstrap.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { putObject, storageKey } from '~/kernel/storage/s3.js'
-import { DatasetService } from '~/modules/data/domain/dataset-service.js'
+import { DatasetService, type StoredField } from '~/modules/data/domain/dataset-service.js'
 import { ImportService } from '~/modules/data/domain/import-service.js'
 import { RowService } from '~/modules/data/domain/row-service.js'
 import { applyRowsBatch } from '~/modules/data/domain/rows-batch.js'
@@ -45,6 +45,7 @@ import {
 } from '../packs/emergency/context.js'
 import { ensureDatasets } from '../packs/emergency/datasets.js'
 import { installEmergencyPack } from '../packs/emergency/index.js'
+import { actKey, codeAllocator, dayOf, incidentKey, keyed, minuteOf } from './content-keys.js'
 
 /**
  * Загрузка истории ЧС Комитета (1988–2026) — `kchs import-history <каталог>`.
@@ -87,8 +88,10 @@ type Row = Record<string, unknown>
 
 export interface HistoryImportResult {
   types: { inserted: number; updated: number }
+  /** Новых строк; уточнённые — в `updated` (ADR-0229). */
   incidents: number
   damage: number
+  updated: { incidents: number; damage: number }
   stats: number
   layers: number
   files: number
@@ -261,6 +264,131 @@ async function insertMissing(
   return inserted
 }
 
+/** Значение поля в сравнимом виде: строка выгрузки и строка базы дают одно и то же. */
+function comparable(type: string, value: unknown): unknown {
+  if (value === null || value === undefined || value === '') return null
+  switch (type) {
+    case 'datetime':
+      return minuteOf(value)
+    case 'date':
+      return dayOf(value)
+    case 'integer':
+    case 'number':
+    case 'money':
+    case 'percent':
+      return Number.isNaN(Number(value)) ? String(value) : Number(value)
+    case 'boolean':
+      return value === true || value === 'true' || value === 't'
+    default:
+      return typeof value === 'object' ? JSON.stringify(value) : String(value).normalize('NFC')
+  }
+}
+
+interface Synced {
+  inserted: number
+  updated: number
+  /** Код строки выгрузки → код строки в базе (у уточнённых — прежний, у новых — свободный). */
+  codes: Map<string, string>
+}
+
+/**
+ * Строки истории — по содержанию, а не по номеру (ADR-0229). Строка выгрузки сопоставляется
+ * со строкой базы ключом содержания (`content-keys.ts`): совпала — уточнение, правятся
+ * изменившиеся поля, код остаётся прежним; не совпала — новая строка со свободным кодом.
+ * Удалённая в системе строка не воскресает. Ключ уже загруженных строк досчитывается из их
+ * полей — переход без миграции данных. Строки вне `scope` (донесения, ручной ввод) не
+ * сопоставляются, но их коды заняты.
+ */
+async function syncByContent(
+  pack: PackContext,
+  datasetId: string,
+  rows: Row[],
+  options: {
+    keyOf: (row: Row) => string
+    /** Поля выгрузки, по которым видно уточнение. */
+    compare: string[]
+    scope?: { field: string; value: string }
+  },
+): Promise<Synced> {
+  const seen = new Set<string>()
+  const doubled = rows.map((row) => String(row.code)).filter((c) => seen.has(c) || !seen.add(c))
+  if (doubled.length > 0) {
+    throw new Error(`Повторяются коды: ${[...new Set(doubled)].slice(0, 10).join('; ')}`)
+  }
+
+  const storage = await DatasetService.storage(datasetId)
+  const byKey = new Map(storage.fields.map((item) => [item.key, item]))
+  const wanted = [
+    ...new Set([
+      'code',
+      'origin',
+      ...options.compare,
+      ...(options.scope ? [options.scope.field] : []),
+    ]),
+  ].filter((key) => byKey.has(key))
+  const columns = wanted.map(
+    (key) => sql`${columnSql((byKey.get(key) as StoredField).physical)} AS ${sql.identifier(key)}`,
+  )
+  const raw = await db().execute<Row & { _id: string; _deleted: boolean }>(
+    sql`SELECT _id::text AS _id, _deleted_at IS NOT NULL AS _deleted, ${sql.join(columns, sql`, `)}
+          FROM ${tableSql(storage.table)}`,
+  )
+  // Территория хранится идентификатором, а выгрузка называет её кодом
+  const territoryFields = wanted.filter((key) => byKey.get(key)?.type === 'territory')
+  const codeOfTerritory = territoryFields.length
+    ? new Map((await TerritoryService.list()).map((item) => [item.id, item.code]))
+    : new Map<string, string>()
+  const stored = raw.map((row) => {
+    const copy = { ...row }
+    for (const key of territoryFields) {
+      if (copy[key]) copy[key] = codeOfTerritory.get(String(copy[key])) ?? copy[key]
+    }
+    return copy
+  })
+  const nextCode = codeAllocator(stored.map((row) => String(row.code ?? '')).filter(Boolean))
+  const scope = options.scope
+  const history = scope ? stored.filter((row) => row[scope.field] === scope.value) : stored
+  const existing = keyed(history, options.keyOf)
+  const incoming = keyed(rows, options.keyOf)
+
+  const compare = options.compare.filter((key) => byKey.has(key))
+  const codes = new Map<string, string>()
+  const insert: Row[] = []
+  const update: Array<{ id: string; values: Row }> = []
+  for (const [key, row] of incoming) {
+    const match = existing.get(key)
+    if (match) {
+      codes.set(String(row.code), String(match.code))
+      if (match._deleted) continue
+      const changed = compare.some((field) => {
+        const type = (byKey.get(field) as StoredField).type
+        return (
+          JSON.stringify(comparable(type, row[field])) !==
+          JSON.stringify(comparable(type, match[field]))
+        )
+      })
+      if (changed) update.push({ id: match._id, values: { ...row, code: match.code } })
+    } else {
+      const code = nextCode(String(row.code))
+      codes.set(String(row.code), code)
+      insert.push({ ...row, code })
+    }
+  }
+
+  for (let at = 0; at < insert.length; at += 500) {
+    const chunk = insert.slice(at, at + 500).map((values) => ({ values }))
+    await RowService.insert(pack.ctx, datasetId, chunk)
+  }
+  for (let at = 0; at < update.length; at += 500) {
+    await applyRowsBatch(
+      pack.ctx,
+      datasetId,
+      DatasetRowsBatch.parse({ update: update.slice(at, at + 500) }),
+    )
+  }
+  return { inserted: insert.length, updated: update.length, codes }
+}
+
 async function ensureDataset(
   pack: PackContext,
   key: string,
@@ -310,8 +438,11 @@ async function loadTypes(pack: PackContext, datasetId: string, rows: Row[]) {
   return { inserted: insert.length, updated: update.length }
 }
 
-async function loadIncidents(pack: PackContext, datasetId: string, rows: Row[]): Promise<number> {
+async function loadIncidents(pack: PackContext, datasetId: string, rows: Row[]): Promise<Synced> {
   await ensureFields(pack, datasetId, INCIDENT_HISTORY_FIELDS)
+  const compare = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter(
+    (key) => key !== 'code',
+  )
   const centroids = new Map<string, { lon: number; lat: number }>()
   for (const item of await TerritoryService.list()) {
     if (item.centroid) centroids.set(item.code, item.centroid)
@@ -338,7 +469,11 @@ async function loadIncidents(pack: PackContext, datasetId: string, rows: Row[]):
     )
   }
   try {
-    return await insertMissing(pack, datasetId, values, ['code'])
+    return await syncByContent(pack, datasetId, values, {
+      keyOf: incidentKey,
+      compare,
+      scope: { field: 'source', value: 'import' },
+    })
   } finally {
     if (rowEvents) {
       await db().transaction((tx) =>
@@ -1008,7 +1143,7 @@ export async function importHistory(
     incidentsId,
     await readJson<Row[]>(dir, manifest.data.incidents),
   )
-  say('реестр происшествий', { inserted: incidents })
+  say('реестр происшествий', { inserted: incidents.inserted, updated: incidents.updated })
 
   const damageId = await ensureDataset(pack, 'history.dataset.damage', {
     name: 'Оценка ущерба от ЧС (акты комиссий)',
@@ -1019,13 +1154,18 @@ export async function importHistory(
     timeField: 'event_date',
     territoryField: 'territory',
   })
-  const damage = await insertMissing(
-    pack,
-    damageId,
-    await readJson<Row[]>(dir, manifest.data.damage),
-    ['code'],
-  )
-  say('оценка ущерба', { inserted: damage })
+  // Акт ссылается на происшествие кодом выгрузки — в базе у него может быть свой код
+  const acts = (await readJson<Row[]>(dir, manifest.data.damage)).map((row) => ({
+    ...row,
+    incident_code: row.incident_code
+      ? (incidents.codes.get(String(row.incident_code)) ?? row.incident_code)
+      : row.incident_code,
+  }))
+  const damage = await syncByContent(pack, damageId, acts, {
+    keyOf: actKey,
+    compare: [...new Set(acts.flatMap((row) => Object.keys(row)))].filter((key) => key !== 'code'),
+  })
+  say('оценка ущерба', { inserted: damage.inserted, updated: damage.updated })
 
   const statsId = await ensureDataset(pack, 'history.dataset.stats', {
     name: 'Статистика ЧС «10 сола» (официальная)',
@@ -1122,8 +1262,9 @@ export async function importHistory(
 
   return {
     types,
-    incidents,
-    damage,
+    incidents: incidents.inserted,
+    damage: damage.inserted,
+    updated: { incidents: incidents.updated, damage: damage.updated },
     stats,
     layers: entries.length,
     files,

@@ -19,6 +19,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { devicePositions, devices } from '../schema.js'
@@ -246,7 +247,7 @@ export const DeviceService = {
       .from(devices)
       .innerJoin(objects, eq(objects.id, devices.id))
       .where(and(...conditions))
-      .orderBy(objects.title)
+      .orderBy(natural(objects.title))
       .limit(query.limit)) as Row[]
     const [settings, people] = await Promise.all([
       PositionsSettingsService.current(),

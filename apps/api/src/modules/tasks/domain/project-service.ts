@@ -17,6 +17,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { projects, tasks } from '../schema.js'
@@ -177,7 +178,7 @@ export const ProjectService = {
     if (query.status) conditions.push(eq(projects.status, query.status))
     const rows = await selectProjects(db())
       .where(and(...conditions))
-      .orderBy(asc(objects.title))
+      .orderBy(asc(natural(objects.title)))
       .limit(200)
     return recordsOf(rows)
   },

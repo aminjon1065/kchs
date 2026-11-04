@@ -7,6 +7,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
+import { natural } from '~/shared/db/collation.js'
 import type { LangTextValue } from '~/shared/db/columns.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
@@ -167,7 +168,7 @@ export const OrgService = {
         isActive: orgUnits.isActive,
       })
       .from(orgUnits)
-      .orderBy(asc(orgUnits.sort), asc(sql`${orgUnits.name}->>'ru'`))
+      .orderBy(asc(orgUnits.sort), asc(natural(sql`${orgUnits.name}->>'ru'`)))
 
     const counts = await database
       .select({ unitId: employments.unitId, count: sql<number>`count(*)::int` })
