@@ -24,6 +24,7 @@ import { useId, useState } from 'react'
 import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
+import { localIsoDay } from '~/shared/dates.js'
 import { useT } from '~/shared/i18n.js'
 import { tasksApi } from './queries.js'
 
@@ -37,7 +38,7 @@ export interface RepeatValue {
   endsOn: string
 }
 
-const today = (): string => new Date().toISOString().slice(0, 10)
+const today = (): string => localIsoDay()
 
 export function emptyRepeat(): RepeatValue {
   return {

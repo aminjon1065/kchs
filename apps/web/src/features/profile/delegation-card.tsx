@@ -26,13 +26,14 @@ import { useId, useState } from 'react'
 import { ApiError } from '~/shared/api/errors.js'
 import { delegationsQuery, keys, meQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
+import { localIsoDay } from '~/shared/dates.js'
 import { useT } from '~/shared/i18n.js'
 import { profileApi } from './queries.js'
 
 const SCOPES = ['all', 'approvals', 'instructions', 'documents', 'meetings'] as const
 type Scope = (typeof SCOPES)[number]
 
-const isoDay = (date: Date) => date.toISOString().slice(0, 10)
+const isoDay = (date: Date) => localIsoDay(date)
 
 /**
  * Замещение (P0-E04 S03, 03-access-model.md §Делегирование): назначить

@@ -26,6 +26,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
 import { fileSource, fileText } from '~/modules/files/public.js'
 import type { UserCtx } from '~/shared/context.js'
+import { localToday } from '~/shared/dates.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
@@ -56,8 +57,9 @@ const DEFAULT_TYPE_KEY = 'incoming_letter'
 
 type IntakeRow = typeof govEdmsIntakes.$inferSelect
 
+/** Сегодня по поясу установки, а не по UTC (ADR-0229). */
 function today(): string {
-  return new Date().toISOString().slice(0, 10)
+  return localToday()
 }
 
 /** Тема по имени файла: без расширения и подчёркиваний. */
