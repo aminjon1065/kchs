@@ -29,6 +29,9 @@ function pairs(group: Record<string, unknown>): void {
 pairs(tokens.color.neutral as Record<string, unknown>)
 pairs(tokens.color.accent as Record<string, unknown>)
 pairs(tokens.color.semantic as Record<string, unknown>)
+// Шкала обстановки и рейл оболочки (ADR-0230)
+pairs(tokens.color.hazard as Record<string, unknown>)
+pairs(tokens.color.rail as Record<string, unknown>)
 
 // Палитры данных
 tokens.color.categorical.light.forEach((value, index) => {
@@ -204,6 +207,19 @@ const colorMap: Record<string, string> = {
   'info-subtle': 'info-subtle',
   purple: 'purple',
   'purple-subtle': 'purple-subtle',
+  // Рейл оболочки: тёмная опора в обеих темах (ADR-0230)
+  rail: 'rail-bg',
+  'rail-line': 'rail-border',
+  'rail-fg': 'rail-fg',
+  'rail-fg-active': 'rail-fg-active',
+  'rail-active': 'rail-active',
+  'rail-indicator': 'rail-indicator',
+}
+// Шкала обстановки (ADR-0230): заливка, текст на заливке, текст на поверхностях, подложка
+for (const level of [0, 1, 2, 3]) {
+  for (const suffix of ['', '-fg', '-text', '-subtle']) {
+    colorMap[`hazard-${level}${suffix}`] = `hazard-${level}${suffix}`
+  }
 }
 for (const [utility, variable] of Object.entries(colorMap)) {
   theme.push(`  --color-${utility}: var(--${variable});`)

@@ -244,7 +244,7 @@ describe('стиль базовой карты (07-gis-engine.md §5, ADR-0066)'
   it('без подложки — только фон, но шрифты и спрайт есть для подписей слоёв данных', () => {
     const style = build({ kind: 'none' }, 'dark')
     expect(style.layers).toEqual([
-      { id: 'background', type: 'background', paint: { 'background-color': '#0E0F11' } },
+      { id: 'background', type: 'background', paint: { 'background-color': '#0A0D14' } },
     ])
     expect(style.glyphs).toContain('/gis/glyphs/')
     expect(style.sprite).toContain('/gis/sprites/basemap-dark')

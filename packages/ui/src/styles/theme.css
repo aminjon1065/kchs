@@ -29,6 +29,28 @@
   --color-info-subtle: var(--info-subtle);
   --color-purple: var(--purple);
   --color-purple-subtle: var(--purple-subtle);
+  --color-rail: var(--rail-bg);
+  --color-rail-line: var(--rail-border);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-fg-active: var(--rail-fg-active);
+  --color-rail-active: var(--rail-active);
+  --color-rail-indicator: var(--rail-indicator);
+  --color-hazard-0: var(--hazard-0);
+  --color-hazard-0-fg: var(--hazard-0-fg);
+  --color-hazard-0-text: var(--hazard-0-text);
+  --color-hazard-0-subtle: var(--hazard-0-subtle);
+  --color-hazard-1: var(--hazard-1);
+  --color-hazard-1-fg: var(--hazard-1-fg);
+  --color-hazard-1-text: var(--hazard-1-text);
+  --color-hazard-1-subtle: var(--hazard-1-subtle);
+  --color-hazard-2: var(--hazard-2);
+  --color-hazard-2-fg: var(--hazard-2-fg);
+  --color-hazard-2-text: var(--hazard-2-text);
+  --color-hazard-2-subtle: var(--hazard-2-subtle);
+  --color-hazard-3: var(--hazard-3);
+  --color-hazard-3-fg: var(--hazard-3-fg);
+  --color-hazard-3-text: var(--hazard-3-text);
+  --color-hazard-3-subtle: var(--hazard-3-subtle);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -90,6 +112,7 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
   /* Тени */

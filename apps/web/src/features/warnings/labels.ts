@@ -1,4 +1,5 @@
 import type { CapSeverity, WarningStatus } from '@kchs/contracts'
+import type { HazardLevel } from '@kchs/ui'
 
 type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'purple'
 
@@ -18,4 +19,16 @@ export const SEVERITY_TONE: Record<CapSeverity, Tone> = {
   Moderate: 'warning',
   Minor: 'accent',
   Unknown: 'neutral',
+}
+
+/**
+ * Уровень шкалы обстановки по строгости CAP (ADR-0230). Неизвестная строгость — как
+ * «внимание»: действующее предупреждение не должно пропасть из виду из-за пустого поля.
+ */
+export const HAZARD_LEVEL: Record<CapSeverity, HazardLevel> = {
+  Extreme: 3,
+  Severe: 2,
+  Moderate: 1,
+  Minor: 0,
+  Unknown: 1,
 }

@@ -163,6 +163,18 @@ export const shell: DeepPartial<Dictionary['shell']> = {
       'Сервер ирсолро аз навбат рад кард. Хабарнома ё ҳисоботро кушоед: дар он ҷо сабаб ва тугмаи «Такрор кардан» ҳаст',
     offlineFailedToast: 'Ирсол аз навбат нагузашт: {error}',
   },
+  opsBand: {
+    label: 'Вазъият',
+    levels: {
+      normal: 'Мӯътадил',
+      caution: 'Диққат',
+      danger: 'Хатарнок',
+      extreme: 'Фавқулодда',
+    },
+    until: 'то {time}',
+    more: '{count, plural, one {боз # огоҳинома} other {боз # огоҳинома}}',
+    all: 'Ҳамаи огоҳиномаҳо',
+  },
   palette: {
     placeholder: 'Ҷустуҷӯи объектҳо ва фармонҳо…',
     recent: 'Охиринҳо',

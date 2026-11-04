@@ -162,6 +162,18 @@ export const shell: DeepPartial<Dictionary['shell']> = {
       'The server rejected a queued submission. Open the report or form: the reason and a Retry button are there',
     offlineFailedToast: 'A queued submission was rejected: {error}',
   },
+  opsBand: {
+    label: 'Situation',
+    levels: {
+      normal: 'Normal',
+      caution: 'Caution',
+      danger: 'Danger',
+      extreme: 'Extreme',
+    },
+    until: 'until {time}',
+    more: '{count, plural, one {# more warning} other {# more warnings}}',
+    all: 'All warnings',
+  },
   palette: {
     placeholder: 'Search objects and commands…',
     recent: 'Recent',

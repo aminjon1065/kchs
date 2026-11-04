@@ -1,6 +1,6 @@
 # Дизайн-система
 
-Статус: **Решено** для токенов и принципов; **Рекомендовано** для конкретных значений (исполнитель может калибровать, сохраняя структуру и контраст).
+Статус: **Решено** для токенов и принципов; **Рекомендовано** для конкретных значений (исполнитель может калибровать, сохраняя структуру и контраст). Значения ниже — дизайн-язык «Тихий штаб» (ADR-0230): холодная нейтраль, шкала обстановки, тёмный рейл.
 
 ## 1. Принципы
 
@@ -10,6 +10,7 @@
 4. **Согласованность.** Одинаковые компоненты и поведение во всех модулях; никаких «особых» экранов.
 5. **Движение по делу.** Короткие переходы, объясняющие, откуда что появилось; ничего не «плавает».
 6. **Обе темы — первоклассные.** Тёмная тема не инверсия, а отдельно выверенные поверхности.
+7. **Обстановка — с первого взгляда.** Уровень опасности везде один — шкала обстановки (цвет и римская цифра); действующее предупреждение видно над любым экраном.
 
 ## 2. Токены
 
@@ -19,17 +20,17 @@
 
 | Токен | Светлая | Тёмная | Назначение |
 |---|---|---|---|
-| `--bg-canvas` | `#F6F6F7` | `#0E0F11` | фон приложения |
-| `--bg-surface` | `#FFFFFF` | `#16171A` | панели, карточки, таблицы |
-| `--bg-surface-2` | `#F1F1F3` | `#1D1E22` | вторичные области, заголовки таблиц, навигатор |
-| `--bg-surface-3` | `#E9E9EC` | `#25262B` | hover, выделение строк |
-| `--bg-overlay` | `#FFFFFF` | `#1D1E22` | всплывающие окна, меню (с тенью) |
-| `--border` | `#E4E4E8` | `#2A2B31` | делители, рамки |
-| `--border-strong` | `#D2D2D8` | `#3A3B42` | рамки контролов, hover |
-| `--text` | `#17181C` | `#ECECEF` | основной текст |
-| `--text-secondary` | `#4F5160` | `#A6A7B2` | подписи, вторичное |
-| `--text-muted` | `#666875` | `#8A8C99` | плейсхолдеры, третичное |
-| `--text-inverse` | `#FFFFFF` | `#0E0F11` | текст на акценте |
+| `--bg-canvas` | `#F4F5F8` | `#0A0D14` | фон приложения |
+| `--bg-surface` | `#FFFFFF` | `#11151E` | панели, карточки, таблицы |
+| `--bg-surface-2` | `#EFF1F5` | `#171C27` | вторичные области, заголовки таблиц, навигатор |
+| `--bg-surface-3` | `#E6E9EF` | `#1F2533` | hover, выделение строк |
+| `--bg-overlay` | `#FFFFFF` | `#1A1F2B` | всплывающие окна, меню (с тенью) |
+| `--border` | `#E2E5EC` | `#232A38` | делители, рамки |
+| `--border-strong` | `#CDD2DC` | `#323B4D` | рамки контролов, hover |
+| `--text` | `#0F1422` | `#E8EBF2` | основной текст |
+| `--text-secondary` | `#465066` | `#A5ADBF` | подписи, вторичное |
+| `--text-muted` | `#5F687D` | `#8B93A8` | плейсхолдеры, третичное |
+| `--text-inverse` | `#FFFFFF` | `#0A0D14` | текст на акценте |
 
 ### Цвет: акцент и семантика
 
@@ -37,16 +38,39 @@
 |---|---|---|---|
 | `--accent` | `#2F62E6` | `#7EA0FF` | основные действия, ссылки, активные состояния |
 | `--accent-hover` | `#2653C4` | `#95B1FF` | |
-| `--accent-subtle` | `#E9EFFF` | `#1A2440` | фон выделений, активных вкладок |
+| `--accent-subtle` | `#EAF0FF` | `#19233F` | фон выделений, активных вкладок |
 | `--accent-ring` | `rgba(47,98,230,.35)` | `rgba(126,160,255,.4)` | фокус |
-| `--success` / `-subtle` | `#177E50` / `#E6F6EE` | `#4CCB8E` / `#0F2A1E` | выполнено, в срок |
-| `--warning` / `-subtle` | `#936500` / `#FFF5DC` | `#F2B84B` / `#332A10` | срок близко, внимание |
-| `--danger` / `-subtle` | `#CE2B2B` / `#FDEAEA` | `#F06B6B` / `#3A1717` | просрочено, ошибка, удаление |
-| `--danger-fg` | `#FFFFFF` | `#0E0F11` | текст на заливке `--danger` (кнопка «Удалить») |
-| `--info` / `-subtle` | `#2F62E6` / `#E9EFFF` | `#7EA0FF` / `#1A2440` | |
-| `--purple` / `-subtle` | `#7B45F5` / `#F1ECFE` | `#A78BFA` / `#231A3D` | на согласовании, подписи |
+| `--success` / `-subtle` | `#157A4E` / `#E5F5EC` | `#4CC98E` / `#0F2A1E` | выполнено, в срок |
+| `--warning` / `-subtle` | `#8A5F00` / `#FFF3D6` | `#F2B84B` / `#2F2610` | срок близко, внимание |
+| `--danger` / `-subtle` | `#C42B2B` / `#FDECEC` | `#FF6B66` / `#3A1717` | просрочено, ошибка, удаление |
+| `--danger-fg` | `#FFFFFF` | `#0A0D14` | текст на заливке `--danger` (кнопка «Удалить») |
+| `--info` / `-subtle` | `#2F62E6` / `#EAF0FF` | `#7EA0FF` / `#19233F` | |
+| `--purple` / `-subtle` | `#6A3CDB` / `#F1ECFE` | `#A88BFA` / `#231A3D` | на согласовании, подписи |
 
 Контраст любого текста ≥ 4.5:1 (WCAG 2.2 AA): основной, вторичный и muted — на всех поверхностях, подсветке строк (`surface-3`) и выделении (`accent-subtle`); акцент и семантика как текст — на поверхностях и своих подложках (бейджи, сообщения); текст на заливках — `--accent-fg` и `--danger-fg`. Проверяют `pnpm --filter @kchs/ui contrast` (токены) и axe на историях Storybook (компоненты). Акцентный текст на светлом — `--accent`; на тёмном — светлее (`#7EA0FF`), чтобы не «горел».
+
+### Цвет: шкала обстановки
+
+Одна шкала уровня опасности для карты, полосы обстановки, карточек, списков и ситуационного экрана (ADR-0230). Соответствие строгости CAP — профиль Meteoalarm (ADR-0229). Токены `--hazard-N` (заливка), `--hazard-N-fg` (знак на заливке), `--hazard-N-text` (уровень текстом), `--hazard-N-subtle` (подложка).
+
+| Уровень | Строгость CAP | Светлая: заливка / текст / подложка | Тёмная: заливка / текст / подложка | Примечание |
+|---|---|---|---|---|
+| 0 · Норма | Minor | `#1F9A6E` / `#167257` / `#E5F5EC` | `#3CC79A` / `#3CC79A` / `#0F2A1E` | обычный фон; полосу обстановки не поднимает |
+| I · Внимание | Moderate, Unknown | `#F2C230` / `#7A5A00` / `#FFF6D9` | `#F5C842` / `#F5C842` / `#2E2710` | жёлтый Meteoalarm — уже доходит до смены |
+| II · Опасно | Severe | `#F07A1F` / `#B0490A` / `#FFEBDC` | `#FF8A3D` / `#FF9F5E` / `#33200F` |  |
+| III · Чрезвычайно | Extreme | `#D92D2D` / `#BE2323` / `#FDE7E7` | `#FF5A57` / `#FF6B66` / `#3A1616` |  |
+
+- Цвет уровня всегда идёт вместе с римской цифрой (`HazardMark`): уровень читается без различения цвета и в печати.
+- Шкала отдельна от `--warning`/`--danger`: «просрочено» и «ошибка» — состояния интерфейса, «опасно» — обстановка; в одном контексте их не смешивают.
+- Компоненты: `HazardMark` (знак), `HazardBadge` (знак и слово на подложке), `OpsBand` (полоса обстановки).
+
+### Рейл оболочки
+
+Рейл тёмный в обеих темах (`--rail-*`) — якорь композиции, отделяет переход между модулями от рабочей области. Фон `#0B1020` / `#070A10`, значки `#9AA3B8` / `#8D96AC`, активный пункт — подсветка `rgba(126,160,255,.16)` и полоска `#7EA0FF` слева, значок `#FFFFFF`. Тёмный рейл темнее холста тёмной темы, поэтому не сливается с ним.
+
+### Полоса обстановки
+
+Строка высотой `--opsband-h` (36px) над рабочей областью, пока действует предупреждение уровня I и выше (слот `banner` модуля предупреждений, ADR-0183). Слева — уровень на заливке («II · Опасно»), дальше — что и где, справа — срок действия, «ещё N» и «Открыть». Видны только предупреждения, доступные сотруднику; при нескольких — самое строгое, при равной строгости — самое свежее. Роль `status`: смена уровня объявляется программе чтения с экрана.
 
 ### Цвет: данные
 
@@ -87,8 +111,8 @@
 ### Отступы, радиусы, тени
 
 - Сетка 4px: `1=4, 1.5=6, 2=8, 3=12, 4=16, 5=20, 6=24, 8=32, 10=40, 12=48, 16=64`.
-- Радиусы: `xs=4` (чипы, kbd), `sm=6` (контролы, кнопки), `md=8` (карточки, поповеры), `lg=12` (диалоги, плитки дашборда), `full`.
-- Тени (светлая): `sm: 0 1px 2px rgba(16,17,20,.06)`, `md: 0 4px 12px rgba(16,17,20,.08), 0 1px 3px rgba(16,17,20,.06)`, `lg: 0 12px 32px rgba(16,17,20,.14), 0 2px 6px rgba(16,17,20,.08)`. Тёмная: тени слабее, иерархия через поверхности + 1px рамка `--border`.
+- Радиусы: `xs=4` (чипы, kbd), `sm=6` (контролы, кнопки), `md=8` (карточки, поповеры), `lg=12` (диалоги, плитки дашборда), `xl=16` (крупные плитки ситуационного экрана), `full`.
+- Тени (светлая, тоном текста): `sm: 0 1px 2px rgba(15,20,34,.06)`, `md: 0 6px 18px rgba(15,20,34,.07), 0 1px 3px rgba(15,20,34,.05)`, `lg: 0 18px 40px rgba(15,20,34,.14), 0 2px 6px rgba(15,20,34,.06)`. Тёмная: тени слабее, иерархия через поверхности + 1px рамка `--border`.
 - Рамки: 1px `--border`; фокус — `box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-ring)`.
 
 ### Размеры контролов и плотность
@@ -121,14 +145,14 @@ Lucide, штрих 1.5px; 16px в контролах и таблицах, 20px �
 
 Все компоненты — на Radix Primitives (где есть), Tailwind-классы через `cva`, документированы в Storybook со всеми состояниями (default/hover/active/focus/disabled/loading/error/empty) в обеих темах.
 
-**Базовые**: Button (primary/secondary/ghost/danger/link; sm/md; с иконкой; loading), IconButton, SplitButton, ToggleGroup, Input, Textarea (auto-grow), NumberInput (единицы, шаг), PasswordInput, SearchInput, Select, Combobox (async, создание), MultiSelect (чипы), Checkbox, Radio, Switch, Slider, DatePicker, DateRangePicker, TimePicker, DurationInput, ColorPicker, FileDropzone, Kbd, Badge, Tag, Chip (объект/пользователь с аватаром), Avatar, AvatarGroup, Tooltip, Popover, HoverCard, DropdownMenu, ContextMenu, Dialog, AlertDialog, Sheet (боковая), Drawer (нижняя, мобильная), Toast, Tabs, SegmentedControl, Breadcrumbs, Separator, ScrollArea, Skeleton, Spinner, ProgressBar, EmptyState, ErrorState, Callout, Card, StatTile (число + дельта + искра), KeyValueList, PropertyGrid, InlineEdit, Collapsible, Accordion, Stepper, Timeline, Resizable (панели), SplitPane, Tree, VirtualList, Command (палитра), Calendar (виджет), MiniMap.
+**Базовые**: Button (primary/secondary/ghost/danger/link; sm/md; с иконкой; loading), IconButton, SplitButton, ToggleGroup, Input, Textarea (auto-grow), NumberInput (единицы, шаг), PasswordInput, SearchInput, Select, Combobox (async, создание), MultiSelect (чипы), Checkbox, Radio, Switch, Slider, DatePicker, DateRangePicker, TimePicker, DurationInput, ColorPicker, FileDropzone, Kbd, Badge, HazardMark, HazardBadge, OpsBand, Tag, Chip (объект/пользователь с аватаром), Avatar, AvatarGroup, Tooltip, Popover, HoverCard, DropdownMenu, ContextMenu, Dialog, AlertDialog, Sheet (боковая), Drawer (нижняя, мобильная), Toast, Tabs, SegmentedControl, Breadcrumbs, Separator, ScrollArea, Skeleton, Spinner, ProgressBar, EmptyState, ErrorState, Callout, Card, StatTile (число + дельта + искра), KeyValueList, PropertyGrid, InlineEdit, Collapsible, Accordion, Stepper, Timeline, Resizable (панели), SplitPane, Tree, VirtualList, Command (палитра), Calendar (виджет), MiniMap.
 
 **Составные**: DataGrid (см. паттерны), CollectionView, FilterBuilder, SortBuilder, ColumnPicker, SchemaForm, FieldRenderer (по типу), ObjectPicker, UserPicker, UnitPicker, TerritoryPicker, DatasetFieldPicker, ExpressionInput (CodeMirror, автодополнение), SqlEditor, RichTextEditor (Tiptap), MessageComposer, MessageList, Thread, CommentAnchor, ShareDialog, AccessExplainer, ActivityFeed, NotificationItem, InboxItem (с действиями), JobProgress, Chart (ChartSpec), ChartBuilder, MapView (MapLibre), LayerPanel, StyleEditor, Legend, FeatureForm, MeasureTool, DashboardGrid, TileFrame, NotebookCell, ReportPreview, DocumentCardHeader, RouteTimeline (маршрут документа), ApprovalActions, ResolutionForm, KanbanBoard, GanttView, CalendarView, MeetingRoom, ProtocolEditor, PageEditor, WorkspaceTabs, PaneLayout, ContextPanel, Rail, Navigator, StatusBar, CommandPalette, ShortcutsOverlay.
 
 ## 4. Темы графиков и карт
 
 - ECharts-тема из токенов (ADR-0049): фон прозрачный, сетка — сплошная 1px `--border`, линия оси — `--border-strong`, подписи `--text-secondary` 12px (текст никогда не цветом серии), тултип на `--bg-overlay` с рамкой и тенью `md` (разметка на классах, без встроенных стилей — CSP), палитра `--viz-*`, hover-подсветка серией, легенда снизу с чипами — только для двух и более серий. Столбцы ≤ 24px со скруглением 4px на конце, линии 2px, маркеры 8px с кольцом поверхности, зазор 2px между заливками. Числа и периоды — форматтеры платформы (`packages/fields`). Компилятор — `packages/chart-spec`, компоненты — `Chart`, `NumberTile`, `ChartTable` в `@kchs/ui`.
-- Базовая карта: приглушённые оттенки (`light`: дороги `#E4E4E8`, вода `#D9E4F5`, здания `#ECECEF`; `dark` аналогично) — данные всегда контрастнее фона. Подписи слоёв — Inter с гало цвета поверхности. Легенда — компонент дизайн-системы, не встроенная в карту.
+- Базовая карта: приглушённые оттенки (`light`: дороги и фон — нейтраль токенов, вода `#D9E4F5`, здания `#ECECEF`; `dark` аналогично) — данные всегда контрастнее фона. Цвета фона, подписей и гало берутся из `tokens.json` (`basemap-palette.ts`, тест сверяет), значки спрайта — те же (`infra/basemaps/sprites.py`). Обстановку на карте рисуют цветами шкалы обстановки. Подписи слоёв — Inter с гало цвета поверхности. Легенда — компонент дизайн-системы, не встроенная в карту.
 - Редактор кода (`SqlEditor`; та же тема — у будущего ExpressionInput): CodeMirror 6, грузится лениво отдельным чанком. Тема — CSS-переменные токенов, поэтому смена темы перекрашивает редактор без пересоздания; шрифт — `font-mono` (без лигатур), кегль `text-sm`. Подсветка: ключевые слова — `--accent`, строки — `--success`, числа и литералы — `--warning`, типы — `--purple`, комментарии — `--text-muted`, параметры `{{name}}` — `--purple` на `--purple-subtle`; имя в кавычках — обычный текст. Ошибка — волнистое подчёркивание `--danger` (`--warning`), подсказка с текстом — при наведении и у курсора, без мыши. Рамка и фокус — как у поля ввода: кольцо на рамке (`data-field`), не на области правки. Правила темы CodeMirror вставляет в `<style>` с nonce страницы (ADR-0043); `packages/ui/visual/sql-editor.spec.ts` проверяет редактор под строгим CSP. Клавиатура: `Tab` — отступ или выбор подсказки, `Escape`, затем `Tab` — выход из редактора, `⌘/Ctrl+Enter` — выполнить.
 
 ## 5. Состояния

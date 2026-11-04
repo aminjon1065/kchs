@@ -15,9 +15,9 @@ from pathlib import Path
 
 # Токены дизайн-системы (packages/ui/src/tokens/tokens.json): текст и фон холста
 THEMES = {
-    "light": {"ink": "#4F5160", "strong": "#17181C", "soft": "#666875", "halo": "#F6F6F7"},
-    "dark": {"ink": "#A6A7B2", "strong": "#ECECEF", "soft": "#8A8C99", "halo": "#0E0F11"},
-    "muted": {"ink": "#666875", "strong": "#4F5160", "soft": "#8A8C99", "halo": "#FFFFFF"},
+    "light": {"ink": "#465066", "strong": "#0F1422", "soft": "#5F687D", "halo": "#F4F5F8"},
+    "dark": {"ink": "#A5ADBF", "strong": "#E8EBF2", "soft": "#8B93A8", "halo": "#0A0D14"},
+    "muted": {"ink": "#5F687D", "strong": "#465066", "soft": "#8B93A8", "halo": "#FFFFFF"},
 }
 SAMPLES = 4
 

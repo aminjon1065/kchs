@@ -69,7 +69,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   return (
     <nav
       aria-label={t('shell.navigator.title')}
-      className="flex h-full w-(--rail-w) shrink-0 flex-col items-center gap-1 border-r border-line bg-surface-2 py-2"
+      className="flex h-full w-(--rail-w) shrink-0 flex-col items-center gap-1 border-r border-rail-line bg-rail py-2"
     >
       <button
         type="button"
@@ -237,8 +237,8 @@ function RailButton({
           'relative flex size-9 items-center justify-center rounded-md',
           'transition-colors duration-[var(--duration-fast)]',
           active
-            ? 'bg-surface text-accent shadow-sm'
-            : 'text-fg-secondary hover:bg-surface-3 hover:text-fg',
+            ? 'bg-rail-active text-rail-fg-active'
+            : 'text-rail-fg hover:bg-rail-active hover:text-rail-fg-active',
           (disabled || item.soon) && 'cursor-not-allowed opacity-40 hover:bg-transparent',
         )}
       >
@@ -255,7 +255,7 @@ function RailButton({
           </span>
         ) : null}
         {active ? (
-          <span aria-hidden className="absolute -left-2 h-5 w-0.5 rounded-r-full bg-accent" />
+          <span aria-hidden className="absolute -left-2 h-5 w-0.5 rounded-r-full bg-rail-indicator" />
         ) : null}
       </button>
     </Tooltip>

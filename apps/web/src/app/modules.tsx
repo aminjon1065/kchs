@@ -15,6 +15,7 @@ import { HomeScreen } from '~/features/home/home-screen.js'
 import { knowledgeModule } from '~/features/knowledge/module.js'
 import { meetingsModule } from '~/features/meetings/module.js'
 import { spacesModule } from '~/features/spaces/module.js'
+import { WarningsOpsBand } from '~/features/warnings/ops-band.js'
 import type { ControlScreenState } from '~/features/tasks/control-screen.js'
 import type { TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
@@ -745,6 +746,8 @@ export function registerModules(): void {
   registerModule({
     key: 'warnings',
     namespaces: ['warnings', 'processes', 'tasks'],
+    // Полоса обстановки над рабочей областью (ADR-0230) — пока действует предупреждение
+    slots: [{ key: 'ops-band', placement: 'banner', render: () => <WarningsOpsBand /> }],
     screens: [
       {
         key: 'warnings',

@@ -31,6 +31,8 @@ function ratio(a: string, b: string): number {
 const neutral = tokens.color.neutral as Record<string, { light: string; dark: string }>
 const accent = tokens.color.accent as Record<string, { light: string; dark: string }>
 const semantic = tokens.color.semantic as Record<string, { light: string; dark: string }>
+const hazard = tokens.color.hazard as Record<string, { light: string; dark: string }>
+const rail = tokens.color.rail as Record<string, { light: string; dark: string }>
 const accents = tokens.color.accents as Record<
   string,
   Record<string, { light: string; dark: string }>
@@ -138,6 +140,56 @@ for (const theme of ['light', 'dark'] as Theme[]) {
       min: TEXT_AA,
     },
   )
+
+  // Шкала обстановки (ADR-0230): номер уровня на заливке, уровень текстом на
+  // поверхностях и на своей подложке, основной и вторичный текст на подложке (полоса обстановки)
+  for (const level of [0, 1, 2, 3]) {
+    const key = `hazard-${level}`
+    checks.push(
+      {
+        name: `${key}-fg на ${key}`,
+        fg: color(hazard, `${key}-fg`),
+        bg: color(hazard, key),
+        min: TEXT_AA,
+      },
+      {
+        name: `${key}-text на ${key}-subtle`,
+        fg: color(hazard, `${key}-text`),
+        bg: color(hazard, `${key}-subtle`),
+        min: TEXT_AA,
+      },
+      {
+        name: `text на ${key}-subtle`,
+        fg: color(neutral, 'text'),
+        bg: color(hazard, `${key}-subtle`),
+        min: TEXT_AA,
+      },
+      {
+        name: `text-secondary на ${key}-subtle`,
+        fg: color(neutral, 'text-secondary'),
+        bg: color(hazard, `${key}-subtle`),
+        min: TEXT_AA,
+      },
+    )
+    for (const surface of surfaces) {
+      checks.push({
+        name: `${key}-text на ${surface}`,
+        fg: color(hazard, `${key}-text`),
+        bg: color(neutral, surface),
+        min: TEXT_AA,
+      })
+    }
+  }
+
+  // Рейл оболочки — тёмный в обеих темах: значки и подписи на его фоне
+  for (const text of ['rail-fg', 'rail-fg-active']) {
+    checks.push({
+      name: `${text} на rail-bg`,
+      fg: color(rail, text),
+      bg: color(rail, 'rail-bg'),
+      min: TEXT_AA,
+    })
+  }
 
   process.stdout.write(`\n${theme === 'light' ? 'Светлая' : 'Тёмная'} тема\n`)
   for (const check of checks) {
