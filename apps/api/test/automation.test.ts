@@ -25,6 +25,11 @@ const { declareAutomationSchedules, registerAutomationBackground, scheduleAutoma
   await import('../src/modules/automation/module.js')
 const { declareMaintenanceSchedules } = await import('../src/kernel/jobs/maintenance.js')
 const { RuleRuns } = await import('../src/modules/automation/domain/runs.js')
+const { executeRun } = await import('../src/modules/automation/domain/runner.js')
+const { BROKEN_DEFINITION } = await import('../src/modules/automation/domain/stored-rule.js')
+const { ruleRuns } = await import('../src/db-schema.js')
+const { newId } = await import('../src/shared/ids.js')
+const { eq, sql } = await import('drizzle-orm')
 const { systemCtx } = await import('../src/shared/context.js')
 
 let fx: TestContext
@@ -485,6 +490,114 @@ describe('правила автоматизации: исполнение', () =
     await createFolder(`Лимитная 2 ${run}`)
     const skipped = await waitForRun(ruleId, ['skipped'])
     expect(skipped.error).toContain('лимит')
+  })
+})
+
+describe('исполнение запуска: аренда, позиция, битое правило (ADR-0228)', () => {
+  async function manualRule(name: string, tags: string[]) {
+    const created = await createRule({
+      name,
+      runAs: bot.id,
+      trigger: { kind: 'manual', objectTypes: ['folder'] },
+      actions: tags.map((tag) => ({ type: 'add_tag', tag })),
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    return created.json().id as string
+  }
+
+  /** Запуск «как будто уже идёт» — без задания очереди: исполняет его сам тест. */
+  async function runningRun(
+    ruleId: string,
+    objectId: string,
+    patch: Partial<typeof ruleRuns.$inferInsert> = {},
+  ): Promise<string> {
+    const id = newId()
+    await db()
+      .insert(ruleRuns)
+      .values({
+        id,
+        ruleId,
+        triggerKind: 'manual',
+        status: 'running',
+        objectId,
+        actorId: bot.id,
+        context: { trigger: 'rule.manual', payload: {} },
+        startedAt: sql`now() - interval '1 hour'` as unknown as string,
+        createdAt: sql`now() - interval '1 hour'` as unknown as string,
+        ...patch,
+      })
+    return id
+  }
+
+  it('живой запуск не исполняется второй раз — ни повтором, ни обходом «зависших»', async () => {
+    const tag = `аренда-${run}`
+    const ruleId = await manualRule(`Аренда ${run}`, [tag])
+    const folderId = await createFolder(`Аренда ${run}`)
+    const runId = await runningRun(ruleId, folderId, {
+      leasedUntil: sql`now() + interval '10 minutes'` as unknown as string,
+      leaseOwner: 'другой исполнитель',
+    })
+    // Создан час назад, но аренда жива: обход его не трогает
+    expect(await RuleRuns.stale(10)).not.toContain(runId)
+    expect(await executeRun(runId)).toMatchObject({ status: 'skipped' })
+    expect(await tagsOf(folderId)).not.toContain(tag)
+
+    // Аренда истекла — исполнитель пропал: обход берёт запуск, и он доходит до конца
+    await db()
+      .update(ruleRuns)
+      .set({ leasedUntil: sql`now() - interval '1 minute'` as unknown as string })
+      .where(eq(ruleRuns.id, runId))
+    expect(await RuleRuns.stale(10)).toContain(runId)
+    expect(await executeRun(runId)).toMatchObject({ status: 'succeeded' })
+    expect(await tagsOf(folderId)).toContain(tag)
+  })
+
+  it('продолжение после сбоя идёт с записанной позиции: сделанное не повторяется', async () => {
+    const first = `первое-${run}`
+    const second = `второе-${run}`
+    const ruleId = await manualRule(`Позиция ${run}`, [first, second])
+    const folderId = await createFolder(`Позиция ${run}`)
+    // Первое действие уже выполнено, процесс упал до конца запуска
+    const runId = await runningRun(ruleId, folderId, { resumeAt: 1 })
+    expect(await executeRun(runId)).toMatchObject({ status: 'succeeded' })
+    const tags = await tagsOf(folderId)
+    expect(tags).toContain(second)
+    expect(tags).not.toContain(first)
+
+    // Позиция пишется вместе с каждым шагом
+    const [row] = await db().select().from(ruleRuns).where(eq(ruleRuns.id, runId))
+    expect(row?.resumeAt).toBe(2)
+    expect(row?.leaseOwner).toBeNull()
+  })
+
+  it('битое определение пропускает одно правило, остальные работают', async () => {
+    const marker = `Битое соседство ${run}`
+    const working = await createRule({
+      name: `Рабочее ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
+      conditions: { expr: `contains(object.title, '${marker}')` },
+      actions: [{ type: 'add_tag', tag: `рабочее-${run}` }],
+    })
+    const broken = await createRule({
+      name: `Битое ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
+      conditions: { expr: `contains(object.title, '${marker}')` },
+      actions: [{ type: 'add_tag', tag: `битое-${run}` }],
+    })
+    const workingId = working.json().id as string
+    const brokenId = broken.json().id as string
+    // Определение больше не проходит схему (ужесточили, пришло из пакета конфигурации)
+    await db().execute(
+      sql`UPDATE rules SET definition = definition || '{"actions":[{"type":"нет-такого"}]}'::jsonb WHERE id = ${brokenId}`,
+    )
+
+    const folderId = await createFolder(marker)
+    await waitForRun(workingId, ['succeeded'])
+    expect(await tagsOf(folderId)).toContain(`рабочее-${run}`)
+    const skipped = await waitForRun(brokenId, ['skipped'])
+    expect(skipped.error).toBe(BROKEN_DEFINITION)
   })
 })
 

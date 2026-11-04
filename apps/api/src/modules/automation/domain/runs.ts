@@ -26,6 +26,12 @@ import { ruleDedupe, ruleRuns, rules } from '../schema.js'
  */
 export const RULE_RUN_JOB = { queue: 'automation', name: 'rule.run' } as const
 
+/**
+ * Аренда исполнения запуска (ADR-0228): дольше предела очереди `automation` (15 мин),
+ * продлевается каждым выполненным действием.
+ */
+export const RUN_LEASE_MS = 20 * 60_000
+
 export interface QueueRunInput {
   ruleId: string
   triggerKind: RuleTriggerKind
@@ -92,11 +98,41 @@ export const RuleRuns = {
     return row ?? null
   },
 
-  async start(runId: string): Promise<void> {
+  /**
+   * Захват запуска исполнителем (ADR-0228): условный UPDATE с арендой. Второй
+   * исполнитель — повтор задания или обход «зависших» — получает `null`, пока
+   * аренда первого жива; завершённый запуск не захватывается вовсе.
+   */
+  async claim(runId: string, owner: string, leaseMs = RUN_LEASE_MS) {
+    const [row] = await db()
+      .update(ruleRuns)
+      .set({
+        status: 'running',
+        startedAt: sql`now()`,
+        error: null,
+        leasedUntil: sql`now() + make_interval(secs => ${leaseMs / 1000})`,
+        leaseOwner: owner,
+      })
+      .where(
+        and(
+          eq(ruleRuns.id, runId),
+          inArray(ruleRuns.status, ['queued', 'running', 'waiting']),
+          or(isNull(ruleRuns.leasedUntil), lt(ruleRuns.leasedUntil, sql`now()`)),
+        ),
+      )
+      .returning()
+    return row ?? null
+  },
+
+  /**
+   * Исполнение оборвалось ошибкой вне шагов (база, сеть): аренда снимается, и
+   * повтор задания продолжит запуск с записанной позиции, не дожидаясь срока.
+   */
+  async release(runId: string, owner: string): Promise<void> {
     await db()
       .update(ruleRuns)
-      .set({ status: 'running', startedAt: sql`now()`, error: null })
-      .where(eq(ruleRuns.id, runId))
+      .set({ leasedUntil: null, leaseOwner: null })
+      .where(and(eq(ruleRuns.id, runId), eq(ruleRuns.leaseOwner, owner)))
   },
 
   /** Ветка «иначе» (ADR-0163): помнится в контексте, чтобы продолжить её после `wait`. */
@@ -107,11 +143,32 @@ export const RuleRuns = {
       .where(eq(ruleRuns.id, runId))
   },
 
-  async appendStep(runId: string, step: RuleRunStep): Promise<void> {
+  /**
+   * Шаг журнала. `next` — позиция, с которой продолжить (ADR-0228): пишется вместе
+   * с шагом, и повтор после сбоя процесса не исполняет сделанное заново; заодно
+   * продлевается аренда исполнителя `owner`.
+   */
+  async appendStep(
+    runId: string,
+    step: RuleRunStep,
+    progress?: { next: number; owner: string },
+  ): Promise<void> {
     await db()
       .update(ruleRuns)
-      .set({ steps: sql`${ruleRuns.steps} || ${JSON.stringify([step])}::jsonb` })
-      .where(eq(ruleRuns.id, runId))
+      .set({
+        steps: sql`${ruleRuns.steps} || ${JSON.stringify([step])}::jsonb`,
+        ...(progress
+          ? {
+              resumeAt: progress.next,
+              leasedUntil: sql`now() + make_interval(secs => ${RUN_LEASE_MS / 1000})`,
+            }
+          : {}),
+      })
+      .where(
+        progress
+          ? and(eq(ruleRuns.id, runId), eq(ruleRuns.leaseOwner, progress.owner))
+          : eq(ruleRuns.id, runId),
+      )
   },
 
   async finish(
@@ -133,6 +190,9 @@ export const RuleRuns = {
             }
           : {}),
         ...(finished ? { finishedAt: sql`now()` } : {}),
+        // Исполнение закончено или ждёт `wait` — аренды нет (ADR-0228)
+        leasedUntil: null,
+        leaseOwner: null,
       })
       .where(eq(ruleRuns.id, runId))
   },
@@ -296,9 +356,12 @@ export const RuleRuns = {
 
   /**
    * Запуски, застрявшие без задания: очередь очищена или задание потеряно.
+   * Исполняемый берётся только по истёкшей аренде (ADR-0228): долгий живой запуск —
+   * очередь после всплеска событий, медленное действие — не исполняется второй раз.
    * Ожидание (`wait`) считается потерянным, когда его момент прошёл давно.
    */
   async stale(olderThanMinutes = 10): Promise<string[]> {
+    const old = sql`now() - make_interval(mins => ${olderThanMinutes})`
     const rows = await db()
       .select({ id: ruleRuns.id })
       .from(ruleRuns)
@@ -306,9 +369,13 @@ export const RuleRuns = {
         and(
           isNull(ruleRuns.finishedAt),
           or(
+            and(eq(ruleRuns.status, 'queued'), lt(ruleRuns.createdAt, old)),
             and(
-              inArray(ruleRuns.status, ['queued', 'running']),
-              lt(ruleRuns.createdAt, sql`now() - make_interval(mins => ${olderThanMinutes})`),
+              eq(ruleRuns.status, 'running'),
+              or(
+                lt(ruleRuns.leasedUntil, sql`now()`),
+                and(isNull(ruleRuns.leasedUntil), lt(ruleRuns.startedAt, old)),
+              ),
             ),
             and(
               eq(ruleRuns.status, 'waiting'),
