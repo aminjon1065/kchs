@@ -61,7 +61,7 @@ services:
   s3-mirror:
     <<: *dr-restart
     profiles: ["dr"]
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: pgsty/mc:RELEASE.2026-10-26T00-00-00Z@sha256:ce62c9053c69ce12a527a322345b5ad9f44b5f8a7b8189f82e516f2e3f30f1d8
     entrypoint: ["bash", "/kchs/s3-mirror.sh"]
     environment:
       KCHS_DR_PRIMARY_S3: ${KCHS_DR_PRIMARY_S3:?set KCHS_DR_PRIMARY_S3}

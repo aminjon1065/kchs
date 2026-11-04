@@ -37,7 +37,7 @@
    ```bash
    docker save kchs/postgres:17-3.5 kchs/api:<тег> kchs/engine:<тег> kchs/web:<тег> \
      redis:7-alpine getmeili/meilisearch:v1.53 axllent/mailpit:<тег> \
-     quay.io/minio/minio:<тег> quay.io/minio/mc:<тег> | ssh <узел> docker load
+     pgsty/minio:<тег>@<отпечаток> pgsty/mc:<тег>@<отпечаток> | ssh <узел> docker load
    ```
    Точные теги — `docker compose config --images` на основном.
 4. **Узел.** Та же версия репозитория; `.env` — копия основного (`scp`, режим 600) и раздел
