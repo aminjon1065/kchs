@@ -1,0 +1,6 @@
+# Разобранные находки Trivy — те же, что в auditConfig.ignoreGhsas (pnpm-workspace.yaml):
+# каждая строка — разбор, а не тишина (17-security.md §5, ADR-0121).
+
+# image-size (deck.gl → loaders.gl → texture-compressor): сжатые текстуры glTF kchs не
+# грузит, этот код в сборку web не попадает (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq)
+CVE-2025-71330

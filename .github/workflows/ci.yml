@@ -91,6 +91,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Клиент pg_dump той же версии, что сервер (17): у раннера свой 16-й, и копия
+      # отказывает «server version mismatch» (в образе api клиент нужной версии есть)
+      - name: Клиент PostgreSQL 17
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+
       - name: Секреты и инфраструктура
         run: |
           bash infra/scripts/generate-secrets.sh
@@ -154,6 +159,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # Клиент pg_dump той же версии, что сервер (17): у раннера свой 16-й, и копия
+      # отказывает «server version mismatch» (в образе api клиент нужной версии есть)
+      - name: Клиент PostgreSQL 17
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
 
       - name: Секреты и инфраструктура
         run: |
@@ -382,14 +392,13 @@ jobs:
       # `auditConfig.ignoreGhsas` (pnpm-workspace.yaml), а не тишиной флага.
       - name: Уязвимости зависимостей
         run: pnpm audit --audit-level high
+      # Trivy — официальным образом по отпечатку: trivy-action скачивал сам Trivy с
+      # зеркала, которое перестало разрешаться. Разобранные находки — .trivyignore
       - name: Trivy (файловая система)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
+        run: |
+          docker run --rm -v "$PWD:/src:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
+            fs --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --format table \
+            --ignorefile /src/.trivyignore --skip-dirs '**/node_modules' /src
       # Образы api/web/engine и ZAP baseline — в «Безопасность: образы и ZAP»
       # (security.yml): им нужна собранная установка, это минуты, а не секунды

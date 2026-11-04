@@ -75,13 +75,12 @@ jobs:
       # ignore-unfixed: уязвимость без выпущенного исправления сборку не ломает —
       # чинить её нечем; она видна в отчёте и ждёт обновления базового образа
       - name: Trivy ${{ matrix.name }}
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: kchs/${{ matrix.name }}:security
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/.trivyignore:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
+            image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --format table \
+            --ignorefile /.trivyignore kchs/${{ matrix.name }}:security
 
   zap:
     name: ZAP baseline на установке
