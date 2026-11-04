@@ -200,6 +200,7 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     pending: 'Report “{title}” is waiting to be sent',
     failed: 'Report “{title}” was not sent: {error}',
     discard: 'Remove from queue',
+    retry: 'Retry',
   },
   create: {
     title: 'New document',

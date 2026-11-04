@@ -28,6 +28,7 @@ import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
 import { Navigator } from './navigator.js'
+import { MobileOfflineStrip, OfflineQueueSignals } from './offline-signals.js'
 import { PaneArea } from './pane-area.js'
 import { usePresenceHeartbeat } from './presence.js'
 import { Rail } from './rail.js'
@@ -272,10 +273,15 @@ export function WorkspaceShell() {
       </div>
 
       {isMobile ? (
-        <MobileNav onOpenPalette={() => setPaletteOpen(true)} />
+        <>
+          <MobileOfflineStrip />
+          <MobileNav onOpenPalette={() => setPaletteOpen(true)} />
+        </>
       ) : (
         <StatusBar onShowShortcuts={() => setShortcutsOpen(true)} />
       )}
+      {/* Доставка и отказ отправок из очереди — на любом экране (ADR-0228) */}
+      <OfflineQueueSignals />
 
       {/* Оверлеи модулей: входящий звонок приходит realtime в любой вкладке (ADR-0091) */}
       {listShellSlots('overlay').map((slot) => (

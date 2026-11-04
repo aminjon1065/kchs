@@ -210,6 +210,7 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     pending: 'Хабарномаи «{title}» интизори ирсол аст',
     failed: 'Хабарномаи «{title}» фиристода нашуд: {error}',
     discard: 'Аз навбат хориҷ кардан',
+    retry: 'Такрор кардан',
   },
   create: {
     title: 'Ҳуҷҷати нав',

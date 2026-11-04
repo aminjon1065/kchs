@@ -69,6 +69,7 @@ export const forms: DeepPartial<Dictionary['forms']> = {
     sent: 'Queued report submitted',
     failed: 'Queued report not submitted: {error}',
     discard: 'Remove from queue',
+    retry: 'Retry',
     openedOffline:
       'No network — the report is opened on the device. Submit it and it will be sent once the connection is back',
     draftOffline:

@@ -103,10 +103,19 @@ async function base64(blob: Blob): Promise<string> {
   return url.slice(url.indexOf(',') + 1)
 }
 
-type Upload = (submissionId: string, photo: LocalPhoto) => Promise<FormPhoto>
+/**
+ * Режим «от имени» досылки (ADR-0228): снимки записи очереди грузятся в том режиме,
+ * в котором запись создана; не задан — текущий режим.
+ */
+export interface SendMode {
+  onBehalfOf?: string | null
+}
 
-const uploadPhoto: Upload = async (submissionId, photo) =>
+type Upload = (submissionId: string, photo: LocalPhoto, mode?: SendMode) => Promise<FormPhoto>
+
+const uploadPhoto: Upload = async (submissionId, photo, mode = {}) =>
   http.post('/forms/submissions/:sid/photos', {
+    ...mode,
     params: { sid: submissionId },
     body: { clientKey: photo.id, fieldKey: photo.fieldKey, data: await base64(photo.blob) },
   })
@@ -126,7 +135,12 @@ export function setPhotoUploader(next: Upload | null): void {
  */
 export async function resolvePhotos<
   T extends { values: Record<string, unknown>; rows?: Array<Record<string, unknown>> },
->(submissionId: string, userId: string, body: T): Promise<{ body: T; uploaded: string[] }> {
+>(
+  submissionId: string,
+  userId: string,
+  body: T,
+  mode: SendMode = {},
+): Promise<{ body: T; uploaded: string[] }> {
   const uploaded: string[] = []
   const cache = new Map<string, string>()
   const resolve = async (values: Record<string, unknown>) => {
@@ -140,7 +154,7 @@ export async function resolvePhotos<
       }
       const photo = await localPhoto(value, userId)
       if (!photo) continue
-      const fileId = photo.fileId ?? (await upload(submissionId, photo)).id
+      const fileId = photo.fileId ?? (await upload(submissionId, photo, mode)).id
       if (!photo.fileId) await write(PHOTOS_STORE, { ...photo, fileId })
       cache.set(value, fileId)
       uploaded.push(photo.id)
@@ -153,10 +167,15 @@ export async function resolvePhotos<
   return { body: { ...body, values, ...(rows ? { rows } : {}) }, uploaded }
 }
 
-type DocumentUpload = (documentId: string, photo: LocalPhoto) => Promise<DocumentPhoto>
+type DocumentUpload = (
+  documentId: string,
+  photo: LocalPhoto,
+  mode?: SendMode,
+) => Promise<DocumentPhoto>
 
-const uploadToDocument: DocumentUpload = async (documentId, photo) =>
+const uploadToDocument: DocumentUpload = async (documentId, photo, mode = {}) =>
   http.post('/documents/:id/photos', {
+    ...mode,
     params: { id: documentId },
     body: { clientKey: photo.id, data: await base64(photo.blob) },
   })
@@ -177,11 +196,12 @@ export async function uploadDocumentPhotos(
   documentId: string,
   userId: string,
   ids: readonly string[],
+  mode: SendMode = {},
 ): Promise<void> {
   for (const id of ids) {
     const photo = await localPhoto(id, userId)
     if (!photo || photo.fileId) continue
-    const uploaded = await documentUpload(documentId, photo)
+    const uploaded = await documentUpload(documentId, photo, mode)
     await write(PHOTOS_STORE, { ...photo, fileId: uploaded.id })
   }
 }

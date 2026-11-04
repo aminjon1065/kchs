@@ -8,7 +8,14 @@ import type {
 import { useSyncExternalStore } from 'react'
 import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
-import { forgetPhotos, resolvePhotos, sweepPhotos, uploadDocumentPhotos } from './photos.js'
+import { getCsrfToken, getOnBehalfOf, setCsrfToken } from '~/shared/api/session.js'
+import {
+  forgetPhotos,
+  resolvePhotos,
+  type SendMode,
+  sweepPhotos,
+  uploadDocumentPhotos,
+} from './photos.js'
 import { CACHE_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
 
 /**
@@ -42,6 +49,11 @@ export interface FormSubmitEntry {
   localId?: string | null
   formId: string
   body: FormSubmissionSubmitInput
+  /**
+   * Режим «от имени», в котором сдачу поставили в очередь (ADR-0228): досылка идёт в
+   * нём же, а не в текущем. Нет поля — запись старой версии, досылается в текущем.
+   */
+  onBehalfOf?: string | null
 }
 
 /**
@@ -63,6 +75,8 @@ export interface DocumentCreateEntry {
   body: DocumentCreateInput & { clientKey: string }
   /** Ключи снимков на устройстве. */
   photos: string[]
+  /** Режим «от имени» на момент создания донесения (ADR-0228). */
+  onBehalfOf?: string | null
 }
 
 export type OfflineEntry = FormSubmitEntry | DocumentCreateEntry
@@ -88,8 +102,14 @@ export interface DocumentSent {
 type DocumentSender = (entry: DocumentCreateEntry) => Promise<DocumentSent>
 type DocumentSentListener = (entry: DocumentCreateEntry, sent: DocumentSent) => void
 
+/** Режим записи для её запросов; запись старой версии — текущий режим. */
+function modeOf(entry: OfflineEntry): SendMode {
+  return entry.onBehalfOf === undefined ? {} : { onBehalfOf: entry.onBehalfOf }
+}
+
 const sendSubmit: Sender = (entry) =>
   http.post('/forms/submissions/:sid/submit', {
+    ...modeOf(entry),
     params: { sid: entry.submissionId },
     body: entry.body,
   })
@@ -97,18 +117,19 @@ const sendSubmit: Sender = (entry) =>
 const openSubmission: Opener = (entry) => {
   if (!entry.open) throw new Error('open')
   return http.post('/forms/:id/submissions', {
+    ...modeOf(entry),
     params: { id: entry.formId },
     body: entry.open,
   })
 }
 
 const sendDocumentCreate: DocumentSender = async (entry) => {
-  const { id } = await http.post('/documents', { body: entry.body })
-  await uploadDocumentPhotos(id, entry.userId, entry.photos)
+  const { id } = await http.post('/documents', { ...modeOf(entry), body: entry.body })
+  await uploadDocumentPhotos(id, entry.userId, entry.photos, modeOf(entry))
   // На регистрацию — после снимков: в черновик они ещё ложатся. Повтор безопасен: маршрут
   // уже идёт — тот же ответ (ADR-0212)
   try {
-    const result = await http.post('/documents/:id/intake', { params: { id } })
+    const result = await http.post('/documents/:id/intake', { ...modeOf(entry), params: { id } })
     return { id, intake: result.state, error: null }
   } catch (error) {
     if (isRetryable(error) || (error instanceof ApiError && error.status === 401)) throw error
@@ -126,6 +147,7 @@ let flushing: Promise<void> | null = null
 const listeners = new Set<() => void>()
 const sentListeners = new Set<SentListener>()
 const documentListeners = new Set<DocumentSentListener>()
+const failedListeners = new Set<(entry: OfflineEntry) => void>()
 
 function emit(): void {
   for (const listener of listeners) listener()
@@ -147,6 +169,46 @@ export function isRetryable(error: unknown): boolean {
   if (error instanceof TypeError) return true
   if (error instanceof ApiError) return [0, 408, 429, 502, 503, 504].includes(error.status)
   return false
+}
+
+/**
+ * Сбой сервера (5xx) досылка повторяет, но не бесконечно: ошибка, которая
+ * повторяется на каждой попытке, — это уже не сбой, а отказ, и запись ждёт человека.
+ */
+const MAX_SERVER_ATTEMPTS = 20
+
+function retryLater(error: unknown, attempts: number): boolean {
+  if (isRetryable(error)) return true
+  return error instanceof ApiError && error.status >= 500 && attempts < MAX_SERVER_ATTEMPTS
+}
+
+type CsrfRefresher = () => Promise<string | null>
+
+const refreshCsrf: CsrfRefresher = async () => (await http.get('/me')).session.csrfToken || null
+
+let csrfRefresher: CsrfRefresher = refreshCsrf
+
+/** Подмена обновления токена CSRF — для тестов очереди. */
+export function setCsrfRefresher(next: CsrfRefresher | null): void {
+  csrfRefresher = next ?? refreshCsrf
+}
+
+/**
+ * Токен CSRF для досылки (ADR-0228). Приложение, открытое без сети по профилю
+ * устройства, токена не знает (ADR-0207): сеть вернулась — досылка сначала
+ * перечитывает сессию, иначе сервер отклонил бы запись как подложную. Нет сети или
+ * сессии — досылка ждёт.
+ */
+async function ensureCsrf(force = false): Promise<boolean> {
+  if (!force && getCsrfToken()) return true
+  try {
+    const token = await csrfRefresher()
+    if (!token) return false
+    setCsrfToken(token)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Подмена отправки — для тестов очереди. */
@@ -186,6 +248,7 @@ export async function submitDocument(input: {
     title: input.title,
     body: input.body,
     photos: input.photos,
+    onBehalfOf: getOnBehalfOf(),
   }
   try {
     const sent = await sendDocument(entry)
@@ -232,10 +295,42 @@ export async function enqueueFormSubmit(input: {
     localId: input.submissionId.startsWith(LOCAL_SUBMISSION) ? input.submissionId : null,
     formId: input.formId,
     body: { ...input.body, clientKey: id },
+    onBehalfOf: getOnBehalfOf(),
   }
   await write(QUEUE_STORE, entry)
   if (input.userId === currentUser) await reload()
   return entry
+}
+
+/** Одна запись очереди на сервер; сводка, открытая без сети, — сначала открывается. */
+async function deliver(pending: OfflineEntry): Promise<void> {
+  let entry: OfflineEntry = pending
+  if (entry.kind === 'document.create') {
+    // Донесение (ADR-0212): повтор создания с тем же ключом — тот же документ
+    const sent = await sendDocument(entry)
+    await remove(QUEUE_STORE, entry.id)
+    await forgetPhotos(entry.photos)
+    for (const listener of documentListeners) listener(entry, sent)
+    return
+  }
+  // Сводку открыли без сети — сначала открыть на сервере (ADR-0208)
+  if (entry.open && entry.submissionId.startsWith(LOCAL_SUBMISSION)) {
+    const opened = await openRemote(entry)
+    entry = { ...entry, submissionId: opened.id }
+    await write(QUEUE_STORE, entry)
+  }
+  const form: FormSubmitEntry = entry
+  // Снимки — до сдачи: значение поля становится файлом сервера
+  const { body, uploaded } = await resolvePhotos(
+    form.submissionId,
+    form.userId,
+    form.body,
+    modeOf(form),
+  )
+  const result = await send({ ...form, body })
+  await remove(QUEUE_STORE, form.id)
+  await forgetPhotos(uploaded)
+  for (const listener of sentListeners) listener(form, result)
 }
 
 /** Дослать очередь: по порядку, до первой сетевой ошибки. Один проход за раз. */
@@ -244,47 +339,48 @@ export function flushOfflineQueue(): Promise<void> {
   flushing = (async () => {
     try {
       await reload()
-      for (const pending of snapshot.filter((item) => item.state === 'pending')) {
-        let entry: OfflineEntry = pending
+      const queue = snapshot.filter((item) => item.state === 'pending')
+      if (queue.length === 0) return
+      // Без токена CSRF изменяющий запрос сервер отклонит — сначала сессия (ADR-0228)
+      if (!(await ensureCsrf())) return
+      for (const pending of queue) {
+        // Запись могли изменить, пока шли предыдущие: берём её свежей
+        const entry =
+          (await readOne<OfflineEntry>(QUEUE_STORE, pending.id).catch(() => undefined)) ?? pending
         try {
-          if (entry.kind === 'document.create') {
-            // Донесение (ADR-0212): повтор создания с тем же ключом — тот же документ
-            const sent = await sendDocument(entry)
-            await remove(QUEUE_STORE, entry.id)
-            await forgetPhotos(entry.photos)
-            for (const listener of documentListeners) listener(entry, sent)
-            continue
+          try {
+            await deliver(entry)
+          } catch (error) {
+            // 403 бывает и от устаревшего токена CSRF (сессию переоткрыли на другом
+            // устройстве, токен в профиле пустой): один повтор со свежим токеном
+            if (!(error instanceof ApiError && error.status === 403)) throw error
+            if (!(await ensureCsrf(true))) throw error
+            await deliver(
+              (await readOne<OfflineEntry>(QUEUE_STORE, entry.id).catch(() => undefined)) ?? entry,
+            )
           }
-          // Сводку открыли без сети — сначала открыть на сервере (ADR-0208)
-          if (entry.open && entry.submissionId.startsWith(LOCAL_SUBMISSION)) {
-            const opened = await openRemote(entry)
-            entry = { ...entry, submissionId: opened.id }
-            await write(QUEUE_STORE, entry)
-          }
-          const form: FormSubmitEntry = entry
-          // Снимки — до сдачи: значение поля становится файлом сервера
-          const { body, uploaded } = await resolvePhotos(form.submissionId, form.userId, form.body)
-          const result = await send({ ...form, body })
-          await remove(QUEUE_STORE, form.id)
-          await forgetPhotos(uploaded)
-          for (const listener of sentListeners) listener(form, result)
         } catch (error) {
+          // Досылка могла продвинуть запись (сводка открыта на сервере) — дальше от неё
+          const current =
+            (await readOne<OfflineEntry>(QUEUE_STORE, entry.id).catch(() => undefined)) ?? entry
           // Сессия кончилась (приложение открыто без сети по профилю устройства):
           // отправка ждёт нового входа, а не становится «не сдана»
           if (error instanceof ApiError && error.status === 401) {
-            await write(QUEUE_STORE, entry)
+            await write(QUEUE_STORE, current)
             break
           }
-          if (isRetryable(error)) {
-            await write(QUEUE_STORE, { ...entry, attempts: entry.attempts + 1 })
+          if (retryLater(error, current.attempts + 1)) {
+            await write(QUEUE_STORE, { ...current, attempts: current.attempts + 1 })
             break
           }
-          await write(QUEUE_STORE, {
-            ...entry,
-            attempts: entry.attempts + 1,
+          const failed: OfflineEntry = {
+            ...current,
+            attempts: current.attempts + 1,
             state: 'failed',
             error: error instanceof Error ? error.message : String(error),
-          })
+          }
+          await write(QUEUE_STORE, failed)
+          for (const listener of failedListeners) listener(failed)
         }
       }
     } finally {
@@ -293,6 +389,18 @@ export function flushOfflineQueue(): Promise<void> {
     }
   })()
   return flushing
+}
+
+/**
+ * Повторить отклонённую отправку (ADR-0228): человек исправил причину (допуск,
+ * дежурная смена) или ошибка была временной — запись снова ждёт досылки.
+ */
+export async function retryOfflineEntry(id: string): Promise<void> {
+  const entry = await readOne<OfflineEntry>(QUEUE_STORE, id).catch(() => undefined)
+  if (!entry || entry.userId !== currentUser) return
+  await write(QUEUE_STORE, { ...entry, state: 'pending', error: null, attempts: 0 })
+  await reload()
+  await flushOfflineQueue()
 }
 
 /**
@@ -310,6 +418,15 @@ export async function discardOfflineEntry(id: string): Promise<void> {
 export function onOfflineSent(listener: SentListener): () => void {
   sentListeners.add(listener)
   return () => sentListeners.delete(listener)
+}
+
+/**
+ * Сервер отклонил запись из очереди по существу (ADR-0228): экран давно закрыт —
+ * оболочка сообщает сразу, а не только гаснущим счётчиком.
+ */
+export function onOfflineFailed(listener: (entry: OfflineEntry) => void): () => void {
+  failedListeners.add(listener)
+  return () => failedListeners.delete(listener)
 }
 
 /** Донесение из очереди дошло: документ создан на сервере, регистрация — в `sent.intake`. */

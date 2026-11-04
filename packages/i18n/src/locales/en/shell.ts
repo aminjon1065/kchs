@@ -148,6 +148,11 @@ export const shell: DeepPartial<Dictionary['shell']> = {
       'No network: submissions are kept on this device and will be sent automatically once the connection is back',
     reportSent: 'Queued situation report sent',
     reportSaved: 'Queued situation report saved as a draft — it was not sent for registration',
+    offlineFailed:
+      '{count, plural, one {# submission was rejected} other {# submissions were rejected}}',
+    offlineFailedHint:
+      'The server rejected a queued submission. Open the report or form: the reason and a Retry button are there',
+    offlineFailedToast: 'A queued submission was rejected: {error}',
   },
   palette: {
     placeholder: 'Search objects and commands…',

@@ -41,6 +41,7 @@ import {
   LOCAL_SUBMISSION,
   OFFLINE_AWARE,
   onOfflineSent,
+  retryOfflineEntry,
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
 import { useFieldControls } from '../data/field-controls.js'
@@ -367,13 +368,22 @@ export function FormFillTab({ form }: { form: FormRecord }) {
               title={t('forms.offline.pending')}
               action={
                 queued.state === 'failed' ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void discardOfflineEntry(queued.id)}
-                  >
-                    {t('forms.offline.discard')}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void retryOfflineEntry(queued.id)}
+                    >
+                      {t('forms.offline.retry')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void discardOfflineEntry(queued.id)}
+                    >
+                      {t('forms.offline.discard')}
+                    </Button>
+                  </div>
                 ) : undefined
               }
             >

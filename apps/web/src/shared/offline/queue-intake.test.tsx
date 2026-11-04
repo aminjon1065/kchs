@@ -11,6 +11,8 @@ import { QUEUE_STORE, readAll } from './store.js'
 let stop: () => void = () => undefined
 
 beforeEach(() => {
+  // Сессия есть: токен CSRF досылка берёт из /me (ADR-0228)
+  queue.setCsrfRefresher(async () => 'csrf-test')
   stop = queue.startOfflineQueue('u1')
 })
 
@@ -18,6 +20,7 @@ afterEach(async () => {
   for (const entry of await readAll<{ id: string }>(QUEUE_STORE)) {
     await queue.discardOfflineEntry(entry.id)
   }
+  queue.setCsrfRefresher(null)
   stop()
 })
 
