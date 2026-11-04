@@ -63,7 +63,8 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     showAll: 'Show all',
     save: 'Save map',
     saved: 'Map saved',
-    staleVersion: 'Another employee saved this map in the meantime. Your changes were not saved — reload the map and make them again',
+    staleVersion:
+      'Another employee saved this map in the meantime. Your changes were not saved — reload the map and make them again',
   },
   basemap: {
     open: 'Map basemap',
