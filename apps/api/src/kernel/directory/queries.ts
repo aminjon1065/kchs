@@ -37,8 +37,9 @@ export const DirectoryQueries = {
 
   /** Сотрудники подразделения и всех вложенных подразделений. */
   async unitMembers(unitId: string, database: Database = db()): Promise<string[]> {
+    // DISTINCT требует ключ сортировки в выборке — тем же выражением, что и в ORDER BY
     const rows = await database
-      .selectDistinct({ id: users.id, name: users.displayName })
+      .selectDistinct({ id: users.id, name: natural(users.displayName) })
       .from(orgClosure)
       .innerJoin(employments, eq(employments.unitId, orgClosure.unitId))
       .innerJoin(users, eq(users.id, employments.userId))
