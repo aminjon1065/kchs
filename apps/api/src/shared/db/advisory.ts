@@ -8,6 +8,8 @@ export const ADVISORY_LOCKS = {
   storageUpgrade: 725_130_002,
   /** Партиции журнала аудита (`partitions.ts`). */
   auditPartitions: 725_130_003,
+  /** Одиночные задания (`kernel/jobs/exclusive.ts`, ADR-0228): второй ключ — хэш имени. */
+  singleJob: 725_130_004,
 } as const
 
 /**

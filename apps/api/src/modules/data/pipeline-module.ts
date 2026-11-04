@@ -173,6 +173,10 @@ export function registerPipelineBackground(): void {
     queue: PIPELINE_SCHEDULE_JOB.queue,
     name: PIPELINE_SCHEDULE_JOB.name,
     concurrency: 1,
+    // Одиночность — по пайплайну: разные пайплайны идут параллельно (ADR-0228)
+    exclusive: {
+      key: (job) => String((job.data as { pipelineId?: unknown }).pipelineId ?? ''),
+    },
     handle: async (job) => {
       const pipelineId = String((job.data as { pipelineId?: unknown }).pipelineId ?? '')
       if (!pipelineId) return { skipped: true }

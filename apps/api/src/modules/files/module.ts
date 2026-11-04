@@ -363,6 +363,8 @@ export function registerFilesBackground(): void {
     queue: 'maintenance',
     name: 'files.delete-stored',
     concurrency: 1,
+    // У каждого задания свои ключи хранилища: занято — отложить, а не потерять (ADR-0228)
+    exclusive: { whenBusy: 'defer' },
     handle: async (job) => {
       const keys = (value: unknown) =>
         Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string') : []

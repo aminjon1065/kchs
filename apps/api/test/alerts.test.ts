@@ -148,6 +148,21 @@ describe('алерты на показатели', () => {
     expect(second.json().outcomes[0].suppressed).toBe(true)
   })
 
+  it('параллельные тики проверяют алерт один раз (ADR-0228)', async () => {
+    const { AlertJobs } = await import('../src/modules/alerts/domain/alert-jobs.js')
+    // Без периода тишины: второй тик, будь он допущен, сработал бы снова
+    const created = await createAlert({ cooldownMinutes: 0 })
+    const alertId = created.json().id as string
+    await db().execute(
+      sql`UPDATE alerts SET enabled = true, next_run_at = now() - interval '1 minute' WHERE id = ${alertId}`,
+    )
+    await Promise.all([AlertJobs.tick(), AlertJobs.tick(), AlertJobs.tick()])
+    const [row] = await db().execute<{ count: number }>(
+      sql`SELECT count(*)::int AS count FROM alert_events WHERE alert_id = ${alertId}`,
+    )
+    expect(row?.count).toBe(1)
+  })
+
   it('условие не выполнено — срабатывания нет', async () => {
     const created = await createAlert({ condition: { kind: 'threshold', op: 'gt', value: 1000 } })
     const alertId = created.json().id as string

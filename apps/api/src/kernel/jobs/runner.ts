@@ -1,19 +1,33 @@
 import { performance } from 'node:perf_hooks'
 import { QUEUE_RUNTIME, type QueueName } from '@kchs/contracts'
 import { SpanKind } from '@opentelemetry/api'
-import { type Job, type Processor, UnrecoverableError, Worker } from 'bullmq'
+import { DelayedError, type Job, type Processor, UnrecoverableError, Worker } from 'bullmq'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
 import { meter } from '~/shared/telemetry/metrics.js'
 import { contextFromMetadata, withSpan } from '~/shared/telemetry/tracing.js'
 import { isCancelRequested, JobCancelledError, watchCancellation } from './cancellation.js'
+import { type HeldJobLock, tryJobLock } from './exclusive.js'
 import { startEngineJobEvents, stopEngineJobEvents } from './reconcile.js'
 import { closeQueues, JobService } from './service.js'
 
 export interface JobHandler {
   queue: QueueName
   name: string
+  /**
+   * Слотов на процесс. `1` — задание одиночное (ADR-0228): одновременно идёт одно
+   * исполнение на всю установку, сколько бы слотов ни было у очереди и процессов
+   * worker; настройка — `exclusive`.
+   */
   concurrency?: number
+  /**
+   * Одиночное исполнение (ADR-0228). По умолчанию — у заданий с `concurrency: 1`:
+   * ключ — имя задания, занято — исполнение пропускается (регулярная проверка
+   * сделает своё в следующий раз). `key` — одиночность по своему объекту (источник,
+   * пространство); `whenBusy: 'defer'` — задание с полезной нагрузкой не теряется, а
+   * откладывается. `false` — без одиночности.
+   */
+  exclusive?: false | { key?: (job: Job) => string; whenBusy?: 'skip' | 'defer' }
   /** Свой предел времени, мс, если работа заведомо дольше предела очереди. */
   timeoutMs?: number
   handle: (job: Job, helpers: JobHelpers) => Promise<Record<string, unknown> | undefined>
@@ -49,6 +63,26 @@ export const QUEUE_TIMEOUT_MS: Partial<Record<QueueName, number>> = {
   'process-timers': 5 * MINUTE,
 }
 const DEFAULT_TIMEOUT_MS = 30 * MINUTE
+
+/** Через сколько повторить отложенное одиночное задание, если такое же ещё идёт. */
+let busyDeferMs = 30_000
+
+/** Задержка отложенного одиночного задания — тестам, чтобы не ждать полминуты. */
+export function setBusyDeferMs(ms: number): void {
+  busyDeferMs = ms
+}
+
+/** Ключ одиночного исполнения задания или `null`, если одиночности нет. */
+function exclusiveKey(queueName: QueueName, handler: JobHandler, job: Job): string | null {
+  const exclusive = handler.exclusive ?? (handler.concurrency === 1 ? {} : false)
+  if (exclusive === false) return null
+  const base = `${queueName}:${handler.name}`
+  return exclusive.key ? `${base}:${exclusive.key(job)}` : base
+}
+
+function whenBusy(handler: JobHandler): 'skip' | 'defer' {
+  return (handler.exclusive ? handler.exclusive.whenBusy : undefined) ?? 'skip'
+}
 
 /** Задание не уложилось в предел времени. */
 export class JobTimeoutError extends Error {
@@ -96,9 +130,44 @@ export function startWorkers(): void {
 
   for (const [queueName, queueHandlers] of byQueue) {
     const concurrency = Math.max(...queueHandlers.map((h) => h.concurrency ?? 4))
-    const run = async (job: Job, handler: JobHandler) => {
+    const run = async (job: Job, handler: JobHandler, token: string | undefined) => {
       const recordId = await ensureRecord(queueName, job)
       const log = logger().child({ queue: queueName, job: job.name, jobId: recordId })
+
+      // Одиночное задание (ADR-0228): такое же уже идёт — пропустить или отложить
+      const lockKey = exclusiveKey(queueName, handler, job)
+      const lock: HeldJobLock | null = lockKey ? await tryJobLock(lockKey) : null
+      if (lockKey && !lock) {
+        if (whenBusy(handler) === 'defer' && token) {
+          log.info('такое же задание ещё идёт — откладываем')
+          await job.moveToDelayed(Date.now() + busyDeferMs, token)
+          throw new DelayedError()
+        }
+        log.info('такое же задание ещё идёт — пропускаем')
+        if (await JobService.start(recordId)) await JobService.finish(recordId, { skipped: 'busy' })
+        return { skipped: 'busy' }
+      }
+      // Работа обработчика: блокировка снимается, когда она действительно закончилась,
+      // а не когда слот освободил предел времени или отмена
+      const holder: { work: Promise<unknown> | null } = { work: null }
+      try {
+        return await runLocked(job, handler, recordId, log, holder)
+      } finally {
+        if (lock) {
+          const settle = () => lock.release().catch(() => undefined)
+          if (holder.work) void holder.work.then(settle, settle)
+          else await settle()
+        }
+      }
+    }
+
+    const runLocked = async (
+      job: Job,
+      handler: JobHandler,
+      recordId: string,
+      log: ReturnType<typeof logger>,
+      holder: { work: Promise<unknown> | null },
+    ) => {
       const started = performance.now()
       const record = (outcome: string) =>
         duration.record((performance.now() - started) / 1000, {
@@ -120,15 +189,14 @@ export function startWorkers(): void {
       try {
         // Отмена могла прийти между постановкой и подпиской на сигнал
         if (await isCancelRequested(recordId)) controller.abort(new JobCancelledError())
-        const result = await untilAborted(
-          handler.handle(job, {
-            recordId,
-            progress: (value, message) => JobService.progress(recordId, value, message),
-            log,
-            signal: controller.signal,
-          }),
-          controller.signal,
-        )
+        const work = handler.handle(job, {
+          recordId,
+          progress: (value, message) => JobService.progress(recordId, value, message),
+          log,
+          signal: controller.signal,
+        })
+        holder.work = work
+        const result = await untilAborted(work, controller.signal)
         await JobService.finish(recordId, result ?? {})
         record('succeeded')
         return result
@@ -151,7 +219,7 @@ export function startWorkers(): void {
       }
     }
 
-    const processor: Processor = async (job) => {
+    const processor: Processor = async (job, token) => {
       const handler = handlers.get(`${queueName}:${job.name}`)
       if (!handler) throw new UnrecoverableError(`Нет обработчика для ${queueName}:${job.name}`)
       // Задание продолжает трассу запроса, который его поставил (`JobService.schedule`)
@@ -169,7 +237,7 @@ export function startWorkers(): void {
             'kchs.job.attempt': job.attemptsMade + 1,
           },
         },
-        () => run(job, handler),
+        () => run(job, handler, token),
       )
     }
 

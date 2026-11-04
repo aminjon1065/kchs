@@ -10,7 +10,8 @@ import { db, registerLifecycle, setupFixture, type TestContext } from './helpers
  */
 registerLifecycle()
 
-const { NotificationService } = await import('../src/kernel/notifications/service.js')
+const { NotificationService, deliverEmail } = await import('../src/kernel/notifications/service.js')
+const { mailConfigured } = await import('../src/shared/mail/index.js')
 const { notificationChannel, setNotificationChannel } = await import(
   '../src/kernel/notifications/channels.js'
 )
@@ -108,5 +109,26 @@ describe('повторная доставка события', () => {
     await NotificationService.notify(alarm(text))
     await NotificationService.notify(alarm(text))
     expect(await rows(text)).toBe(2)
+  })
+})
+
+describe('письмо уведомления (ADR-0228)', () => {
+  it('дайджест и немедленная доставка одновременно — письмо уходит один раз', async () => {
+    if (!mailConfigured()) return
+    const text = `Письмо один раз ${run}`
+    await NotificationService.notify({
+      userIds: [fx.users.member.id],
+      category: 'discussion',
+      titleKey: 'notifications.tpl.automation',
+      params: { text },
+      channels: ['app', 'email'],
+    })
+    const [row] = await db().execute<{ id: number }>(
+      sql`SELECT id FROM notifications WHERE params->>'text' = ${text}`,
+    )
+    if (!row) throw new Error('уведомления нет')
+    await db().execute(sql`UPDATE notifications SET emailed_at = NULL WHERE id = ${row.id}`)
+    const counts = await Promise.all([deliverEmail([row.id]), deliverEmail([row.id])])
+    expect(counts.reduce((sum, value) => sum + value, 0)).toBe(1)
   })
 })

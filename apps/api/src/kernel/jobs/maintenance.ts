@@ -46,6 +46,9 @@ export function registerMaintenanceJobs(): void {
     queue: 'index',
     name: 'search.reindex-space',
     concurrency: 1,
+    // Пространство — одно исполнение за раз; повтор откладывается: правки после
+    // начала прохода он должен увидеть (ADR-0228)
+    exclusive: { key: (job) => String(job.data.spaceId), whenBusy: 'defer' },
     handle: async (job, helpers) => {
       const count = await reindexSpace(String(job.data.spaceId))
       await helpers.progress(1, `переиндексировано объектов: ${count}`)

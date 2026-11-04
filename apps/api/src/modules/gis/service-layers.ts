@@ -182,6 +182,8 @@ export function registerServiceLayerBackground(): void {
     queue: SERVICE_LAYER_IMPORT_JOB.queue,
     name: SERVICE_LAYER_IMPORT_JOB.name,
     concurrency: 1,
+    // Выгрузки идут по одной; следующая откладывается, а не пропадает (ADR-0228)
+    exclusive: { whenBusy: 'defer' },
     handle: async (job, helpers) => {
       const record = await JobService.get(helpers.recordId)
       const ctx = record?.initiatorId ? await buildUserCtxFor(record.initiatorId) : null
