@@ -62,6 +62,49 @@ describe('мигратор', () => {
     await expect(runMigrations()).resolves.toMatchObject({ applied: [] })
   })
 
+  it('миграция ждёт блокировку недолго и повторяет попытку, когда таблица освободилась (ADR-0227)', async () => {
+    const { cp, mkdtemp, rm, writeFile } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const path = await import('node:path')
+    const { migrationsDir } = await import('../src/shared/db/migrate.js')
+    const dir = await mkdtemp(path.join(tmpdir(), 'kchs-migrations-'))
+    const name = '9999_lock_probe.sql'
+    await cp(migrationsDir(), dir, { recursive: true })
+    await writeFile(path.join(dir, name), 'ALTER TABLE public.lock_probe ADD COLUMN probe integer')
+    await withMigratorConnection((owner) => owner`CREATE TABLE public.lock_probe (id integer)`)
+    const previous = process.env.KCHS_MIGRATIONS_DIR
+    process.env.KCHS_MIGRATIONS_DIR = dir
+    // Долгое чтение держит таблицу: ALTER не встаёт в очередь за ним навсегда
+    let release: () => void = () => undefined
+    const held = withMigratorConnection((owner) =>
+      owner.begin(async (tx) => {
+        await tx`LOCK TABLE public.lock_probe IN ACCESS SHARE MODE`
+        await new Promise<void>((resolve) => {
+          release = resolve
+        })
+      }),
+    )
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const started = Date.now()
+      setTimeout(() => release(), 12_000)
+      const result = await runMigrations()
+      expect(result.applied).toEqual([name])
+      // Первая попытка отказалась по lock_timeout (10 с), вторая прошла после снятия блокировки
+      expect(Date.now() - started).toBeGreaterThan(10_000)
+    } finally {
+      release()
+      await held
+      if (previous === undefined) delete process.env.KCHS_MIGRATIONS_DIR
+      else process.env.KCHS_MIGRATIONS_DIR = previous
+      await withMigratorConnection(async (owner) => {
+        await owner`DROP TABLE IF EXISTS public.lock_probe`
+        await owner`DELETE FROM public.__migrations WHERE name = ${name}`
+      })
+      await rm(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
+
   it('журнал миграций приложение только читает; мигратор работает как прежде', async () => {
     const [first] = await db().execute<{ name: string }>(
       sql`SELECT name FROM public.__migrations ORDER BY name LIMIT 1`,

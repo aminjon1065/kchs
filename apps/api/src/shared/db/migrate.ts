@@ -9,6 +9,7 @@ import { ADVISORY_LOCKS } from './advisory.js'
 import { rawSql } from './client.js'
 import { applyGrants } from './grants.js'
 import { ensureAuditPartitions } from './partitions.js'
+import { pgErrorCode } from './pg-error.js'
 
 /** Блокировка, чтобы несколько инстансов api не мигрировали одновременно. */
 const ADVISORY_LOCK_ID = ADVISORY_LOCKS.migrations
@@ -38,6 +39,15 @@ export interface MigrationResult {
 async function listMigrationFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir)
   return entries.filter((f) => f.endsWith('.sql')).sort()
+}
+
+/** Ожидание блокировки одной миграцией и число попыток (ADR-0227). */
+const MIGRATION_LOCK_TIMEOUT = '10s'
+const MIGRATION_LOCK_ATTEMPTS = 5
+
+/** Отказ по `lock_timeout` (SQLSTATE 55P03 lock_not_available). */
+function isLockTimeout(error: unknown): boolean {
+  return pgErrorCode(error) === '55P03'
 }
 
 /**
@@ -88,17 +98,30 @@ export async function runMigrations(): Promise<MigrationResult> {
       const body = bodies.get(file) ?? ''
       const hash = contentHash(body)
       log.info({ migration: file }, 'применяю миграцию')
-      await sql.begin(async (tx) => {
-        // statement-breakpoint — разделитель, который ставит drizzle-kit
-        const statements = body
-          .split('--> statement-breakpoint')
-          .map((s) => s.trim())
-          .filter(Boolean)
-        for (const statement of statements) {
-          await tx.unsafe(statement)
+      // statement-breakpoint — разделитель, который ставит drizzle-kit
+      const statements = body
+        .split('--> statement-breakpoint')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      // Блокировку таблицы миграция ждёт недолго (ADR-0227): ALTER горячей таблицы за
+      // долгим чтением (ночной дамп, отчёт) иначе встал бы в очередь, а за ним — все
+      // запросы api к этой таблице. Не дождалась — откат и повтор чуть позже
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await sql.begin(async (tx) => {
+            await tx.unsafe(`SET LOCAL lock_timeout = '${MIGRATION_LOCK_TIMEOUT}'`)
+            for (const statement of statements) {
+              await tx.unsafe(statement)
+            }
+            await tx`INSERT INTO public.__migrations (name, hash) VALUES (${file}, ${hash})`
+          })
+          break
+        } catch (error) {
+          if (!isLockTimeout(error) || attempt >= MIGRATION_LOCK_ATTEMPTS) throw error
+          log.warn({ migration: file, attempt }, 'таблица занята — повтор миграции')
+          await new Promise((resolve) => setTimeout(resolve, attempt * 3000))
         }
-        await tx`INSERT INTO public.__migrations (name, hash) VALUES (${file}, ${hash})`
-      })
+      }
       applied.push(file)
     }
 
