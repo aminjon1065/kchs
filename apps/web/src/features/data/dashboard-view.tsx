@@ -43,7 +43,7 @@ import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { TerritorySelect } from '~/entities/territory/territory-select.js'
 import { MapSlotsProvider } from '~/features/gis/index.js'
 import { dashboardPrintPath } from '~/features/reports/index.js'
-import { ApiError } from '~/shared/api/errors.js'
+import { ApiError, staleVersion } from '~/shared/api/errors.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -108,15 +108,24 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
     mutationFn: (spec: DashboardSpec) =>
       dataApi.patchDashboards(objectId, {
         spec: { ...spec, tiles: packTiles(orderedTiles(spec.tiles)) },
+        // Версия, с которой открыт дашборд (ADR-0228): чужая правка не стирается молча
+        ...(dashboard ? { expectedVersion: dashboard.version } : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       toast.show({ title: t('data.dashboard.saved'), tone: 'success' })
       setDraft(null)
+      client.setQueryData(dataKeys.dashboard(objectId), saved)
       void client.invalidateQueries({ queryKey: dataKeys.dashboard(objectId) })
       void client.invalidateQueries({ queryKey: ['dashboard', objectId, 'data'] })
     },
     onError: (error) =>
-      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+      toast.error(
+        staleVersion(error)
+          ? t('data.dashboard.staleVersion')
+          : error instanceof ApiError
+            ? error.message
+            : t('errors.unknown'),
+      ),
   })
   const trash = useMutation({
     mutationFn: () => dataApi.removeObjects(objectId),

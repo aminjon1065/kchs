@@ -171,6 +171,7 @@ export const ObjectService = {
 
     if (options.expectedVersion !== undefined && options.expectedVersion !== current.version) {
       throw errors.preconditionFailed('Объект изменён другим пользователем', {
+        reason: 'stale_version',
         expected: options.expectedVersion,
         actual: current.version,
       })
@@ -191,7 +192,10 @@ export const ObjectService = {
       changed.push('icon')
     }
     if (patch.meta !== undefined) {
-      values.meta = patch.mergeMeta ? { ...current.meta, ...patch.meta } : patch.meta
+      // Слияние — в самом UPDATE: прочитанный `meta` перетёр бы параллельный patchMeta
+      values.meta = patch.mergeMeta
+        ? sql`${objects.meta} || ${JSON.stringify(patch.meta)}::jsonb`
+        : patch.meta
       changed.push('meta')
     }
 
@@ -205,10 +209,24 @@ export const ObjectService = {
         version: sql`${objects.version} + 1`,
         searchVersion: sql`${objects.searchVersion} + 1`,
       })
-      .where(eq(objects.id, id))
+      .where(
+        // Ожидаемая версия сверяется в самом UPDATE: между чтением и записью её мог
+        // поднять параллельный запрос (ADR-0228)
+        options.expectedVersion === undefined
+          ? eq(objects.id, id)
+          : and(eq(objects.id, id), eq(objects.version, options.expectedVersion)),
+      )
       .returning()
 
-    if (!row) throw errors.notFound()
+    if (!row) {
+      if (options.expectedVersion !== undefined) {
+        throw errors.preconditionFailed('Объект изменён другим пользователем', {
+          reason: 'stale_version',
+          expected: options.expectedVersion,
+        })
+      }
+      throw errors.notFound()
+    }
 
     await objectType(row.type)?.lifecycle?.onUpdate?.(tx, ctx, toObjectLike(row), changed)
     if (!options.silent) {
@@ -220,6 +238,28 @@ export const ObjectService = {
       })
     }
     return toObjectLike(row)
+  },
+
+  /**
+   * Редактор сохраняет то, что видел (ADR-0228): строка объекта — под блокировку до
+   * конца транзакции, версия не та — 412 `precondition_failed`, правка другого
+   * сотрудника не стирается. Без ожидаемой версии — ничего не проверяет.
+   */
+  async assertVersion(tx: Tx, id: string, expectedVersion: number | undefined): Promise<void> {
+    if (expectedVersion === undefined) return
+    const [row] = await tx
+      .select({ version: objects.version })
+      .from(objects)
+      .where(eq(objects.id, id))
+      .for('update')
+    if (!row) throw errors.notFound()
+    if (row.version !== expectedVersion) {
+      throw errors.preconditionFailed('Объект изменён другим пользователем', {
+        reason: 'stale_version',
+        expected: expectedVersion,
+        actual: row.version,
+      })
+    }
   },
 
   /**

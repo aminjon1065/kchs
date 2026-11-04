@@ -197,6 +197,11 @@ export type DashboardCreateInput = z.infer<typeof DashboardCreateInput>
 export const DashboardUpdateInput = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   spec: DashboardSpec.optional(),
+  /**
+   * Версия объекта, с которой открыт редактор (ADR-0228): сохранение поверх чужой
+   * правки отвечает 412 `precondition_failed`, а не стирает её молча.
+   */
+  expectedVersion: z.number().int().nonnegative().optional(),
 })
 export type DashboardUpdateInput = z.infer<typeof DashboardUpdateInput>
 

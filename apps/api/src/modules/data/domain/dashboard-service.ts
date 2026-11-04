@@ -107,6 +107,8 @@ export const DashboardService = {
 
   async update(tx: Tx, ctx: Ctx, id: string, input: DashboardUpdateInput): Promise<void> {
     const changed: string[] = []
+    // Сохранение поверх чужой правки — 412, а не молчаливая потеря (ADR-0228)
+    await ObjectService.assertVersion(tx, id, input.expectedVersion)
     if (input.name !== undefined) {
       await ObjectService.update(tx, ctx, id, { title: input.name })
       changed.push('name')

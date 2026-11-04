@@ -1172,6 +1172,7 @@ export const data: DeepPartial<Dictionary['data']> = {
     done: 'Save',
     cancel: 'Cancel',
     saved: 'Dashboard saved',
+    staleVersion: 'Another employee saved this dashboard in the meantime. Your changes were not saved — reload the dashboard and make them again',
     refresh: 'Refresh',
     addTile: 'Tile',
     addTileTitle: 'New tile',

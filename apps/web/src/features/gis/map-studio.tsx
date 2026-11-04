@@ -20,7 +20,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { LazyImportWizard } from '~/features/data/index.js'
-import { ApiError } from '~/shared/api/errors.js'
+import { ApiError, staleVersion } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -265,15 +265,23 @@ export function MapStudio({
     mutationFn: () =>
       gisApi.patchMaps(objectId, {
         spec: { ...(current as MapSpec), ...(view ? { camera: view } : {}) },
+        // Версия, с которой открыта карта (ADR-0228): чужая правка не стирается молча
+        ...(map ? { expectedVersion: map.version } : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       toast.show({ title: t('gis.map.saved'), tone: 'success' })
       setSpec(null)
+      // Новая версия — сразу в кэш: второе сохранение подряд не споткнётся о свою же
+      client.setQueryData(gisKeys.map(objectId), saved)
       void client.invalidateQueries({ queryKey: gisKeys.map(objectId) })
     },
     onError: (failure) =>
       toast.show({
-        title: failure instanceof ApiError ? failure.message : t('errors.unknown'),
+        title: staleVersion(failure)
+          ? t('gis.map.staleVersion')
+          : failure instanceof ApiError
+            ? failure.message
+            : t('errors.unknown'),
         tone: 'danger',
       }),
   })

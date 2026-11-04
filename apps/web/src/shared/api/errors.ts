@@ -25,3 +25,11 @@ export class ApiError extends Error {
     return result
   }
 }
+
+/**
+ * Сохранение поверх чужой правки (ADR-0228): сервер отвечает 412
+ * `precondition_failed`, когда версия объекта уже не та, с которой открыт редактор.
+ */
+export function staleVersion(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 412 && error.code === 'precondition_failed'
+}
