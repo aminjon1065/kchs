@@ -4,6 +4,7 @@ import { io as connectSocket, type Socket } from 'socket.io-client'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
+  createUser,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -178,6 +179,46 @@ describe('узел api', () => {
     const finished = next(socket, 'job.finished', (p: { jobId: string }) => p.jobId === jobId)
     await publishJobSignal({ jobId, initiatorId: fx.users.member.id, status: 'succeeded' })
     expect(await finished).toEqual({ jobId, status: 'succeeded' })
+  })
+
+  /** Сокет закрыт сервером: событие `disconnect` с причиной сервера. */
+  function closedByServer(socket: Socket, timeoutMs = 5_000): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('сокет не закрыт')), timeoutMs)
+      socket.once('disconnect', (reason) => {
+        clearTimeout(timer)
+        resolve(reason)
+      })
+    })
+  }
+
+  it('выход закрывает сокет этой сессии на узлах api (ADR-0228)', async () => {
+    const user = await createUser(fx.app, `rt_logout_${sequence}`, ['employee'])
+    const socket = await connect(user)
+    const closed = closedByServer(socket)
+    const response = await call(fx.app, { method: 'POST', url: '/auth/logout', as: user })
+    expect(response.statusCode).toBe(200)
+    expect(await closed).toBe('io server disconnect')
+  })
+
+  it('отзыв сессий и блокировка закрывают сокеты (ADR-0228)', async () => {
+    const user = await createUser(fx.app, `rt_revoke_${sequence}`, ['employee'])
+    const socket = await connect(user)
+    const closed = closedByServer(socket)
+    // Так отзывает сессии блокировка учётной записи и смена пароля
+    await AuthService.revokeAllExcept(user.id, null)
+    expect(await closed).toBe('io server disconnect')
+  })
+
+  it('перепроверка закрывает сокет, чью сессию отозвали в обход (ADR-0228)', async () => {
+    const user = await createUser(fx.app, `rt_recheck_${sequence}`, ['employee'])
+    const socket = await connect(user)
+    const closed = closedByServer(socket)
+    const { db } = await import('../src/shared/db/client.js')
+    const { sql } = await import('drizzle-orm')
+    await db().execute(sql`UPDATE sessions SET revoked_at = now() WHERE user_id = ${user.id}`)
+    await gateway.publishRelay({ kind: 'recheck', userId: user.id })
+    expect(await closed).toBe('io server disconnect')
   })
 
   it('подписку не по протоколу отклоняет целиком', async () => {
