@@ -689,3 +689,65 @@ describe('ознакомление', () => {
     expect(skipped.skipped[0]).toMatchObject({ reason: 'clearance' })
   })
 })
+
+describe('поручения резолюции и документ (ADR-0229)', () => {
+  /** Доставить подписчику документов `name` события `type` объекта `objectId` из outbox. */
+  async function deliver(name: string, type: string, objectId: string): Promise<void> {
+    const { documentSubscribers } = await import('../src/modules/documents/domain/subscribers.js')
+    const subscriber = documentSubscribers.find((item) => item.name === name)
+    if (!subscriber) throw new Error(`нет подписчика ${name}`)
+    const rows = await db().execute<{ id: number; event: unknown }>(sql`
+      SELECT id, event FROM ops.outbox
+       WHERE type = ${type} AND event->'object'->>'id' = ${objectId} AND published_at IS NULL
+       ORDER BY id`)
+    for (const row of rows) {
+      await subscriber.handle(row.event as never)
+      await db().execute(sql`UPDATE ops.outbox SET published_at = now() WHERE id = ${row.id}`)
+    }
+  }
+
+  async function resolved(): Promise<{ id: string; mainTask: string }> {
+    const id = await registeredIncoming()
+    const view = await json(head, `/documents/${id}/resolutions`, 'POST', {
+      text: 'Подготовить справку',
+      responsibleId: exec1.id,
+      dueWorkingDays: 2,
+    })
+    const main = view.items[0].instructions.find((item: Json) => item.parentId === null)
+    return { id, mainTask: main.id as string }
+  }
+
+  it('согласованное продление поручения переносит срок резолюции и документа', async () => {
+    const { id, mainTask } = await resolved()
+    const before = await json(registrar, `/documents/${id}`)
+    await json(exec1, `/tasks/${mainTask}/extension`, 'POST', {
+      dueWorkingDays: 6,
+      reason: 'Ждём данные районов',
+    })
+    await json(head, `/tasks/${mainTask}/extension/decide`, 'POST', { decision: 'approve' })
+    await deliver('documents-instruction-extension', 'task.extension_decided', mainTask)
+
+    const view = await json(head, `/documents/${id}/resolutions`)
+    expect(view.items[0].dueDate > before.deadline).toBe(true)
+    const after = await json(registrar, `/documents/${id}`)
+    expect(after.deadline).toBe(view.items[0].dueDate)
+  })
+
+  it('все поручения отменены — документ на исполнении, «не требует исполнения» доступно', async () => {
+    const { id, mainTask } = await resolved()
+    await json(head, `/tasks/${mainTask}/cancel`, 'POST', { comment: 'Выдано по ошибке' })
+    await deliver('documents-execution', 'task.source_closed', id)
+    expect((await json(registrar, `/documents/${id}`)).status).toBe('on_execution')
+    const view = await json(registrar, `/documents/${id}/resolutions`)
+    expect(view.can.noExecution).toBe(true)
+    await json(registrar, `/documents/${id}/no-execution`, 'POST', {})
+    expect((await json(registrar, `/documents/${id}`)).status).toBe('executed')
+  })
+
+  it('поручение по резолюции не удаляется в корзину — только отменяется', async () => {
+    const { mainTask } = await resolved()
+    const trashed = await call(fx.app, { method: 'DELETE', url: `/objects/${mainTask}`, as: head })
+    expect(trashed.statusCode).toBe(409)
+    expect(trashed.json().detail).toContain('отменяют')
+  })
+})

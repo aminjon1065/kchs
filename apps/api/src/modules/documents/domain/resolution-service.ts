@@ -1,6 +1,7 @@
 import {
   type DocumentResolutions,
   type DocumentStatus,
+  isDocumentClosed,
   type NoExecutionInput,
   parseConfidentiality,
   type ResolutionInput,
@@ -15,7 +16,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { clearedUsers } from '~/kernel/access/confidentiality.js'
 import { audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
-import { endOfLocalDay } from '~/kernel/business-calendar/working-days.js'
+import { endOfLocalDay, localDate } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { delegationCovers, InboxService } from '~/kernel/inbox/service.js'
@@ -552,7 +553,14 @@ export const ResolutionService = {
     await authorize(ctx, 'view', documentId)
     const document = await DocumentService.load(tx, documentId, true)
     if (!document) throw errors.notFound('Документ')
-    if (document.status !== 'registered') {
+    // На исполнении, но все поручения отменены (ADR-0229) — решить «не требует
+    // исполнения» тоже можно: иначе документ остался бы на исполнении без поручений
+    const withdrawn =
+      document.status === 'on_execution' &&
+      (await Instructions.status(documentId, tx).then(
+        (status) => status.open === 0 && status.accepted === 0,
+      ))
+    if (document.status !== 'registered' && !withdrawn) {
       throw errors.conflict('«Не требует исполнения» — только для зарегистрированного документа', {
         status: document.status,
       })
@@ -569,7 +577,8 @@ export const ResolutionService = {
       .from(resolutions)
       .where(eq(resolutions.documentId, documentId))
       .limit(1)
-    if (resolved) throw errors.conflict('По документу уже есть резолюции')
+    // Резолюции, все поручения которых отозваны, решению не мешают (ADR-0229)
+    if (resolved && !withdrawn) throw errors.conflict('По документу уже есть резолюции')
 
     await closeRequests(tx, ctx, documentId, { state: 'no_execution', comment: input.comment })
     await applyTransition(tx, ctx, documentId, {
@@ -583,6 +592,31 @@ export const ResolutionService = {
   },
 
   /**
+   * Продление основного поручения резолюции согласовано (подписчик
+   * `task.extension_decided`, ADR-0229): срок резолюции — новый день срока; у
+   * резолюции верхнего уровня и контрольный срок документа, если он раньше. Иначе
+   * документ оставался «просрочен», а вложенная резолюция с новым сроком отклонялась.
+   */
+  async extended(tx: Tx, ctx: Ctx, taskId: string, dueAt: string): Promise<boolean> {
+    const [row] = await tx
+      .select()
+      .from(resolutions)
+      .where(sql`${resolutions.instructionIds}[1] = ${taskId}::uuid`)
+      .limit(1)
+    if (!row) return false
+    const date = localDate(new Date(dueAt), config().TZ)
+    if (date === row.deadline) return false
+    await tx.update(resolutions).set({ deadline: date }).where(eq(resolutions.id, row.id))
+    if (!row.parentId) {
+      const document = await DocumentService.load(tx, row.documentId, true)
+      if (document?.deadline && document.deadline < date && !isDocumentClosed(document.status)) {
+        await DocumentService.applyExecutionControl(tx, ctx, row.documentId, { deadline: date })
+      }
+    }
+    return true
+  },
+
+  /**
    * Исполнение (подписчик `task.source_closed`): все поручения документа
    * закрыты — документ на исполнении становится «Исполнен», контроль снимается.
    */
@@ -590,7 +624,9 @@ export const ResolutionService = {
     const document = await DocumentService.load(tx, documentId, true)
     if (document?.status !== 'on_execution') return false
     const status = await Instructions.status(documentId, tx)
-    if (!status.allClosed) return false
+    // «Исполнен» — когда исполнено хоть что-то (ADR-0229): все поручения отменены —
+    // ошибочное отозвали, чтобы выдать заново, — документ остаётся на исполнении
+    if (!status.allClosed || status.accepted === 0) return false
     await applyTransition(tx, ctx, documentId, {
       to: 'executed',
       cause: 'execution',
@@ -703,10 +739,13 @@ export const ResolutionService = {
         resolve: open && ownRequest !== null,
         resolveOnBehalf: open && registrar.allowed,
         request: open && (registrar.allowed || ownRequest !== null),
+        // Как в noExecution: до резолюций или когда все поручения отозваны (ADR-0229)
         noExecution:
-          document.status === 'registered' &&
-          rows.length === 0 &&
-          (registrar.allowed || ownRequest !== null),
+          (registrar.allowed || ownRequest !== null) &&
+          ((document.status === 'registered' && rows.length === 0) ||
+            (document.status === 'on_execution' &&
+              instructions.length > 0 &&
+              instructions.every((item) => item.status === 'cancelled'))),
       },
       defaultAuthor: ownRequest ? person(ownRequest.userId) : null,
     }

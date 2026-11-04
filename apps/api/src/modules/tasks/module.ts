@@ -31,6 +31,7 @@ import { TaskReminders } from './domain/task-reminders.js'
 import { TaskSeriesService } from './domain/task-series.js'
 import { TaskService } from './domain/task-service.js'
 import { TaskSettingsService } from './domain/task-settings.js'
+import { TRACKED_KINDS as TRACKED_SOURCE_KINDS } from './domain/task-source.js'
 import { taskSubscribers } from './domain/task-subscribers.js'
 import { HomeSummaries, WorkloadService } from './domain/workload-service.js'
 import { projects, tasks } from './schema.js'
@@ -151,6 +152,23 @@ export function registerTasksObjectTypes(): void {
     hasParentTree: false,
     // Руководитель видит поручения подчинённых; заместитель действует за участника
     policy: taskPolicy,
+    lifecycle: {
+      // Поручение по резолюции или другому источнику контроля не удаляется — его
+      // отменяют (ADR-0229): из корзины оно выпало бы из контроля и показателей
+      // просрочки, а документ остался бы «на исполнении» навсегда
+      beforeTrash: async (tx, _ctx, object) => {
+        const [row] = await tx
+          .select({ source: tasks.source })
+          .from(tasks)
+          .where(eq(tasks.id, object.id))
+          .limit(1)
+        if (row?.source && TRACKED_SOURCE_KINDS.includes(row.source.kind)) {
+          throw errors.conflict('Поручение по резолюции не удаляется — его отменяют', {
+            reason: 'instruction_cancel_only',
+          })
+        }
+      },
+    },
     listFields: [
       {
         key: 'status',
