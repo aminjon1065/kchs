@@ -163,8 +163,11 @@ spec:
               printf '%s' "$ENGINE_POLICY" > /tmp/engine-policy.json
               mc admin policy create kchs kchs-engine /tmp/engine-policy.json
               mc admin user add kchs "$S3_ENGINE_ACCESS_KEY" "$S3_ENGINE_SECRET_KEY"
-              mc admin policy entities kchs --user "$S3_ENGINE_ACCESS_KEY" | grep -q kchs-engine ||
-                mc admin policy attach kchs kchs-engine --user "$S3_ENGINE_ACCESS_KEY"
+              # В образе mc нет grep: проверка привязки — сопоставлением оболочки
+              case "$(mc admin policy entities kchs --user "$S3_ENGINE_ACCESS_KEY")" in
+                *kchs-engine*) ;;
+                *) mc admin policy attach kchs kchs-engine --user "$S3_ENGINE_ACCESS_KEY" ;;
+              esac
               echo "kchs: бакеты и пользователь движка готовы"
           env:
             - name: S3_INTERNAL_ENDPOINT
