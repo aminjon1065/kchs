@@ -55,6 +55,8 @@ export const schedules = {
     alertsPrune: 'Алерты: очистка истории срабатываний',
     eventsPruneConsumptions: 'События: очистка отметок обработки',
     eventsTrim: 'События: обрезка потоков по отстающей группе',
+    eventsRedrive: 'События: возврат событий поиска из очереди сбоев',
+    searchReconcile: 'Поиск: ночная сверка индекса с реестром',
     knowledgeReview: 'База знаний: пересмотр страниц по сроку',
     webhooksPrune: 'Вебхуки: очистка журнала доставок',
     integrationsUsageFlush: 'Интеграции: учёт запросов по токенам',

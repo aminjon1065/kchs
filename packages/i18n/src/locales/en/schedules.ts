@@ -58,6 +58,8 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     alertsPrune: 'Alerts: prune firing history',
     eventsPruneConsumptions: 'Events: prune processing marks',
     eventsTrim: 'Events: trim streams to the slowest group',
+    eventsRedrive: 'Events: return search events from the failure queue',
+    searchReconcile: 'Search: nightly index reconciliation with the registry',
     knowledgeReview: 'Knowledge base: review pages by due date',
     webhooksPrune: 'Webhooks: prune delivery log',
     integrationsUsageFlush: 'Integrations: token request accounting',

@@ -307,6 +307,43 @@ export async function retryDlqEntry(
   return { outcome: 'retried', entry }
 }
 
+/**
+ * Возврат событий проекций из DLQ (ADR-0228, задание `events.redrive`): подписчики с
+ * `redrive` — поисковый индекс — получают свои события снова, когда отлежались
+ * `minAgeMs` (служба, скорее всего, поднялась). События старше `maxAgeMs` остаются
+ * администратору: их покроет ночная сверка индекса, а бесконечный круг битого
+ * события по потоку не нужен.
+ */
+export async function redriveProjections(
+  options: { minAgeMs?: number; maxAgeMs?: number; limit?: number } = {},
+): Promise<number> {
+  const minAgeMs = options.minAgeMs ?? 5 * 60_000
+  const maxAgeMs = options.maxAgeMs ?? 7 * 24 * 3600_000
+  const names = new Set(
+    listSubscribers()
+      .filter((subscriber) => subscriber.redrive)
+      .map((subscriber) => subscriber.name),
+  )
+  if (names.size === 0) return 0
+  const rows = (await redis().xrange(
+    DLQ_STREAM,
+    '-',
+    '+',
+    'COUNT',
+    options.limit ?? 1000,
+  )) as Array<[string, string[]]>
+  const now = Date.now()
+  let redriven = 0
+  for (const [id, fields] of rows) {
+    const entry = parseDlqEntry(id, fields)
+    if (!entry || !names.has(entry.subscriber)) continue
+    if (now - idTime(id) < minAgeMs) continue
+    if (now - new Date(entry.event.occurredAt).getTime() > maxAgeMs) continue
+    if ((await retryDlqEntry(id)).outcome === 'retried') redriven += 1
+  }
+  return redriven
+}
+
 /** Повтор всей очереди сбоев (до 1000 записей за вызов). */
 export async function retryAllDlq(): Promise<{ retried: number; skipped: number }> {
   const rows = (await redis().xrange(DLQ_STREAM, '-', '+', 'COUNT', 1000)) as Array<

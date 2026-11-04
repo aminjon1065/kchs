@@ -40,8 +40,10 @@ export function registerKernelSubscribers(): void {
     // События модулей, после которых документ поиска устаревает, объявляют их типы
     // объектов (`reindexOn`, ADR-0182): типы регистрируются раньше подписчиков
     types: ['object.*', 'acl.changed', ...declaredReindexEvents()],
-    // Проекция поиска: история потока полезна новой группе, повтор безвреден (ADR-0171)
+    // Проекция поиска: история потока полезна новой группе, повтор безвреден (ADR-0171);
+    // недоступный дольше минуты поиск не теряет событий — они вернутся из DLQ (ADR-0228)
     replay: true,
+    redrive: true,
     handle: async (event) => {
       if (!event.object) return
       if (event.type === 'object.deleted' || event.type === 'object.trashed') {

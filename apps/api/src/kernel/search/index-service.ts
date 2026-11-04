@@ -5,7 +5,7 @@ import {
   type SearchQuery,
   type SearchResponse,
 } from '@kchs/contracts'
-import { and, asc, eq, gt, gte, inArray, lte, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
 import { mapLimited } from '~/shared/concurrency.js'
 import { config } from '~/shared/config/index.js'
@@ -127,17 +127,13 @@ export async function indexObjects(objectIds: string[]): Promise<void> {
     else removed.push(live[index]?.id ?? '')
   })
   if (documents.length > 0) await objectsIndex().addDocuments(documents)
-  if (removed.length > 0) {
-    await objectsIndex()
-      .deleteDocuments(removed)
-      .catch(() => undefined)
-  }
+  // Ошибка удаления не глушится (ADR-0228): поиск недоступен — подписчик повторит,
+  // иначе закрытый объект остался бы в выдаче. Отсутствующий документ — не ошибка
+  if (removed.length > 0) await objectsIndex().deleteDocuments(removed)
 }
 
 export async function removeFromIndex(objectId: string): Promise<void> {
-  await objectsIndex()
-    .deleteDocument(objectId)
-    .catch(() => undefined)
+  await objectsIndex().deleteDocument(objectId)
 }
 
 /** Есть ли объекты, чьи читатели зависят от прав данного: потомки и его вложения. */
@@ -243,6 +239,48 @@ export async function reindexAll(batchSize = 200, signal?: AbortSignal): Promise
     cursor = rows[rows.length - 1]?.id ?? null
   }
   return total
+}
+
+/**
+ * Документы индекса, которых нет среди живых объектов реестра (ADR-0228): объект
+ * удалён окончательно, а событие удаления до поиска не дошло. Сначала собираются все
+ * такие идентификаторы — удаление посреди прохода сдвигало бы страницы, — затем
+ * удаляются одной задачей.
+ */
+export async function sweepIndexOrphans(pageSize = 1000, signal?: AbortSignal): Promise<number> {
+  const orphans: string[] = []
+  for (let offset = 0; ; offset += pageSize) {
+    signal?.throwIfAborted()
+    const page = await objectsIndex().getDocuments<{ id: string }>({
+      fields: ['id'],
+      limit: pageSize,
+      offset,
+    })
+    const ids = page.results.map((doc) => String(doc.id))
+    if (ids.length === 0) break
+    const live = await db()
+      .select({ id: objects.id })
+      .from(objects)
+      .where(and(inArray(objects.id, ids), isNull(objects.deletedAt)))
+    const found = new Set(live.map((row) => row.id))
+    for (const id of ids) if (!found.has(id)) orphans.push(id)
+    if (ids.length < pageSize) break
+  }
+  if (orphans.length > 0) await objectsIndex().deleteDocuments(orphans)
+  return orphans.length
+}
+
+/**
+ * Ночная сверка индекса с реестром (ADR-0228): переиндексация всего реестра —
+ * читатели, грифы и заголовки по текущим правам, даже если событие отзыва доступа
+ * потерялось, — и удаление документов, которых в реестре нет.
+ */
+export async function reconcileSearchIndex(
+  signal?: AbortSignal,
+): Promise<{ reindexed: number; removed: number }> {
+  const reindexed = await reindexAll(200, signal)
+  const removed = await sweepIndexOrphans(1000, signal)
+  return { reindexed, removed }
 }
 
 /**
