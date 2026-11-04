@@ -447,6 +447,21 @@ describe('карточка и жизненный цикл', () => {
     })
     expect(twice.statusCode).toBe(409)
 
+    // Аннулированный после регистрации остаётся в журнале — в корзину не уходит (ADR-0229);
+    // аннулированный черновик номера не имеет — удаляется как обычно
+    const trashed = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${doc.id}`,
+      as: fx.admin,
+    })
+    expect(trashed.statusCode).toBe(409)
+    const trashedDraft = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${draft.id}`,
+      as: fx.users.member,
+    })
+    expect(trashedDraft.statusCode, trashedDraft.body).toBe(200)
+
     const [row] = await db().execute<{ total: number }>(
       sql`SELECT count(*)::int AS total FROM audit_log
            WHERE object_id = ${doc.id} AND action = 'document.cancelled'`,

@@ -2,8 +2,11 @@ import type { DocumentRouteBlocker, DocumentRouteBrief, DocumentStatus } from '@
 import { ProcessView } from '~/kernel/process/index.js'
 import type { Executor } from '~/shared/db/client.js'
 
-/** Статусы, из которых документ отправляют по маршруту (08-documents.md §3). */
-export const ROUTE_START_STATUSES: readonly DocumentStatus[] = ['draft', 'returned']
+/**
+ * Статусы, из которых документ отправляют по маршруту (08-documents.md §3): у
+ * согласованного — следующий маршрут, например подпись после согласования (ADR-0229).
+ */
+export const ROUTE_START_STATUSES: readonly DocumentStatus[] = ['draft', 'returned', 'approved']
 
 /** Документ на согласовании или подписи: версия заморожена, новая — после возврата. */
 export const ROUTE_ACTIVE_STATUSES: readonly DocumentStatus[] = ['on_approval', 'on_signing']

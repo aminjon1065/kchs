@@ -620,6 +620,84 @@ describe('допуск к грифу', () => {
   })
 })
 
+describe('«Согласован» — не тупик (ADR-0229)', () => {
+  const visas = `document_visas_${run}`
+  const signing = `document_signing_${run}`
+  const end = { done: { type: 'end', name: { ru: 'Готово' } } }
+
+  beforeAll(async () => {
+    await publishDefinition(fx, {
+      version: 1,
+      key: visas,
+      objectType: 'document',
+      name: { ru: 'Визы' },
+      variables: { reviewers: { type: 'users', label: { ru: 'Визирующие' }, required: true } },
+      start: 'review',
+      steps: {
+        review: {
+          type: 'approval',
+          name: { ru: 'Визирование' },
+          assignees: ['var:reviewers'],
+          next: 'done',
+        },
+        ...end,
+      },
+    })
+    await publishDefinition(fx, {
+      version: 1,
+      key: signing,
+      objectType: 'document',
+      name: { ru: 'Подпись' },
+      variables: { signer: { type: 'user', label: { ru: 'Подписант' }, required: true } },
+      start: 'sign',
+      steps: {
+        sign: { type: 'sign', name: { ru: 'Подпись' }, assignees: ['var:signer'], next: 'done' },
+        ...end,
+      },
+    })
+  })
+
+  async function approvedDocument(): Promise<string> {
+    const doc = await createDraft(people.author, 'order', {
+      subject: `Согласованный приказ ${run}`,
+      signerId: people.signer.id,
+    })
+    await addVersion(people.author, doc, `визы-${run}-${Date.now()}.pdf`)
+    const started = await startRoute(people.author, doc.id, {
+      definitionKey: visas,
+      variables: { reviewers: [people.a1.id] },
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const [item] = await inboxOf(fx, people.a1, doc.id)
+    const approved = await actInbox(fx, people.a1, item?.id ?? '', 'approve')
+    expect(approved.statusCode, approved.body).toBe(200)
+    expect((await getDocument(people.author, doc.id)).status).toBe('approved')
+    return doc.id
+  }
+
+  it('после маршрута виз согласованный документ идёт на подпись следующим маршрутом', async () => {
+    const id = await approvedDocument()
+    const signed = await startRoute(people.author, id, {
+      definitionKey: signing,
+      variables: { signer: people.signer.id },
+    })
+    expect(signed.statusCode, signed.body).toBe(200)
+    expect((await getDocument(people.author, id)).status).toBe('on_signing')
+  })
+
+  it('согласованный документ аннулируется', async () => {
+    const id = await approvedDocument()
+    const cancelled = await call(fx.app, {
+      method: 'POST',
+      url: `/documents/${id}/cancel`,
+      as: people.author,
+      payload: { reason: 'Отменён после согласования' },
+    })
+    expect(cancelled.statusCode, cancelled.body).toBe(200)
+    expect(cancelled.json().status).toBe('cancelled')
+  })
+})
+
 describe('пул с грифом (ADR-0229)', () => {
   const key = `document_pool_${run}`
   const definition = {

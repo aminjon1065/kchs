@@ -26,12 +26,15 @@ export type DocumentStatus = z.infer<typeof DocumentStatus>
  * Допустимые переходы — диаграмма 08-documents.md §3 ребро в ребро. Маршрут без
  * этапа согласования начинается с подписи (`draft|returned → on_signing`),
  * возвращённый документ можно аннулировать (`returned → cancelled`) — ADR-0083.
+ * Согласованный документ (ADR-0229) идёт на подпись следующим маршрутом, на повторное
+ * согласование, регистрируется без подписи (служебная записка: визы — её
+ * утверждение) или аннулируется — «Согласован» больше не тупик.
  */
 export const DOCUMENT_TRANSITIONS: Record<DocumentStatus, readonly DocumentStatus[]> = {
   draft: ['on_approval', 'on_signing', 'registered', 'cancelled'],
   on_approval: ['returned', 'approved'],
   returned: ['on_approval', 'on_signing', 'cancelled'],
-  approved: ['on_signing'],
+  approved: ['on_approval', 'on_signing', 'registered', 'cancelled'],
   on_signing: ['returned', 'signed'],
   signed: ['registered'],
   registered: ['on_execution', 'executed', 'cancelled'],
