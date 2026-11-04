@@ -5,7 +5,13 @@ import { LoadFailure } from './load-failure.js'
 
 /** Экран не загрузил объект (ADR-0228): «не найдено» — только по ответу 404. */
 const problem = (status: number) =>
-  new ApiError({ type: 'about:blank', title: 'x', status, code: 'x', detail: 'Сбой сервера' })
+  new ApiError({
+    type: 'about:blank',
+    title: 'x',
+    status,
+    code: 'internal_error',
+    detail: 'Сбой сервера',
+  })
 
 describe('объект не загрузился', () => {
   it('404 или объекта нет — «не найдено»', () => {
