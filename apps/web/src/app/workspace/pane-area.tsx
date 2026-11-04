@@ -1,8 +1,9 @@
 import { cn, EmptyState, Panel, PanelGroup, ResizeHandle, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { LayoutGrid, PowerOff } from 'lucide-react'
-import { Suspense } from 'react'
+import { Suspense, useRef } from 'react'
 import { meQuery } from '~/shared/api/queries.js'
+import { ViewBoundary } from '~/shared/errors/boundary.js'
 import { useT } from '~/shared/i18n.js'
 import { getObjectView, getScreen } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -38,6 +39,11 @@ export function PaneArea({ onOpenPalette }: { onOpenPalette: () => void }) {
   )
 }
 
+/** Вкладка держит живое соединение и не размонтируется при переключении (ADR-0228). */
+function keptMounted(tab: TabState | undefined): boolean {
+  return tab?.kind === 'object' && getObjectView(tab.objectType ?? '')?.keepMounted === true
+}
+
 function PaneView({
   pane,
   focused,
@@ -51,8 +57,22 @@ function PaneView({
 }) {
   const t = useT()
   const tabs = useWorkspace((s) => s.tabs)
+  const closeTab = useWorkspace((s) => s.closeTab)
   const linked = useWorkspace((s) => s.panes.length > 1)
   const activeTab = pane.activeTabId ? tabs[pane.activeTabId] : null
+  // Вкладки со звонком, которые уже открывались в этой панели: они остаются
+  // смонтированными и прячутся, пока активна другая вкладка
+  const visited = useRef(new Set<string>())
+  if (activeTab && keptMounted(activeTab)) visited.current.add(activeTab.id)
+  for (const id of visited.current) {
+    if (!pane.tabIds.includes(id) || !tabs[id]) visited.current.delete(id)
+  }
+  const mounted = pane.tabIds
+    .map((id) => tabs[id])
+    .filter(
+      (tab): tab is TabState =>
+        tab !== undefined && (tab.id === activeTab?.id || visited.current.has(tab.id)),
+    )
 
   return (
     <section
@@ -67,14 +87,21 @@ function PaneView({
       <TabBar pane={pane} focused={focused} onOpenPalette={onOpenPalette} />
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab ? (
-          <Suspense fallback={<PaneSkeleton />}>
-            {/* Связанные представления: группа панели — при нескольких панелях (ADR-0073) */}
-            <PaneLinkContext.Provider value={linked ? (pane.linkGroup ?? null) : null}>
-              {/* Своё дерево у каждой вкладки: две вкладки одного типа не делят состояние
-                  (секция карточки, несохранённая форма) — оно живёт в состоянии вкладки */}
-              <TabContent key={activeTab.id} tab={activeTab} />
-            </PaneLinkContext.Provider>
-          </Suspense>
+          // Своё дерево у каждой вкладки: две вкладки одного типа не делят состояние
+          // (секция карточки, несохранённая форма) — оно живёт в состоянии вкладки
+          mounted.map((tab) => (
+            <div key={tab.id} className={cn('h-full min-h-0', tab.id !== activeTab.id && 'hidden')}>
+              {/* Упавший экран — объяснение и «Закрыть вкладку», а не белый лист (ADR-0228) */}
+              <ViewBoundary onClose={() => closeTab(tab.id)}>
+                <Suspense fallback={<PaneSkeleton />}>
+                  {/* Связанные представления: группа панели — при нескольких панелях (ADR-0073) */}
+                  <PaneLinkContext.Provider value={linked ? (pane.linkGroup ?? null) : null}>
+                    <TabContent tab={tab} />
+                  </PaneLinkContext.Provider>
+                </Suspense>
+              </ViewBoundary>
+            </div>
+          ))
         ) : (
           <EmptyState
             icon={<LayoutGrid />}

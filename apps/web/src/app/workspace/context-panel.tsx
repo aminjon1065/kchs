@@ -54,6 +54,7 @@ import {
   tagSuggestionsQuery,
 } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
+import { ViewBoundary } from '~/shared/errors/boundary.js'
 import { useT } from '~/shared/i18n.js'
 import { getObjectView, listContextSlots } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -127,40 +128,44 @@ export function ContextPanel() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {!objectId ? (
-          <EmptyState
-            compact
-            icon={<Info />}
-            title={t('shell.context.noObject')}
-            description={t('shell.context.noObjectHint')}
-          />
-        ) : contextTab === 'info' ? (
-          <InfoTab objectId={objectId} />
-        ) : contextTab === 'links' ? (
-          <LinksTab objectId={objectId} />
-        ) : contextTab === 'discussion' ? (
-          <DiscussionTab key={objectId} objectId={objectId} />
-        ) : contextTab === 'activity' ? (
-          <ActivityTab objectId={objectId} />
-        ) : contextTab === 'assistant' ? (
-          // Свои действия типа (для документа — резюме и черновик ответа,
-          // ADR-0088) идут над общим диалогом с инструментами (ADR-0100)
-          <div className="flex h-full min-h-0 flex-col">
-            {assistant ? (
-              <div className="shrink-0">
-                <Suspense fallback={null}>{assistant(objectId)}</Suspense>
+        {/* Упавший раздел панели не роняет вкладку и оболочку (ADR-0228); другой
+            объект или раздел — новая попытка */}
+        <ViewBoundary key={`${objectId ?? ''}:${contextTab}`}>
+          {!objectId ? (
+            <EmptyState
+              compact
+              icon={<Info />}
+              title={t('shell.context.noObject')}
+              description={t('shell.context.noObjectHint')}
+            />
+          ) : contextTab === 'info' ? (
+            <InfoTab objectId={objectId} />
+          ) : contextTab === 'links' ? (
+            <LinksTab objectId={objectId} />
+          ) : contextTab === 'discussion' ? (
+            <DiscussionTab key={objectId} objectId={objectId} />
+          ) : contextTab === 'activity' ? (
+            <ActivityTab objectId={objectId} />
+          ) : contextTab === 'assistant' ? (
+            // Свои действия типа (для документа — резюме и черновик ответа,
+            // ADR-0088) идут над общим диалогом с инструментами (ADR-0100)
+            <div className="flex h-full min-h-0 flex-col">
+              {assistant ? (
+                <div className="shrink-0">
+                  <Suspense fallback={null}>{assistant(objectId)}</Suspense>
+                </div>
+              ) : null}
+              <div className="min-h-0 flex-1">
+                <Suspense fallback={null}>
+                  {/* Диалог ассистента даёт его модуль — отдельным чанком (ADR-0183) */}
+                  {listContextSlots('context-assistant').map((slot) => (
+                    <Fragment key={slot.key}>{slot.render(objectId)}</Fragment>
+                  ))}
+                </Suspense>
               </div>
-            ) : null}
-            <div className="min-h-0 flex-1">
-              <Suspense fallback={null}>
-                {/* Диалог ассистента даёт его модуль — отдельным чанком (ADR-0183) */}
-                {listContextSlots('context-assistant').map((slot) => (
-                  <Fragment key={slot.key}>{slot.render(objectId)}</Fragment>
-                ))}
-              </Suspense>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </ViewBoundary>
       </div>
     </aside>
   )

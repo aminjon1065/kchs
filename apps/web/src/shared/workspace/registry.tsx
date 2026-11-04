@@ -32,6 +32,12 @@ export interface ObjectViewDefinition {
    * (ADR-0088). Без неё вкладка недоступна.
    */
   assistantSection?: (objectId: string) => ReactNode
+  /**
+   * Представление держит живое соединение (встреча: звук, видео, демонстрация экрана).
+   * При переключении на другую вкладку оно прячется, а не размонтируется, иначе звонок
+   * обрывался бы (ADR-0228).
+   */
+  keepMounted?: boolean
 }
 
 const screens = new Map<ScreenKey, ScreenDefinition>()
