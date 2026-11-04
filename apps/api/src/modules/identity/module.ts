@@ -32,6 +32,8 @@ export function registerIdentityBackground(): void {
     name: APPLY_JOB.name,
     // Импорты одного администратора идут по очереди: создание и так параллельно внутри
     concurrency: 1,
+    // Следующий импорт ждёт, пока идёт предыдущий, а не пропадает (ADR-0228)
+    exclusive: { whenBusy: 'defer' },
     handle: async (job, helpers) => UsersImport.run(job.data, helpers.progress),
   })
 

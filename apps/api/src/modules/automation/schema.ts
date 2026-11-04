@@ -73,8 +73,18 @@ export const ruleRuns = pgTable(
     /** Конверт события или данные запуска: воркер исполняет по ним. */
     context: jsonbObject('context'),
     steps: jsonbArray('steps'),
-    /** Индекс действия, с которого продолжить после `wait`. */
+    /**
+     * Индекс действия, с которого продолжить: после `wait` и после каждого выполненного
+     * действия (ADR-0228) — повтор запуска не исполняет сделанное заново.
+     */
     resumeAt: integer('resume_at').notNull().default(0),
+    /**
+     * Аренда исполнения (ADR-0228): кто исполняет запуск и до какого момента. Второй
+     * исполнитель — повтор задания, обход «зависших» — берёт запуск только по
+     * истёкшей аренде, а не по времени создания.
+     */
+    leasedUntil: tsCol('leased_until'),
+    leaseOwner: text('lease_owner'),
     error: text('error'),
     startedAt: tsCol('started_at'),
     finishedAt: tsCol('finished_at'),

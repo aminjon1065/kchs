@@ -23,7 +23,7 @@ registerLifecycle()
 const bus = await import('../src/kernel/events/index.js')
 const { registerKernelSubscribers } = await import('../src/kernel/subscribers.js')
 const { JobService, queue } = await import('../src/kernel/jobs/service.js')
-const { registerJobHandler, startWorkers, stopWorkers } = await import(
+const { registerJobHandler, setBusyDeferMs, startWorkers, stopWorkers } = await import(
   '../src/kernel/jobs/runner.js'
 )
 const { engineJobEventsReady, reconcileJobs, startEngineJobEvents, stopEngineJobEvents } =
@@ -38,6 +38,10 @@ let previousSubscribers: Subscriber[] = []
 let engine: Worker | null = null
 const run = Date.now().toString(36)
 const slow = { started: false, aborted: false }
+/** Одиночные задания (ADR-0228): сколько исполнений шло одновременно и сколько всего. */
+const single = { running: 0, max: 0, runs: 0 }
+const deferred = { running: 0, max: 0, runs: 0 }
+let releaseHung: () => void = () => undefined
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -108,6 +112,46 @@ beforeAll(async () => {
     // Обработчик сигнал не проверяет: вызов наружу завис
     handle: () => new Promise(() => undefined),
   })
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: `test.single.${run}`,
+    concurrency: 1,
+    handle: async () => {
+      single.running += 1
+      single.runs += 1
+      single.max = Math.max(single.max, single.running)
+      await sleep(400)
+      single.running -= 1
+      return { ok: true }
+    },
+  })
+  registerJobHandler({
+    queue: 'maintenance',
+    name: `test.single-defer.${run}`,
+    concurrency: 1,
+    exclusive: { whenBusy: 'defer' },
+    handle: async () => {
+      deferred.running += 1
+      deferred.runs += 1
+      deferred.max = Math.max(deferred.max, deferred.running)
+      await sleep(200)
+      deferred.running -= 1
+      return { ok: true }
+    },
+  })
+  registerJobHandler({
+    queue: 'maintenance',
+    name: `test.single-hang.${run}`,
+    concurrency: 1,
+    timeoutMs: 200,
+    // Обработчик сигнал не проверяет и работает дальше предела времени
+    handle: () =>
+      new Promise((resolve) => {
+        releaseHung = () => resolve({ ok: true })
+      }),
+  })
+  setBusyDeferMs(150)
 
   startWorkers()
   bus.startConsumers({ blockMs: 100, retryIdleMs: 300, claimIntervalMs: 100 })
@@ -268,6 +312,49 @@ describe('предел времени', () => {
       data: {},
     })
     await waitForStatus(next, ['succeeded'])
+  })
+})
+
+describe('одиночные задания (ADR-0228)', () => {
+  const enqueue = (name: string) =>
+    JobService.enqueue(systemCtx('test'), {
+      queue: 'maintenance',
+      name: `${name}.${run}`,
+      data: {},
+      options: { attempts: 1 },
+    })
+
+  it('не идут параллельно, даже когда у очереди свободны слоты; занято — пропуск', async () => {
+    const ids = await Promise.all([1, 2, 3, 4].map(() => enqueue('test.single')))
+    const jobs = await Promise.all(ids.map((id) => waitForStatus(id, ['succeeded'])))
+    expect(single.max).toBe(1)
+    const skipped = jobs.filter((job) => (job.result as { skipped?: string })?.skipped === 'busy')
+    expect(skipped.length).toBe(4 - single.runs)
+    expect(single.runs).toBeGreaterThanOrEqual(1)
+  })
+
+  it('с полезной нагрузкой — откладываются и выполняются все по очереди', async () => {
+    const ids = await Promise.all([1, 2, 3].map(() => enqueue('test.single-defer')))
+    const jobs = await Promise.all(ids.map((id) => waitForStatus(id, ['succeeded'])))
+    expect(deferred.max).toBe(1)
+    expect(deferred.runs).toBe(3)
+    expect(jobs.every((job) => !(job.result as { skipped?: string })?.skipped)).toBe(true)
+  })
+
+  it('после предела времени второе исполнение ждёт, пока первое действительно не кончится', async () => {
+    const first = await enqueue('test.single-hang')
+    await waitForStatus(first, ['failed'])
+    // Слот освобождён, а обработчик ещё работает: второе исполнение пропускается
+    const second = await enqueue('test.single-hang')
+    const skipped = await waitForStatus(second, ['succeeded'])
+    expect((skipped.result as { skipped?: string })?.skipped).toBe('busy')
+    releaseHung()
+    await sleep(200)
+    const third = await enqueue('test.single-hang')
+    const failed = await waitForStatus(third, ['failed'])
+    // Третье исполнение пошло само (и тоже упёрлось в предел времени), а не пропущено
+    expect((failed.error as { message?: string } | null)?.message).toContain('Превышено время')
+    releaseHung()
   })
 })
 

@@ -6,12 +6,17 @@ import { logger } from '~/shared/logger/index.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { BackupService } from '../backup/service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
-import { pruneEventConsumptions, trimStreams } from '../events/streams.js'
+import { pruneEventConsumptions, redriveProjections, trimStreams } from '../events/streams.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
 import { expiredTrash, ObjectService, trimRecentViews } from '../objects/service.js'
 import { declareSchedule } from '../schedules/registry.js'
-import { reindexAll, reindexSpace, reindexSubtree } from '../search/index-service.js'
+import {
+  reconcileSearchIndex,
+  reindexAll,
+  reindexSpace,
+  reindexSubtree,
+} from '../search/index-service.js'
 import { indexEmbeddings } from '../search/semantic.js'
 import { reconcileJobs } from './reconcile.js'
 import { registerJobHandler } from './runner.js'
@@ -27,6 +32,22 @@ export function registerMaintenanceJobs(): void {
       const count = await reindexAll(200, helpers.signal)
       await helpers.progress(1, `переиндексировано объектов: ${count}`)
       return { count }
+    },
+  })
+
+  // Ночная сверка индекса с реестром (ADR-0228): потерянные события поиска — в том
+  // числе отзыв доступа — не оставляют в выдаче то, чего там быть не должно
+  registerJobHandler({
+    queue: 'index',
+    name: 'search.reconcile',
+    concurrency: 1,
+    handle: async (_job, helpers) => {
+      const result = await reconcileSearchIndex(helpers.signal)
+      await helpers.progress(
+        1,
+        `переиндексировано: ${result.reindexed}, удалено лишних: ${result.removed}`,
+      )
+      return result
     },
   })
 
@@ -46,6 +67,9 @@ export function registerMaintenanceJobs(): void {
     queue: 'index',
     name: 'search.reindex-space',
     concurrency: 1,
+    // Пространство — одно исполнение за раз; повтор откладывается: правки после
+    // начала прохода он должен увидеть (ADR-0228)
+    exclusive: { key: (job) => String(job.data.spaceId), whenBusy: 'defer' },
     handle: async (job, helpers) => {
       const count = await reindexSpace(String(job.data.spaceId))
       await helpers.progress(1, `переиндексировано объектов: ${count}`)
@@ -107,6 +131,14 @@ export function registerMaintenanceJobs(): void {
     name: 'events.trim',
     concurrency: 1,
     handle: async () => trimStreams(),
+  })
+
+  // События проекций из DLQ — снова в поток (ADR-0228)
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'events.redrive',
+    concurrency: 1,
+    handle: async () => ({ redriven: await redriveProjections() }),
   })
 
   registerJobHandler({
@@ -216,6 +248,18 @@ export function declareMaintenanceSchedules(): void {
     name: 'events.trim',
     pattern: '*/10 * * * *',
     labelKey: 'schedules.jobs.eventsTrim',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'events.redrive',
+    pattern: '*/10 * * * *',
+    labelKey: 'schedules.jobs.eventsRedrive',
+  })
+  declareSchedule({
+    queue: 'index',
+    name: 'search.reconcile',
+    pattern: '37 4 * * *',
+    labelKey: 'schedules.jobs.searchReconcile',
   })
   declareSchedule({
     queue: 'maintenance',

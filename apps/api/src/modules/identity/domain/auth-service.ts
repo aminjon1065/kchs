@@ -11,12 +11,13 @@ import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { endSessionSockets } from '~/kernel/realtime/gateway.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { checkPasswordPolicy, hashPassword, verifyPassword } from '~/shared/crypto/password.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { afterCommit, db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode, randomToken } from '~/shared/ids.js'
 import {
@@ -531,6 +532,8 @@ export const AuthService = {
   async logout(ctx: UserCtx): Promise<void> {
     await db().transaction(async (tx) => {
       await tx.update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, ctx.sessionId))
+      // Сокет вкладки закрывается вместе с сессией (ADR-0228)
+      await afterCommit(tx, () => endSessionSockets([ctx.sessionId]))
       await audit(
         ctx,
         { action: AUDIT_ACTIONS.logout, objectId: ctx.userId, objectType: 'user' },
@@ -557,6 +560,8 @@ export const AuthService = {
         },
         tx,
       )
+      // Сокеты отозванных сессий закрываются после фиксации (ADR-0228)
+      await afterCommit(tx, () => endSessionSockets(revoked.map((row) => row.id)))
       return revoked.length
     })
   },
@@ -578,6 +583,9 @@ export const AuthService = {
         ),
       )
       .returning({ id: sessions.id })
+    // Блокировка, смена и сброс пароля: сокеты прочих сессий закрываются после
+    // фиксации операции, а не живут по снимку до перезагрузки вкладки (ADR-0228)
+    await afterCommit(tx, () => endSessionSockets(revoked.map((row) => row.id)))
     return revoked.length
   },
 

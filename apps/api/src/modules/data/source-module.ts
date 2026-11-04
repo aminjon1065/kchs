@@ -219,6 +219,8 @@ export function registerSourceBackground(): void {
     queue: SOURCE_SCHEDULE_JOB.queue,
     name: SOURCE_SCHEDULE_JOB.name,
     concurrency: 1,
+    // Одиночность — по источнику: разные источники идут параллельно (ADR-0228)
+    exclusive: { key: (job) => String((job.data as { sourceId?: unknown }).sourceId ?? '') },
     handle: async (job) => {
       const sourceId = String((job.data as { sourceId?: unknown }).sourceId ?? '')
       if (!sourceId) return { skipped: true }

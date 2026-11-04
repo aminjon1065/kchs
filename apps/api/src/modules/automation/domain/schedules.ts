@@ -15,6 +15,7 @@ import { logger } from '~/shared/logger/index.js'
 import { rules } from '../schema.js'
 import { type RuleRow, RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
+import { storedDefinition } from './stored-rule.js'
 
 /**
  * Расписания правил в едином планировщике (14-automation-integrations.md §2):
@@ -109,7 +110,8 @@ export async function fireScheduledRule(ruleId: string): Promise<string | null> 
     await syncRuleSchedule(ruleId)
     return null
   }
-  const definition = RuleDefinition.parse(rule.definition)
+  const definition = await storedDefinition(rule, 'schedule')
+  if (!definition) return null
   if (!(await RuleRuns.withinLimit(ruleId, definition.limits.maxRunsPerHour))) {
     await RuleRuns.recordSkip(ruleId, {
       triggerKind: definition.trigger.kind,
@@ -194,7 +196,8 @@ export async function runFromWebhook(
   body: unknown,
   source: string,
 ): Promise<string | null> {
-  const definition = RuleDefinition.parse(rule.definition)
+  const definition = await storedDefinition(rule, 'webhook')
+  if (!definition) return null
   if (!(await RuleRuns.withinLimit(rule.id, definition.limits.maxRunsPerHour))) {
     await RuleRuns.recordSkip(rule.id, {
       triggerKind: 'webhook',

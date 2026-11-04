@@ -721,9 +721,28 @@ export async function deliverEmail(ids: number[]): Promise<number> {
   const rendered = await renderForDelivery(rows)
 
   let sent = 0
-  for (const [, items] of byUser) {
-    const first = items[0]
+  for (const [, pending] of byUser) {
+    const first = pending[0]
     if (!first?.email) continue
+
+    // Захват до отправки (ADR-0228): дайджест и немедленная доставка могут взять
+    // одни и те же уведомления — письмо уходит тому, кто их захватил, один раз
+    const claimed = await db()
+      .update(notifications)
+      .set({ emailedAt: sql`now()` })
+      .where(
+        and(
+          inArray(
+            notifications.id,
+            pending.map((row) => row.id),
+          ),
+          isNull(notifications.emailedAt),
+        ),
+      )
+      .returning({ id: notifications.id })
+    if (claimed.length === 0) continue
+    const mine = new Set(claimed.map((row) => row.id))
+    const items = pending.filter((row) => mine.has(row.id))
 
     const t = createTranslator((first.locale as Locale) ?? 'ru')
     const lines = items.map((row) => {
@@ -749,18 +768,14 @@ export async function deliverEmail(ids: number[]): Promise<number> {
       return false
     })
 
-    // Без SMTP письма не уходят — помечать нечего, дайджест повторится позже
-    if (!delivered) continue
-
-    await db()
-      .update(notifications)
-      .set({ emailedAt: sql`now()` })
-      .where(
-        inArray(
-          notifications.id,
-          items.map((row) => row.id),
-        ),
-      )
+    // Письмо не ушло (нет SMTP, сбой сервера) — захват снимается, дайджест повторит позже
+    if (!delivered) {
+      await db()
+        .update(notifications)
+        .set({ emailedAt: null })
+        .where(inArray(notifications.id, [...mine]))
+      continue
+    }
     sent += items.length
   }
   return sent

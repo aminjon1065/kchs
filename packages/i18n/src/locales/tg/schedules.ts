@@ -68,6 +68,8 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     alertsPrune: 'Огоҳиҳо: тоза кардани таърихи фаъолшавиҳо',
     eventsPruneConsumptions: 'Рӯйдодҳо: тоза кардани нишонаҳои коркард',
     eventsTrim: 'Рӯйдодҳо: кӯтоҳ кардани ҷараёнҳо аз рӯи гурӯҳи ақибмонда',
+    eventsRedrive: 'Рӯйдодҳо: баргардонидани рӯйдодҳои ҷустуҷӯ аз навбати нокомиҳо',
+    searchReconcile: 'Ҷустуҷӯ: муқоисаи шабонаи индекс бо феҳрист',
     knowledgeReview: 'Донишҳо: аз нав баррасӣ кардани саҳифаҳо аз рӯи мӯҳлат',
     webhooksPrune: 'Вебхукҳо: тоза кардани журнали расониданҳо',
     integrationsUsageFlush: 'Ҳамгироиҳо: ҳисоби дархостҳо аз рӯи токенҳо',

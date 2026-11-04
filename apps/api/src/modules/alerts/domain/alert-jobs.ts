@@ -37,11 +37,14 @@ export const AlertJobs = {
       const row = await AlertService.load(db(), id)
       if (!row) continue
       // Время следующей проверки ставим до самой проверки: упавший алерт не
-      // повторяется в каждом тике
-      await db()
+      // повторяется в каждом тике. Это же — захват (ADR-0228): условие «срок
+      // подошёл» в самом UPDATE, и параллельный тик тот же алерт не проверит
+      const claimed = await db()
         .update(alerts)
         .set({ nextRunAt: computeNextRun(AlertService.definitionOf(row)) })
-        .where(eq(alerts.id, id))
+        .where(and(eq(alerts.id, id), lte(alerts.nextRunAt, now.toISOString())))
+        .returning({ id: alerts.id })
+      if (claimed.length === 0) continue
       try {
         const result = await AlertCheck.run(row, { dryRun: false })
         checked += 1

@@ -1,5 +1,4 @@
 import type { EventEnvelope, RuleDefinition } from '@kchs/contracts'
-import { RuleDefinition as RuleDefinitionSchema } from '@kchs/contracts'
 import type { Subscriber } from '~/kernel/events/index.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { systemCtx } from '~/shared/context.js'
@@ -7,6 +6,7 @@ import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { type RuleRow, RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
+import { storedDefinition } from './stored-rule.js'
 import { matchesTrigger } from './triggers.js'
 
 /**
@@ -63,8 +63,9 @@ export function automationSubscribers(): Subscriber[] {
         if (rules.length === 0) return
         const candidates: Array<{ rule: RuleRow; definition: RuleDefinition }> = []
         for (const rule of rules) {
-          const definition = RuleDefinitionSchema.parse(rule.definition)
-          if (matchesTrigger(definition, event)) candidates.push({ rule, definition })
+          // Битое определение пропускает одно правило, а не всю автоматизацию (ADR-0228)
+          const definition = await storedDefinition(rule, 'event')
+          if (definition && matchesTrigger(definition, event)) candidates.push({ rule, definition })
         }
         if (candidates.length === 0) return
 

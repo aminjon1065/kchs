@@ -30,6 +30,8 @@ import { markLeft, markViewing, type Viewer } from './presence.js'
 
 interface SocketData {
   ctx: UserCtx
+  /** Токен сессии из cookie: перепроверка видит, что сессию отозвали (ADR-0228). */
+  sessionToken: string
 }
 
 /**
@@ -68,6 +70,8 @@ const RelayCommand = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('revoke'), objectId: z.string() }),
   z.object({ kind: z.literal('recheck'), userId: z.string() }),
+  // Сессии закончились (выход, отзыв, смена пароля, блокировка) — сокеты закрываются (ADR-0228)
+  z.object({ kind: z.literal('end-sessions'), sessionIds: z.array(z.string()) }),
 ])
 export type RelayCommand = z.infer<typeof RelayCommand>
 
@@ -171,6 +175,8 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
   io.use(async (socket, next) => {
     try {
+      socket.data.sessionToken =
+        parseCookies(socket.handshake.headers.cookie ?? '')[config().SESSION_COOKIE_NAME] ?? ''
       socket.data.ctx = await authenticateSocket(
         socket.handshake.headers.cookie ?? '',
         { id: socket.id, ip: socket.handshake.address, headers: socket.handshake.headers },
@@ -188,6 +194,8 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     // Объекты, где сокет отметил присутствие: при отключении убираем только их
     const viewed = new Set<string>()
     void socket.join(`user:${ctx.userId}`)
+    // Комната сессии: выход и отзыв закрывают сокеты именно этой сессии (ADR-0228)
+    void socket.join(`session:${ctx.sessionId}`)
     for (const spaceId of Object.keys(ctx.principals.spaceRoles)) {
       void socket.join(`space:${spaceId}`)
     }
@@ -327,6 +335,11 @@ async function handleRelay(message: string): Promise<void> {
       return revokeLocal(command.data.objectId)
     case 'recheck':
       return recheckLocal(command.data.userId)
+    case 'end-sessions':
+      for (const sessionId of command.data.sessionIds) {
+        io.local.in(`session:${sessionId}`).disconnectSockets(true)
+      }
+      return
   }
 }
 
@@ -451,6 +464,14 @@ export async function recheckUserRooms(userId: string): Promise<void> {
 async function recheckLocal(userId: string): Promise<void> {
   if (!io) return
   for (const socket of await io.local.in(`user:${userId}`).fetchSockets()) {
+    // Сессию отозвали, учётную запись отключили — сокет закрывается, а не живёт по снимку
+    const session = realtimeDeps
+      ? await realtimeDeps.resolveSession(socket.data.sessionToken).catch(() => null)
+      : null
+    if (realtimeDeps && !session) {
+      socket.disconnect(true)
+      continue
+    }
     const ctx = await withFreshAccess(socket.data.ctx)
     socket.data.ctx = ctx
     for (const room of socket.rooms) {
@@ -460,6 +481,16 @@ async function recheckLocal(userId: string): Promise<void> {
       socket.leave(room)
     }
   }
+}
+
+/**
+ * Сессии закончились — выход, отзыв, смена пароля, блокировка (ADR-0228): их сокеты
+ * закрываются на всех узлах api, а не живут до перезагрузки вкладки. Вызывать после
+ * фиксации транзакции отзыва.
+ */
+export async function endSessionSockets(sessionIds: string[]): Promise<void> {
+  if (sessionIds.length === 0) return
+  await publishRelay({ kind: 'end-sessions', sessionIds })
 }
 
 /** Открытые подключения этого процесса (метрика, 15-admin-operations.md §4). */

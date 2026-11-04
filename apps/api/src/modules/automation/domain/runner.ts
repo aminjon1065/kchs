@@ -1,5 +1,10 @@
-import type { EventEnvelope, RuleAction, RuleBranch, RuleRunStep } from '@kchs/contracts'
-import { RuleDefinition } from '@kchs/contracts'
+import type {
+  EventEnvelope,
+  RuleAction,
+  RuleBranch,
+  RuleRunStep,
+  RuleTriggerKind,
+} from '@kchs/contracts'
 import { evaluateCondition } from '@kchs/query/expr'
 import { eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
@@ -11,6 +16,7 @@ import { processObjectProvider } from '~/kernel/process/registry.js'
 import { config } from '~/shared/config/index.js'
 import { type UserCtx, withCause } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { type ActionContext, runAction } from './actions.js'
 import { RuleService } from './rule-service.js'
@@ -22,6 +28,7 @@ import {
   ruleScope,
   scopeFromEvent,
 } from './scope.js'
+import { BROKEN_DEFINITION, storedDefinition } from './stored-rule.js'
 
 /** Объект события есть в реестре: у людей и подразделений своей записи там нет. */
 async function inRegistry(objectId: string): Promise<boolean> {
@@ -141,22 +148,49 @@ async function runAsRefusal(userId: string): Promise<string | null> {
   return null
 }
 
-/** Исполняет запуск: задание очереди `automation` вызывает эту функцию. */
+/**
+ * Исполняет запуск: задание очереди `automation` вызывает эту функцию. Запуск
+ * сначала захватывается арендой (ADR-0228): повтор задания и обход «зависших» не
+ * исполняют его второй раз, пока жив первый исполнитель, а продолжение идёт с
+ * последнего выполненного действия.
+ */
 export async function executeRun(runId: string): Promise<RunOutcome> {
-  const run = await RuleRuns.load(runId)
-  if (!run) return { status: 'skipped', reason: 'Запуск не найден' }
-  if (run.status === 'succeeded' || run.status === 'failed' || run.status === 'skipped') {
-    return { status: run.status as RunOutcome['status'] }
+  const current = await RuleRuns.load(runId)
+  if (!current) return { status: 'skipped', reason: 'Запуск не найден' }
+  if (
+    current.status === 'succeeded' ||
+    current.status === 'failed' ||
+    current.status === 'skipped'
+  ) {
+    return { status: current.status as RunOutcome['status'] }
   }
+  const owner = newId()
+  const run = await RuleRuns.claim(runId, owner)
+  if (!run) return { status: 'skipped', reason: 'Запуск уже исполняется' }
+  try {
+    return await executeClaimed(run, owner)
+  } catch (error) {
+    // Сбой вне шагов (база, сеть): повтор задания продолжит с записанной позиции
+    await RuleRuns.release(runId, owner).catch(() => undefined)
+    throw error
+  }
+}
 
+type ClaimedRun = NonNullable<Awaited<ReturnType<typeof RuleRuns.claim>>>
+
+async function executeClaimed(run: ClaimedRun, owner: string): Promise<RunOutcome> {
+  const runId = run.id
   const rule = await RuleService.load(db(), run.ruleId)
   if (!rule?.enabled) {
     await RuleRuns.finish(runId, 'skipped', { error: 'Правило выключено' })
     return { status: 'skipped', reason: 'Правило выключено' }
   }
-  const definition = RuleDefinition.parse(rule.definition)
+  const definition = await storedDefinition(rule, run.triggerKind as RuleTriggerKind)
+  if (!definition) {
+    await RuleRuns.finish(runId, 'skipped', { error: BROKEN_DEFINITION })
+    return { status: 'skipped', reason: BROKEN_DEFINITION }
+  }
 
-  await RuleRuns.start(runId)
   const base = definition.runAs ? await buildUserCtxFor(definition.runAs) : null
   const refusal =
     base && definition.runAs
@@ -258,13 +292,16 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
         await RuleRuns.appendStep(
           runId,
           step(index, action, 'skipped', 'Условие остановки не выполнено', null, startedAt, branch),
+          { next: index + 1, owner },
         )
         continue
       }
       const outcome = await runAction(action, actionContext)
+      // Позиция — вместе с шагом: повтор после сбоя процесса сделанное не повторит
       await RuleRuns.appendStep(
         runId,
         step(index, action, 'ok', outcome.message, outcome.objectId ?? null, startedAt, branch),
+        { next: index + 1, owner },
       )
       if (outcome.waitMinutes) {
         const delayMs = outcome.waitMinutes * 60_000
