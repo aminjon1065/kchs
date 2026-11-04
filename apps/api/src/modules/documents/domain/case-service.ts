@@ -23,6 +23,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { destroyFiles } from '~/modules/files/public.js'
+import { mapLimited } from '~/shared/concurrency.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -190,6 +191,9 @@ async function documentFiles(executor: Executor, documentId: string): Promise<st
   return [...ids]
 }
 
+/** Одновременных проверок права подшивать при подборе дел. */
+const AUTHORIZE_CONCURRENCY = 6
+
 /**
  * Открытые дела, подходящие документу: видимые и с правом подшивать; по типу и подразделению
  * (сначала оба совпадения), свежий год выше. Предлагается единственное лучшее совпадение.
@@ -214,10 +218,16 @@ async function rankCases(
     ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
   ])
   const rank: Record<CaseMatch, number> = { type_unit: 0, type: 1, unit: 2, other: 3 }
+  // Право подшивать — по каждому делу; параллельно с пределом: открытых дел года — сотни,
+  // и по очереди диалог регистрации ждал секунды
+  const allowed = await mapLimited(
+    rows,
+    AUTHORIZE_CONCURRENCY,
+    async (row) => (await authorize(ctx, 'file_in', row.id, { soft: true })).allowed,
+  )
   const items = []
-  for (const row of rows) {
-    const decision = await authorize(ctx, 'file_in', row.id, { soft: true })
-    if (!decision.allowed) continue
+  for (const [at, row] of rows.entries()) {
+    if (!allowed[at]) continue
     const byType = row.documentTypeIds.includes(input.typeId)
     const byUnit = input.unitId !== null && row.unitId === input.unitId
     const match: CaseMatch =
