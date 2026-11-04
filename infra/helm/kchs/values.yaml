@@ -187,12 +187,14 @@ s3:
   embedded:
     # Встроенный MinIO — один под; распределённый MinIO ставится своим чартом
     enabled: false
+    # Форк сообщества pgsty/minio: MinIO с осени 2025 не раздаёт образы (ADR-0226);
+    # тег вместе с отпечатком — образ не подменить под тем же тегом
     image:
-      repository: quay.io/minio/minio
-      tag: RELEASE.2025-09-07T16-13-09Z
+      repository: pgsty/minio
+      tag: RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
     initImage:
-      repository: quay.io/minio/mc
-      tag: RELEASE.2025-08-13T08-35-41Z
+      repository: pgsty/mc
+      tag: RELEASE.2026-10-26T00-00-00Z@sha256:ce62c9053c69ce12a527a322345b5ad9f44b5f8a7b8189f82e516f2e3f30f1d8
     persistence:
       enabled: true
       size: 50Gi
