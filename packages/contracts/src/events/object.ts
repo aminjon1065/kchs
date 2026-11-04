@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { Uuid } from '../common/primitives.js'
-import { empty } from './shared.js'
 
 /**
  * События: Реестр объектов и доступ (02-platform-kernel.md §1, 03-access-model.md). Домены `object`, `acl` целиком
@@ -16,9 +15,10 @@ export const OBJECT_EVENTS = {
     fromSpaceId: Uuid.nullable(),
     toSpaceId: Uuid.nullable(),
   }),
-  'object.archived': empty,
-  'object.restored': z.object({ from: z.enum(['archive', 'trash']) }),
-  'object.trashed': empty,
+  // cascadeOf — корень операции: объект ушёл в архив или корзину вместе с ним (ADR-0228)
+  'object.archived': z.object({ cascadeOf: Uuid.optional() }),
+  'object.restored': z.object({ from: z.enum(['archive', 'trash']), cascadeOf: Uuid.optional() }),
+  'object.trashed': z.object({ cascadeOf: Uuid.optional() }),
   'object.deleted': z.object({ type: z.string() }),
   'object.shared': z.object({
     added: z.array(z.object({ principal: z.string(), level: z.string() })).default([]),

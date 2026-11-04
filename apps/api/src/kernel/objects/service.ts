@@ -15,6 +15,7 @@ import { effectiveConfidentialityMany } from '../access/confidentiality.js'
 import type { ObjectLike } from '../access/types.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { publishEvent } from '../events/publisher.js'
+import { sameMoment } from './moments.js'
 import { objectType, requireObjectType } from './registry.js'
 import { objectAncestors, objects, recentViews } from './schema.js'
 
@@ -71,6 +72,42 @@ export function hiddenSummary(summary: ObjectSummary): ObjectSummary {
  * Реестр объектов — создание любого объекта продукта идёт через этот сервис
  * в той же транзакции, что и запись в таблицу модуля (правило №1 CLAUDE.md).
  */
+/** Строка объекта, которую затронула каскадная операция (`RETURNING`). */
+interface TouchedRow extends Record<string, unknown> {
+  id: string
+  type: string
+  space_id: string | null
+  title: string
+}
+
+/**
+ * События потомков каскадной операции: у каждого — `cascadeOf` с корнем. Лента
+ * активности их пропускает (одна запись на действие), остальные подписчики
+ * обрабатывают как обычные (ADR-0228).
+ */
+export async function publishCascade(
+  tx: Tx,
+  ctx: Ctx,
+  type: 'object.archived' | 'object.trashed' | 'object.restored',
+  rows: Iterable<TouchedRow>,
+  rootId: string,
+  payload: Record<string, unknown> = {},
+): Promise<void> {
+  for (const touched of rows) {
+    if (touched.id === rootId) continue
+    await publishEvent(tx, ctx, {
+      type,
+      object: {
+        id: touched.id,
+        type: touched.type,
+        spaceId: touched.space_id,
+        title: touched.title,
+      },
+      payload: { ...payload, cascadeOf: rootId },
+    })
+  }
+}
+
 export const ObjectService = {
   async create(tx: Tx, ctx: Ctx, input: CreateObjectInput): Promise<ObjectLike> {
     requireObjectType(input.type)
@@ -317,6 +354,11 @@ export const ObjectService = {
     await publishEvent(tx, ctx, { type: 'acl.changed', object, payload: { objectId: id } })
   },
 
+  /**
+   * Архив: объект и его живое поддерево. Событие — каждому затронутому объекту
+   * (потомкам — с `cascadeOf`): подписчики закрывают дела, комнаты и поиск и у
+   * вложенных объектов, а не только у корня (ADR-0228).
+   */
   async archive(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row || row.deletedAt) throw errors.notFound()
@@ -325,15 +367,26 @@ export const ObjectService = {
 
     await tx.execute(sql`
       UPDATE ${objects} SET archived_at = now(), updated_at = now(), search_version = search_version + 1
-       WHERE id = ${id} OR id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})`)
+       WHERE id = ${id}`)
+    const subtree = await tx.execute<TouchedRow>(sql`
+      UPDATE ${objects} SET archived_at = now(), updated_at = now(), search_version = search_version + 1
+       WHERE id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})
+         AND archived_at IS NULL AND deleted_at IS NULL
+      RETURNING id, type, space_id, title`)
 
     await publishEvent(tx, ctx, {
       type: 'object.archived',
       object: { id, type: row.type, spaceId: row.spaceId, title: row.title },
     })
+    await publishCascade(tx, ctx, 'object.archived', subtree, id)
     await objectType(row.type)?.lifecycle?.onArchive?.(tx, ctx, toObjectLike(row))
   },
 
+  /**
+   * Восстановление из архива или корзины. Корень возвращается целиком, а из
+   * поддерева — только то, что ушло вместе с ним (та же отметка времени): удалённое
+   * раньше отдельно остаётся в корзине и не выпадает из её очистки (ADR-0228).
+   */
   async restore(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
@@ -342,17 +395,37 @@ export const ObjectService = {
     await tx.execute(sql`
       UPDATE ${objects} SET archived_at = NULL, deleted_at = NULL, updated_at = now(),
              search_version = search_version + 1
-       WHERE id = ${id} OR id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})`)
+       WHERE id = ${id}`)
+    const inSubtree = sql`id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})`
+    const restored = new Map<string, TouchedRow>()
+    if (row.deletedAt) {
+      const rows = await tx.execute<TouchedRow>(sql`
+        UPDATE ${objects} SET deleted_at = NULL, updated_at = now(), search_version = search_version + 1
+         WHERE ${inSubtree} AND ${sameMoment(objects.deletedAt, row.deletedAt)}
+        RETURNING id, type, space_id, title`)
+      for (const touched of rows) restored.set(touched.id, touched)
+    }
+    if (row.archivedAt) {
+      const rows = await tx.execute<TouchedRow>(sql`
+        UPDATE ${objects} SET archived_at = NULL, updated_at = now(), search_version = search_version + 1
+         WHERE ${inSubtree} AND ${sameMoment(objects.archivedAt, row.archivedAt)}
+        RETURNING id, type, space_id, title`)
+      for (const touched of rows) restored.set(touched.id, touched)
+    }
 
     await publishEvent(tx, ctx, {
       type: 'object.restored',
       object: { id, type: row.type, spaceId: row.spaceId, title: row.title },
       payload: { from },
     })
+    await publishCascade(tx, ctx, 'object.restored', [...restored.values()], id, { from })
     await objectType(row.type)?.lifecycle?.onRestore?.(tx, ctx, toObjectLike(row))
   },
 
-  /** Мягкое удаление: объект и поддерево уходят в корзину на 30 дней. */
+  /**
+   * Мягкое удаление: объект и поддерево уходят в корзину на 30 дней. Потомкам,
+   * уже лежащим в корзине, отметка не переписывается — их срок очистки свой.
+   */
   async trash(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
@@ -361,12 +434,18 @@ export const ObjectService = {
 
     await tx.execute(sql`
       UPDATE ${objects} SET deleted_at = now(), updated_at = now(), search_version = search_version + 1
-       WHERE id = ${id} OR id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})`)
+       WHERE id = ${id}`)
+    const subtree = await tx.execute<TouchedRow>(sql`
+      UPDATE ${objects} SET deleted_at = now(), updated_at = now(), search_version = search_version + 1
+       WHERE id IN (SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id})
+         AND deleted_at IS NULL
+      RETURNING id, type, space_id, title`)
 
     await publishEvent(tx, ctx, {
       type: 'object.trashed',
       object: { id, type: row.type, spaceId: row.spaceId, title: row.title },
     })
+    await publishCascade(tx, ctx, 'object.trashed', subtree, id)
   },
 
   /** Окончательное удаление: вызывает lifecycle модуля и удаляет строку. */

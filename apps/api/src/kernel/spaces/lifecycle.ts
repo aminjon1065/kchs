@@ -1,11 +1,13 @@
-import { type AnyColumn, and, eq, isNull, ne, notInArray, sql } from 'drizzle-orm'
+import { and, eq, isNull, ne, notInArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
 import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { ObjectLike } from '../access/types.js'
 import { JobService } from '../jobs/service.js'
+import { sameMoment } from '../objects/moments.js'
 import { objects } from '../objects/schema.js'
+import { publishCascade } from '../objects/service.js'
 import { spaces } from './schema.js'
 
 /**
@@ -40,13 +42,6 @@ async function assertManageable(tx: Executor, spaceId: string, verb: 'archive' |
 /** Содержимое пространства, кроме него самого. */
 const contentOf = (spaceId: string) => and(eq(objects.spaceId, spaceId), ne(objects.id, spaceId))
 
-/**
- * Та же отметка, что у пространства: одна транзакция — один now(), но снимок объекта
- * приходит с точностью до миллисекунд, а в базе — микросекунды.
- */
-const sameMoment = (column: AnyColumn, moment: string) =>
-  sql`date_trunc('milliseconds', ${column}) = ${moment}::timestamptz`
-
 /** Переиндексация содержимого: удалённое уходит из поиска, восстановленное возвращается. */
 async function reindex(tx: Tx, ctx: Ctx, spaceId: string): Promise<void> {
   await JobService.schedule(
@@ -68,7 +63,7 @@ export const SpaceLifecycle = {
 
   /** Содержимое — в архив с той же отметкой, что у пространства (одна транзакция — один now()). */
   async onArchive(tx: Tx, ctx: Ctx, space: ObjectLike): Promise<void> {
-    await tx
+    const content = await tx
       .update(objects)
       .set({
         archivedAt: sql`now()`,
@@ -76,6 +71,13 @@ export const SpaceLifecycle = {
         searchVersion: sql`${objects.searchVersion} + 1`,
       })
       .where(and(contentOf(space.id), isNull(objects.archivedAt), isNull(objects.deletedAt)))
+      .returning({
+        id: objects.id,
+        type: objects.type,
+        space_id: objects.spaceId,
+        title: objects.title,
+      })
+    await publishCascade(tx, ctx, 'object.archived', content, space.id)
     await reindex(tx, ctx, space.id)
   },
 
@@ -104,7 +106,9 @@ export const SpaceLifecycle = {
         )
       }
     }
-    await tx
+    // Событие — каждому объекту содержимого (ADR-0228): дела «Входящих», комнаты и
+    // процессы закрываются и у содержимого, а не только у пространства
+    const content = await tx
       .update(objects)
       .set({
         deletedAt: sql`now()`,
@@ -112,6 +116,13 @@ export const SpaceLifecycle = {
         searchVersion: sql`${objects.searchVersion} + 1`,
       })
       .where(and(contentOf(space.id), isNull(objects.deletedAt)))
+      .returning({
+        id: objects.id,
+        type: objects.type,
+        space_id: objects.spaceId,
+        title: objects.title,
+      })
+    await publishCascade(tx, ctx, 'object.trashed', content, space.id)
     await reindex(tx, ctx, space.id)
   },
 
@@ -121,8 +132,9 @@ export const SpaceLifecycle = {
    * пространства остаётся, где было.
    */
   async onRestore(tx: Tx, ctx: Ctx, snapshot: ObjectLike): Promise<void> {
+    const from = snapshot.deletedAt ? 'trash' : 'archive'
     if (snapshot.deletedAt) {
-      await tx
+      const content = await tx
         .update(objects)
         .set({
           deletedAt: null,
@@ -130,9 +142,16 @@ export const SpaceLifecycle = {
           searchVersion: sql`${objects.searchVersion} + 1`,
         })
         .where(and(contentOf(snapshot.id), sameMoment(objects.deletedAt, snapshot.deletedAt)))
+        .returning({
+          id: objects.id,
+          type: objects.type,
+          space_id: objects.spaceId,
+          title: objects.title,
+        })
+      await publishCascade(tx, ctx, 'object.restored', content, snapshot.id, { from })
     }
     if (snapshot.archivedAt) {
-      await tx
+      const content = await tx
         .update(objects)
         .set({
           archivedAt: null,
@@ -140,6 +159,13 @@ export const SpaceLifecycle = {
           searchVersion: sql`${objects.searchVersion} + 1`,
         })
         .where(and(contentOf(snapshot.id), sameMoment(objects.archivedAt, snapshot.archivedAt)))
+        .returning({
+          id: objects.id,
+          type: objects.type,
+          space_id: objects.spaceId,
+          title: objects.title,
+        })
+      await publishCascade(tx, ctx, 'object.restored', content, snapshot.id, { from })
     }
     await reindex(tx, ctx, snapshot.id)
   },

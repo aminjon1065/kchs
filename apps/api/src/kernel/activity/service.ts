@@ -28,6 +28,8 @@ const VERB_BY_TYPE: Record<string, { verb: string; key: string }> = {
 export async function recordActivity(event: EventEnvelope): Promise<void> {
   const mapping = VERB_BY_TYPE[event.type]
   if (!mapping) return
+  // Потомки каскадной операции (ADR-0228): в ленте одна запись — о корне
+  if ((event.payload as { cascadeOf?: unknown } | undefined)?.cascadeOf) return
   // Поля типа под управлением модуля меняет модуль и сам пишет ленту («изменил
   // карточку»); общая запись «изменил title» её бы дублировала
   if (event.type === 'object.updated' && event.object) {
