@@ -134,6 +134,13 @@ services:
     build:
       context: ./postgres
     image: kchs/postgres:17-3.5
+    # При нехватке памяти ядро убивает сначала другие процессы: падение Postgres
+    # обрывает все соединения (ADR-0227)
+    oom_score_adj: -800
+    # Образ собирается здесь и никогда не тянется из реестра: пространство kchs на
+    # Docker Hub чужое (ADR-0227). never — сборка, если образа нет; build пересобирал бы
+    # его при каждом up
+    pull_policy: never
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
@@ -151,9 +158,9 @@ services:
       - -c
       - max_connections=200
       - -c
-      - shared_buffers=512MB
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-512MB}
       - -c
-      - effective_cache_size=2GB
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-2GB}
       - -c
       - work_mem=16MB
       - -c
@@ -315,9 +322,13 @@ services:
   meilisearch:
     <<: [*restart, *logging]
     image: getmeili/meilisearch:v1.53
+    mem_limit: ${MEILI_MEM_LIMIT:-0}
+    cpus: ${MEILI_CPUS:-0}
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY}
       MEILI_ENV: ${MEILI_ENV:-development}
+      # Без предела индексация берёт до двух третей памяти сервера (ADR-0227)
+      MEILI_MAX_INDEXING_MEMORY: ${MEILI_MAX_INDEXING_MEMORY:-2147483648}
       MEILI_NO_ANALYTICS: "true"
       MEILI_EXPERIMENTAL_ENABLE_METRICS: "true"
     volumes:
@@ -447,6 +458,12 @@ services:
       context: ../..
       dockerfile: apps/api/Dockerfile
     image: kchs/api:${KCHS_IMAGE_TAG:-0.1.0}
+    # Пределы памяти и процессора (ADR-0227): 0 — без ограничения, профиль 16 или
+    # 32 ГБ задаёт infra/scripts/pilot.sh в .env рабочей установки
+    mem_limit: ${API_MEM_LIMIT:-0}
+    cpus: ${API_CPUS:-0}
+    # Только своя сборка (ADR-0227)
+    pull_policy: never
     environment:
       <<: *app-env
       ROLE: api
@@ -477,6 +494,10 @@ services:
     <<: [*restart, *logging]
     profiles: ["app"]
     image: kchs/api:${KCHS_IMAGE_TAG:-0.1.0}
+    mem_limit: ${WORKER_MEM_LIMIT:-0}
+    cpus: ${WORKER_CPUS:-0}
+    # Только своя сборка (ADR-0227)
+    pull_policy: never
     environment:
       <<: *app-env
       ROLE: worker
@@ -503,6 +524,10 @@ services:
       context: ../../apps/engine
       dockerfile: Dockerfile
     image: kchs/engine:${KCHS_IMAGE_TAG:-0.1.0}
+    mem_limit: ${ENGINE_MEM_LIMIT:-0}
+    cpus: ${ENGINE_CPUS:-0}
+    # Только своя сборка (ADR-0227)
+    pull_policy: never
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Минимальные права движка, который разбирает недоверенные файлы (ADR-0176).
@@ -540,6 +565,8 @@ services:
       ENGINE_COLUMNAR_CACHE_MB: ${ENGINE_COLUMNAR_CACHE_MB:-4096}
       ENGINE_COLUMNAR_THREADS: ${ENGINE_COLUMNAR_THREADS:-4}
       ENGINE_COLUMNAR_MEMORY_MB: ${ENGINE_COLUMNAR_MEMORY_MB:-2048}
+      # Одновременных заданий движка: каждое — LibreOffice, Chromium или DuckDB
+      ENGINE_CONCURRENCY: ${ENGINE_CONCURRENCY:-4}
       # Трассы движка — в тот же коллектор, что у api и worker (ADR-0167); пусто — выключены
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL:-}
     extra_hosts:
@@ -564,6 +591,9 @@ services:
       context: ../..
       dockerfile: apps/web/Dockerfile
     image: kchs/web:${KCHS_IMAGE_TAG:-0.1.0}
+    mem_limit: ${WEB_MEM_LIMIT:-0}
+    # Только своя сборка (ADR-0227)
+    pull_policy: never
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
@@ -597,6 +627,8 @@ services:
     <<: [*restart, *logging]
     profiles: ["office"]
     image: onlyoffice/documentserver:9.4
+    mem_limit: ${ONLYOFFICE_MEM_LIMIT:-0}
+    cpus: ${ONLYOFFICE_CPUS:-0}
     environment:
       JWT_ENABLED: "true"
       JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-}
@@ -684,6 +716,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: grafana/alloy:v1.12.0
+    mem_limit: ${ALLOY_MEM_LIMIT:-0}
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -716,6 +749,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: grafana/tempo:2.9.0
+    mem_limit: ${TEMPO_MEM_LIMIT:-0}
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ../observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
@@ -727,6 +761,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: grafana/loki:3.6.0
+    mem_limit: ${LOKI_MEM_LIMIT:-0}
     command: ["-config.file=/etc/loki/loki.yaml"]
     volumes:
       - ../observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
@@ -738,6 +773,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: prom/prometheus:v3.9.1
+    mem_limit: ${PROMETHEUS_MEM_LIMIT:-0}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -844,6 +880,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: prom/alertmanager:v0.34.1
+    mem_limit: ${ALERTMANAGER_MEM_LIMIT:-0}
     entrypoint: ["sh", "/etc/alertmanager-kchs/entrypoint.sh"]
     environment:
       TZ: ${TZ:-Asia/Dushanbe}
@@ -875,6 +912,7 @@ services:
     <<: [*restart, *logging]
     profiles: ["observability"]
     image: grafana/grafana:12.3.0
+    mem_limit: ${GRAFANA_MEM_LIMIT:-0}
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
