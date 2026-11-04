@@ -287,7 +287,20 @@ services:
         for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles kchs-backups kchs-columnar; do
           mc mb --ignore-existing "kchs/$$b"
         done
-        mc ilm rule add --expire-days 30 kchs/kchs-exports 2>/dev/null || true
+        # Правила хранения добавляются один раз: повторный `mc ilm rule add` завёл
+        # бы второе такое же правило при каждом запуске (grep в образе mc нет — case)
+        case "$$(mc ilm rule ls --json kchs/kchs-exports 2>/dev/null || true)" in
+          *'"Expiration"'*) ;;
+          *) mc ilm rule add --expire-days 30 kchs/kchs-exports ;;
+        esac
+        # Файлы сотрудников — с версиями (ADR-0227): перезапись или удаление объекта
+        # оставляет прежнюю версию на 30 дней — защита оригиналов от подмены (у движка
+        # есть право записи) и от ошибочного удаления до ночной копии
+        mc version enable kchs/kchs-files
+        case "$$(mc ilm rule ls --json kchs/kchs-files 2>/dev/null || true)" in
+          *NoncurrentVersionExpiration*) ;;
+          *) mc ilm rule add --noncurrent-expire-days 30 --expire-delete-marker kchs/kchs-files ;;
+        esac
         if [ -n "$$S3_ENGINE_ACCESS_KEY" ]; then
           mc admin policy create kchs kchs-engine /kchs/engine-policy.json
           mc admin user add kchs "$$S3_ENGINE_ACCESS_KEY" "$$S3_ENGINE_SECRET_KEY"
