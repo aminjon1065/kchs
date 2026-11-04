@@ -24,6 +24,7 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
   jobs: {
     inboxWakeSnoozed: 'Inbox: wake snoozed items',
     notificationsDigest: 'Notifications: email digest',
+    calendarSeedYears: 'Business calendar: next year holidays',
     outboxPrune: 'Event log cleanup',
     jobsRedispatch: 'Jobs: redispatch stale and reconcile with the queue',
     jobsPrune: 'Jobs: history cleanup',

@@ -112,6 +112,64 @@ export async function seedFixedHolidays(
   return result
 }
 
+/** Записи календаря за год: день и вид. */
+async function yearRows(executor: Executor, country: string, year: number) {
+  return executor
+    .select({ day: businessCalendar.day, kind: businessCalendar.kind })
+    .from(businessCalendar)
+    .where(
+      and(
+        eq(businessCalendar.country, country),
+        between(businessCalendar.day, `${year}-01-01`, `${year}-12-31`),
+      ),
+    )
+}
+
+/**
+ * Постоянные праздники текущего и следующего года (ADR-0229) — ежедневное задание
+ * обслуживания: календарь не кончается через два года после `kchs init`. Год, где есть
+ * хоть одна запись, не трогается: праздник, который администратор удалил намеренно,
+ * не возвращается. Возвращает добавленное по годам.
+ */
+export async function seedUpcomingYears(
+  now = new Date(),
+  country = DEFAULT_COUNTRY,
+): Promise<Array<{ year: number; added: number }>> {
+  const year = now.getUTCFullYear()
+  const result: Array<{ year: number; added: number }> = []
+  for (const target of [year, year + 1]) {
+    if ((await yearRows(db(), country, target)).length > 0) continue
+    result.push(...(await db().transaction((tx) => seedFixedHolidays(tx, [target], country))))
+  }
+  for (const item of result) {
+    if (item.added > 0) {
+      for (const key of [...cache.keys()]) if (key.endsWith(`:${item.year}`)) cache.delete(key)
+    }
+  }
+  return result
+}
+
+/**
+ * Готовность года (ADR-0229): `fixed` — постоянные праздники занесены, `adjusted` — есть
+ * дни, которые вносит администратор: плавающие праздники (Иди Рамазон, Иди Қурбон) и
+ * переносы выходных по постановлению Правительства. Их даты система не знает заранее.
+ */
+export async function yearReadiness(
+  year: number,
+  country = DEFAULT_COUNTRY,
+): Promise<{ fixed: boolean; adjusted: boolean }> {
+  const fixedDays = new Set(
+    TJ_FIXED_HOLIDAYS.map((holiday) => `${year}-${pad(holiday.month)}-${pad(holiday.day)}`),
+  )
+  const rows = await yearRows(db(), country, year)
+  return {
+    fixed: rows.some((row) => fixedDays.has(String(row.day).slice(0, 10))),
+    adjusted: rows.some(
+      (row) => !(row.kind === 'holiday' && fixedDays.has(String(row.day).slice(0, 10))),
+    ),
+  }
+}
+
 // ─── Рабочие дни и сроки ─────────────────────────────────────────────────────
 
 /**

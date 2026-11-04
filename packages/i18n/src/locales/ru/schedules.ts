@@ -21,6 +21,7 @@ export const schedules = {
   jobs: {
     inboxWakeSnoozed: 'Входящие: возврат отложенных дел',
     notificationsDigest: 'Уведомления: почтовый дайджест',
+    calendarSeedYears: 'Производственный календарь: праздники следующего года',
     outboxPrune: 'Очистка журнала событий',
     jobsRedispatch: 'Задания: повторная постановка и сверка с очередью',
     jobsPrune: 'Задания: очистка истории',

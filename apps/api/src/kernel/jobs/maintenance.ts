@@ -5,6 +5,7 @@ import { ensureAuditPartitions } from '~/shared/db/partitions.js'
 import { logger } from '~/shared/logger/index.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { BackupService } from '../backup/service.js'
+import { seedUpcomingYears } from '../business-calendar/service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
 import { pruneEventConsumptions, trimStreams } from '../events/streams.js'
 import { InboxService } from '../inbox/service.js'
@@ -139,6 +140,14 @@ export function registerMaintenanceJobs(): void {
     handle: async () => ({ woken: await InboxService.wakeSnoozed() }),
   })
 
+  // Производственный календарь (ADR-0229): постоянные праздники следующего года — заранее
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'calendar.seed-years',
+    concurrency: 1,
+    handle: async () => ({ seeded: await seedUpcomingYears() }),
+  })
+
   registerJobHandler({
     queue: 'maintenance',
     name: 'recent.trim',
@@ -198,6 +207,12 @@ export function declareMaintenanceSchedules(): void {
     name: 'notifications.digest',
     pattern: '*/15 * * * *',
     labelKey: 'schedules.jobs.notificationsDigest',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'calendar.seed-years',
+    pattern: '23 2 * * *',
+    labelKey: 'schedules.jobs.calendarSeedYears',
   })
   declareSchedule({
     queue: 'maintenance',
