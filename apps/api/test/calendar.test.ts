@@ -298,6 +298,26 @@ describe('встреча с повтором и приглашения', () => {
     expect(clash.statusCode, clash.body).toBe(409)
     expect(clash.json().data.conflicts[0].resourceId).toBe(roomId)
   })
+
+  it('две брони одной переговорной одновременно — проходит только одна (ADR-0228)', async () => {
+    const book = (who: typeof fx.users.member, title: string) =>
+      call(fx.app, {
+        method: 'POST',
+        url: '/events',
+        as: who,
+        payload: {
+          title,
+          startsAt: at(addDays(monday, 21), '15:00'),
+          endsAt: at(addDays(monday, 21), '16:00'),
+          resourceIds: [roomId],
+        },
+      })
+    const results = await Promise.all([
+      book(fx.users.member, `Параллельно А ${run}`),
+      book(fx.users.stranger, `Параллельно Б ${run}`),
+    ])
+    expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409])
+  })
 })
 
 describe('правка серии', () => {

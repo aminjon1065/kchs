@@ -231,6 +231,17 @@ export async function assertResourcesFree(
   ids: string[],
 ): Promise<void> {
   if (ids.length === 0) return
+  // Бронирования одного ресурса — по очереди (ADR-0228): строки ресурсов под блокировку
+  // в одном порядке до проверки. Иначе две параллельные брони не видят друг друга и
+  // обе проходят; после ожидания проверка видит уже зафиксированную бронь соседа
+  await tx.execute(sql`
+    SELECT id FROM ${objects}
+     WHERE id IN (${sql.join(
+       ids.map((id) => sql`${id}`),
+       sql`, `,
+     )})
+     ORDER BY id
+       FOR UPDATE`)
   const conflicts = await tx.execute<{
     resource_id: string
     starts_at: string | Date
