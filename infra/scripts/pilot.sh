@@ -76,10 +76,13 @@ require_pilot() {
     die "$ENV_FILE — не рабочая установка (нет KCHS_INSTALL_KIND=pilot). Стенд показа — demo-stand.sh."
 }
 
-# Количество ядер сервера: пределы процессора не должны быть больше, иначе Docker не
-# запустит контейнер
+# Ядра, доступные Docker: пределы процессора не должны быть больше, иначе Docker не
+# запустит контейнер (на macOS и Windows у виртуальной машины Docker ядер меньше)
 host_cpus() {
-  getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 2
+  local cpus
+  cpus="$(docker info --format '{{.NCPU}}' 2>/dev/null || true)"
+  [[ "$cpus" =~ ^[0-9]+$ ]] || cpus="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
+  printf '%s' "$cpus"
 }
 
 # Профиль из ключа, иначе запомненный в .env, иначе 16 — сервер ещё не выбран
@@ -162,8 +165,12 @@ preflight() {
   mem="$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)"
   want="$(current_profile)"
   if ((mem > 0 && mem < want * 1000000000 * 9 / 10)); then
-    say "Внимание: у сервера $((mem / 1073741824)) ГБ памяти, а профиль рассчитан на $want ГБ."
-    say "Выберите --profile 16 или сервер побольше; без своп-файла 4–8 ГБ возможны падения."
+    say "Внимание: Docker доступно $((mem / 1073741824)) ГБ памяти, а профиль рассчитан на $want ГБ."
+    if [[ "$want" == 32 ]]; then
+      say "Выберите --profile 16 или сервер побольше; без своп-файла 4–8 ГБ возможны падения."
+    else
+      say "Серверу нужно 16 ГБ; на меньшем возможны падения служб, своп-файл 4–8 ГБ обязателен."
+    fi
   fi
   local free
   free="$(df -Pk "$ROOT" | awk 'NR == 2 { print int($4 / 1048576) }')"
