@@ -6,6 +6,7 @@ import { TerritoryService, territoryIndex } from '~/modules/territories/public.j
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { warnings } from '../schema.js'
 import {
@@ -210,6 +211,14 @@ export const WarningPublication = {
     if (status !== 'on_approval' && status !== 'approved') return
     const approver = actorId(ctx)
     const sent = new Date(Math.floor(Date.now() / 1000) * 1000)
+    // Пока предупреждение ждало подписи, срок действия мог истечь (ADR-0229): выпуск
+    // уже истёкшего отказывает, и подпись откатывается вместе с ним
+    if (row.expires && new Date(row.expires).getTime() <= sent.getTime()) {
+      throw errors.conflict(
+        'Срок действия предупреждения истёк, пока оно ждало подписи — верните его на доработку и продлите срок',
+        { reason: 'expired' },
+      )
+    }
     if (status === 'on_approval') {
       await setStatus(tx, ctx, id, 'approved', {
         approvedAt: sent.toISOString(),

@@ -411,6 +411,10 @@ export const PACK_DATASETS: readonly PackDataset[] = [
           ['cancel', 'Отмена'],
         ]),
       }),
+      // Срочность и достоверность CAP (ADR-0229): предупреждение из сообщения берёт их у
+      // самого сообщения — прогноз не становится наблюдением по времени отправки
+      field('urgency', 'Срочность (CAP)', 'Urgency (CAP)', 'text', 'text'),
+      field('certainty', 'Достоверность (CAP)', 'Certainty (CAP)', 'text', 'text'),
       field('received_at', 'Время приёма', 'Received at', 'datetime', 'time', { format: DATETIME }),
       field('notified_at', 'Уведомлена смена', 'Duty shift notified', 'datetime', 'time', {
         format: DATETIME,

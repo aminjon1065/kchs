@@ -422,6 +422,8 @@ const HYDROMET_CAP = {
           '*': 'alert',
         }),
       },
+      { field: 'urgency', value: path('info.urgency') },
+      { field: 'certainty', value: path('info.certainty') },
     ],
     ...QUAKE_COMMON,
   },
@@ -429,7 +431,8 @@ const HYDROMET_CAP = {
 
 /**
  * Лента Агентства, уже установленная пакетом (ADR-0229): Moderate — жёлтый, а не зелёный, и
- * вид сообщения CAP (msgType) в строке. Правится только то, что осталось как у пакета.
+ * вид сообщения, срочность и достоверность CAP в строке. Правится только то, что осталось
+ * как у пакета.
  */
 async function upgradeHydrometFeed(ctx: UserCtx, id: string): Promise<boolean> {
   const record = await SourceService.get(ctx, id)
@@ -443,10 +446,12 @@ async function upgradeHydrometFeed(ctx: UserCtx, id: string): Promise<boolean> {
     }
     return entry
   })
-  if (!mapping.some((entry) => entry.field === 'msg_type')) {
-    const msgType = HYDROMET_CAP.feed.mapping.find((entry) => entry.field === 'msg_type')
-    if (msgType) {
-      mapping.push(msgType as (typeof mapping)[number])
+  // Поля, которых у ленты прежней версии нет: вид сообщения, срочность, достоверность
+  for (const key of ['msg_type', 'urgency', 'certainty']) {
+    if (mapping.some((entry) => entry.field === key)) continue
+    const added = HYDROMET_CAP.feed.mapping.find((entry) => entry.field === key)
+    if (added) {
+      mapping.push(added as (typeof mapping)[number])
       changed = true
     }
   }
