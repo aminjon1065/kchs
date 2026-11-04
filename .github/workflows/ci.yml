@@ -359,6 +359,12 @@ jobs:
             echo "infra/helm/kchs/files/alerts.yml отстал: cp infra/observability/prometheus/alerts.yml infra/helm/kchs/files/alerts.yml" >&2
             exit 1
           fi
+      # Сторож рабочей установки без наблюдаемости (ADR-0227): поддельный Telegram
+      - name: Сторож рабочей установки
+        run: |
+          bash -n infra/scripts/pilot.sh
+          bash -n infra/scripts/watchdog.sh
+          bash infra/scripts/watchdog.test.sh
 
   security:
     name: Безопасность
