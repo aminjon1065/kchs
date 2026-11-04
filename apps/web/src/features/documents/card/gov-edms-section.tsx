@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Landmark, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useLocale } from '~/shared/appearance.js'
+import { localIsoDay } from '~/shared/dates.js'
 import { useT } from '~/shared/i18n.js'
 import {
   govEdmsKeys,
@@ -134,7 +135,7 @@ function TransferDialog({
 }) {
   const t = useT()
   const toast = useToast()
-  const [sentOn, setSentOn] = useState(() => new Date().toISOString().slice(0, 10))
+  const [sentOn, setSentOn] = useState(() => localIsoDay())
   const [externalNumber, setExternalNumber] = useState('')
   const [note, setNote] = useState('')
   const mark = useMutation({

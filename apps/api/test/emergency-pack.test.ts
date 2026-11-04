@@ -30,7 +30,7 @@ const {
   spaces,
   users,
 } = await import('../src/db-schema.js')
-const { evaluateRuleCondition, ruleScope } = await import(
+const { evaluateRuleCondition, renderTemplate, ruleScope } = await import(
   '../src/modules/automation/domain/scope.js'
 )
 
@@ -233,6 +233,7 @@ describe('пакет ЧС: чистая установка', () => {
       'emergency-hazard-decided',
       'emergency-hazard-duty',
       'emergency-hazard-received',
+      'emergency-hazard-update',
       'emergency-incident-deaths',
       'emergency-report-hq',
       'emergency-strong-quake-hq',
@@ -273,7 +274,7 @@ describe('пакет ЧС: чистая установка', () => {
       .select({ total: sql<number>`count(*)::int` })
       .from(rules)
       .where(sql`${rules.key} like 'emergency-%'`)
-    expect(counted?.total).toBe(8)
+    expect(counted?.total).toBe(9)
     const [routes] = await db()
       .select({ total: sql<number>`count(*)::int` })
       .from(processDefinitions)
@@ -425,6 +426,179 @@ describe('пакет ЧС: условия правил лент', () => {
     expect(holds(hq, quake, null)).toBe(true)
     expect(holds(hq, { ...quake, magnitude: 5.2 }, null)).toBe(false)
     expect(holds(hq, { ...quake, occurred_at: '2026-06-27T13:34:52Z' }, null)).toBe(false)
+  })
+})
+
+describe('пакет ЧС: повтор уведомлений, уточнения и обновление установки (ADR-0229)', () => {
+  const now = '2026-09-24T12:00:00.000Z'
+
+  async function definitionOf(key: string) {
+    const [rule] = await db()
+      .select({ id: rules.id, definition: rules.definition })
+      .from(rules)
+      .where(eq(rules.key, key))
+    return { id: rule?.id as string, definition: RuleDefinition.parse(rule?.definition) }
+  }
+
+  function scopeOf(
+    values: Record<string, unknown>,
+    territory: { id: string; path: string[] } | null,
+    extra: { type?: string; changed?: string[] } = {},
+  ) {
+    const payload = {
+      rowId: '1',
+      values,
+      labels: {},
+      territories: territory
+        ? { territory: { ...territory, code: territory.path.at(-1), name: 'Район' } }
+        : {},
+      ...(extra.changed ? { changed: extra.changed, previous: {} } : {}),
+    }
+    return ruleScope(
+      {
+        event: {
+          id: 'e',
+          type: extra.type ?? 'dataset.row_created',
+          occurredAt: now,
+          payload,
+          changedFields: null,
+          correlationId: null,
+        },
+        object: null,
+        actor: { id: null, kind: 'system', displayName: null },
+        previous: {},
+        now,
+      },
+      'Asia/Dushanbe',
+    )
+  }
+
+  const varzob = { id: 'a1a1a1a1-0000-4000-8000-000000000001', path: ['TJ', 'TJ-RR', 'TJ-RR-01'] }
+  const rasht = { id: 'a1a1a1a1-0000-4000-8000-000000000002', path: ['TJ', 'TJ-RR', 'TJ-RR-02'] }
+
+  it('сели в двух районах в одну минуту — два уведомления; один толчок от двух лент — одно', async () => {
+    const { definition } = await definitionOf('emergency-hazard-duty')
+    const key = definition.limits.dedupeKey as string
+    const at = '2026-09-24T11:00:00Z'
+    const mudflow = (territory: typeof varzob, code: string) =>
+      renderTemplate(key, scopeOf({ hazard: 'mudflow', occurred_at: at, code }, territory))
+    expect(mudflow(varzob, 'region:1')).not.toBe(mudflow(rasht, 'region:2'))
+    // Тот же сель от двух источников в одном районе — одно уведомление
+    expect(mudflow(varzob, 'region:1')).toBe(mudflow(varzob, 'hydromet:7'))
+    const quake = (territory: typeof varzob, code: string, time: string) =>
+      renderTemplate(key, scopeOf({ hazard: 'earthquake', occurred_at: time, code }, territory))
+    expect(quake(varzob, 'usgs:1', '2026-09-24T11:01:10Z')).toBe(
+      quake(rasht, 'emsc:9', '2026-09-24T11:01:40Z'),
+    )
+  })
+
+  it('жёлтое предупреждение Агентства доходит до смены, зелёное — нет', async () => {
+    const { definition } = await definitionOf('emergency-hazard-duty')
+    const condition = definition.conditions as NonNullable<typeof definition.conditions>
+    const storm = (alert_level: string) =>
+      evaluateRuleCondition(
+        condition,
+        scopeOf(
+          { hazard: 'storm', alert_level, occurred_at: '2026-09-24T08:00:00Z', source: 'hydromet' },
+          varzob,
+        ),
+      )
+    expect(storm('yellow')).toBe(true)
+    expect(storm('green')).toBe(false)
+  })
+
+  it('уточнение и отмена предупреждения Агентства поднимают смену, правка дежурного — нет', async () => {
+    const { definition } = await definitionOf('emergency-hazard-update')
+    const condition = definition.conditions as NonNullable<typeof definition.conditions>
+    const updated = (msg_type: string, changed: string[]) =>
+      evaluateRuleCondition(
+        condition,
+        scopeOf({ source: 'hydromet', msg_type, hazard: 'flood' }, varzob, {
+          type: 'dataset.row_updated',
+          changed,
+        }),
+      )
+    expect(updated('update', ['occurred_at', 'title'])).toBe(true)
+    expect(updated('cancel', ['occurred_at', 'alert_level'])).toBe(true)
+    expect(updated('update', ['status', 'decided_at'])).toBe(false)
+    expect(updated('alert', ['occurred_at'])).toBe(false)
+  })
+
+  it('пересданная сводка руководство второй раз не поднимает; срок поручения — часы', async () => {
+    const { definition } = await definitionOf('emergency-incident-deaths')
+    const key = definition.limits.dedupeKey as string
+    const row = (deaths: number) =>
+      renderTemplate(
+        key,
+        scopeOf(
+          {
+            unit: 'u1',
+            report_date: '2026-09-23',
+            type_code: '1.2',
+            occurred_at: '2026-09-23T15:20:00Z',
+            deaths,
+          },
+          varzob,
+        ),
+      )
+    expect(row(2)).toBe(row(2))
+    expect(row(2)).not.toBe(row(3))
+    expect(definition.limits.dedupeWindowMinutes).toBe(1440)
+    const task = definition.actions.find((action) => action.type === 'create_task')
+    expect(task && 'dueAt' in task ? task.dueAt : null).toContain("'hour'")
+  })
+
+  it('повторная установка обновляет нетронутые правила и ленту Агентства, изменённые — нет', async () => {
+    const { RuleService } = await import('../src/modules/automation/domain/rule-service.js')
+    const { buildUserCtxFor } = await import('../src/kernel/access/explain.js')
+    const [admin] = await db().select({ id: users.id }).from(users).where(eq(users.login, 'admin'))
+    const ctx = await buildUserCtxFor(admin?.id as string)
+    if (!ctx) throw new Error('нет администратора')
+
+    // Установка прежней версии пакета: старый ключ повтора и уровни, правило о погибших без ключа
+    const duty = await definitionOf('emergency-hazard-duty')
+    const oldDuty = structuredClone(duty.definition)
+    oldDuty.limits.dedupeKey =
+      '{{event.payload.values.hazard}}:{{substr(event.payload.values.occurred_at, 1, 15)}}'
+    const asOld = JSON.parse(
+      JSON.stringify(oldDuty).replace(
+        "event.payload.values.alert_level in ('yellow', 'orange', 'red')",
+        "event.payload.values.alert_level in ('orange', 'red')",
+      ),
+    )
+    await db().transaction((tx) => RuleService.update(tx, ctx, duty.id, asOld))
+    const deaths = await definitionOf('emergency-incident-deaths')
+    const custom = structuredClone(deaths.definition)
+    custom.limits.dedupeKey = '{{event.payload.values.code}}'
+    await db().transaction((tx) => RuleService.update(tx, ctx, deaths.id, custom))
+    // Лента Агентства прежней версии: Moderate — зелёный, вида сообщения нет
+    const { SourceService } = await import('../src/modules/data/domain/source-service.js')
+    const { findPackObject } = await import('../src/seed/packs/emergency/context.js')
+    const feedId = (await findPackObject('source', 'feed.hydromet_cap')) as string
+    const feed = (await SourceService.get(ctx, feedId)).feed
+    if (!feed) throw new Error('у ленты Агентства нет настройки')
+    const oldMapping = feed.mapping
+      .filter((entry) => entry.field !== 'msg_type')
+      .map((entry) =>
+        entry.field === 'alert_level' && entry.value.kind === 'path'
+          ? { ...entry, value: { ...entry.value, map: { ...entry.value.map, Moderate: 'green' } } }
+          : entry,
+      )
+    await SourceService.update(ctx, feedId, { feed: { ...feed, mapping: oldMapping } })
+
+    await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
+
+    const upgradedFeed = (await SourceService.get(ctx, feedId)).feed
+    const level = upgradedFeed?.mapping.find((entry) => entry.field === 'alert_level')?.value
+    expect(level && level.kind === 'path' ? level.map?.Moderate : null).toBe('yellow')
+    expect(upgradedFeed?.mapping.some((entry) => entry.field === 'msg_type')).toBe(true)
+
+    const after = await definitionOf('emergency-hazard-duty')
+    expect(after.definition.limits.dedupeKey).toContain("'quake'")
+    expect(JSON.stringify(after.definition.conditions)).toContain("'yellow'")
+    // Ключ, который поменял администратор, остаётся его
+    const kept = await definitionOf('emergency-incident-deaths')
+    expect(kept.definition.limits.dedupeKey).toBe('{{event.payload.values.code}}')
   })
 })
 

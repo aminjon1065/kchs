@@ -3,7 +3,13 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { eventAttendees, eventInstances, eventReminders, events } from '../schema.js'
+import {
+  eventAttendees,
+  eventInstances,
+  eventOccurrenceResponses,
+  eventReminders,
+  events,
+} from '../schema.js'
 
 /**
  * Напоминания (12-calendar-notifications-home.md §1, ADR-0081). Очередь
@@ -53,6 +59,11 @@ export async function planReminders(
       CROSS JOIN LATERAL jsonb_to_recordset(COALESCE(a.reminders, e.reminders))
         AS r(minutes int, channels text[])
      WHERE i.starts_at > now() - ${LATE}
+       -- Отказ от одного повторения (ADR-0229): этому экземпляру напоминаний нет
+       AND NOT EXISTS (
+         SELECT 1 FROM ${eventOccurrenceResponses} x
+          WHERE x.event_id = i.event_id AND x.user_id = a.user_id
+            AND x.recurrence_id = i.recurrence_id AND x.status = 'declined')
        AND i.starts_at <= now() + ${AHEAD} + ${LONGEST}
        AND r.minutes BETWEEN 0 AND 10080
        AND cardinality(r.channels) > 0
@@ -75,11 +86,15 @@ export async function replanReminders(executor: Executor, eventIds: string[]): P
   await planReminders(executor, eventIds)
 }
 
-/** Участник отказался или исключён — его неотправленные напоминания снимаются. */
+/**
+ * Участник отказался или исключён — его неотправленные напоминания снимаются; с
+ * `recurrenceId` — только этого повторения (ответ на экземпляр, ADR-0229).
+ */
 export async function dropReminders(
   executor: Executor,
   eventId: string,
   userId?: string,
+  recurrenceId?: string,
 ): Promise<void> {
   await executor
     .delete(eventReminders)
@@ -88,6 +103,9 @@ export async function dropReminders(
         eq(eventReminders.eventId, eventId),
         isNull(eventReminders.sentAt),
         userId ? eq(eventReminders.userId, userId) : undefined,
+        recurrenceId
+          ? sql`${eventReminders.recurrenceId} = ${recurrenceId}::timestamptz`
+          : undefined,
       ),
     )
 }

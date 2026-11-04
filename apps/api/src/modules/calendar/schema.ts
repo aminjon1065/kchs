@@ -165,6 +165,27 @@ export const eventAttendees = pgTable(
   ],
 )
 
+/**
+ * Ответ участника на одно повторение серии (ADR-0229): «не смогу в этот четверг» не
+ * меняет ответ на всю серию. Ключ — исходное начало экземпляра (RECURRENCE-ID).
+ */
+export const eventOccurrenceResponses = pgTable(
+  'event_occurrence_responses',
+  {
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    recurrenceId: tsCol('recurrence_id').notNull(),
+    status: text('status').notNull(),
+    comment: text('comment'),
+    respondedAt: tsCol('responded_at').notNull().default(sql`now()`),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.userId, t.recurrenceId] })],
+)
+
 /** Забронированные ресурсы события. */
 export const eventResources = pgTable(
   'event_resources',

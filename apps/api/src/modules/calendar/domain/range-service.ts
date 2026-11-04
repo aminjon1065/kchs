@@ -31,6 +31,7 @@ import { logger } from '~/shared/logger/index.js'
 import {
   eventAttendees,
   eventInstances,
+  eventOccurrenceResponses,
   eventResources,
   events,
   type OccurrenceOverrideValue,
@@ -199,6 +200,26 @@ export const RangeService = {
       counts.set(row.eventId, (counts.get(row.eventId) ?? 0) + 1)
       if (row.userId === me) mine.set(row.eventId, row)
     }
+    // Мои ответы на отдельные повторения (ADR-0229): ответ экземпляра важнее ответа серии
+    const answers = new Map<string, string>()
+    if (eventIds.length > 0) {
+      const rows = await db()
+        .select({
+          eventId: eventOccurrenceResponses.eventId,
+          recurrenceId: eventOccurrenceResponses.recurrenceId,
+          status: eventOccurrenceResponses.status,
+        })
+        .from(eventOccurrenceResponses)
+        .where(
+          and(
+            inArray(eventOccurrenceResponses.eventId, eventIds),
+            eq(eventOccurrenceResponses.userId, me),
+          ),
+        )
+      for (const row of rows) {
+        answers.set(`${row.eventId}:${new Date(row.recurrenceId).toISOString()}`, row.status)
+      }
+    }
     const organizers = await directory().refs([
       ...new Set(
         page
@@ -260,7 +281,9 @@ export const RangeService = {
         location: change && change.location !== undefined ? change.location : row.location,
         color: colorOf(row, invitation),
         visibility: row.visibility as EventVisibility,
-        myStatus: (attendee?.status as AttendeeStatus | undefined) ?? null,
+        myStatus:
+          ((answers.get(`${row.eventId}:${new Date(row.recurrenceId).toISOString()}`) ??
+            attendee?.status) as AttendeeStatus | undefined) ?? null,
         organizer: row.organizerId ? (organizers.get(row.organizerId) ?? null) : null,
         attendeeCount: counts.get(row.eventId) ?? 0,
         hasMeeting: Boolean(row.meetingId),
@@ -310,6 +333,11 @@ export const RangeService = {
              sql`, `,
            )})
              AND a.status <> 'declined'
+             -- Отказ от одного повторения освобождает это время (ADR-0229)
+             AND NOT EXISTS (
+               SELECT 1 FROM ${eventOccurrenceResponses} x
+                WHERE x.event_id = e.id AND x.user_id = a.user_id
+                  AND x.recurrence_id = i.recurrence_id AND x.status = 'declined')
              AND tstzrange(i.starts_at, i.ends_at, '[)') && tstzrange(${query.from}::timestamptz, ${query.to}::timestamptz, '[)')
              ${exclude}
            ORDER BY i.starts_at

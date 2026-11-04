@@ -14,7 +14,7 @@ import {
   type ResourceKind,
   type UserRef,
 } from '@kchs/contracts'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -22,7 +22,13 @@ import { hiddenSummary, ObjectService } from '~/kernel/objects/service.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { calendars, eventAttendees, eventInstances, events } from '../schema.js'
+import {
+  calendars,
+  eventAttendees,
+  eventInstances,
+  eventOccurrenceResponses,
+  events,
+} from '../schema.js'
 import { CalendarInbox } from './calendar-inbox.js'
 import { loadCalendar, principalUser } from './calendar-service.js'
 import {
@@ -247,6 +253,41 @@ export const EventService = {
     ) {
       validation('proposal', 'Окончание раньше начала')
     }
+    // Ответ на одно повторение серии (ADR-0229): ответ на серию и приглашение остаются,
+    // меняются напоминания и занятость этого экземпляра
+    if (input.recurrenceId && loaded.row.rrule && !input.proposal) {
+      const recurrence = Date.parse(input.recurrenceId)
+      if (!hasOccurrence(seriesOf(loaded.row), recurrence)) {
+        throw errors.notFound('Экземпляр события')
+      }
+      const key = iso(recurrence)
+      await tx
+        .insert(eventOccurrenceResponses)
+        .values({
+          eventId: id,
+          userId: me,
+          recurrenceId: key,
+          status: input.status,
+          comment: text(input.comment),
+        })
+        .onConflictDoUpdate({
+          target: [
+            eventOccurrenceResponses.eventId,
+            eventOccurrenceResponses.userId,
+            eventOccurrenceResponses.recurrenceId,
+          ],
+          set: { status: input.status, comment: text(input.comment), respondedAt: sql`now()` },
+        })
+      await dropReminders(tx, id, me, key)
+      if (input.status !== 'declined') await planReminders(tx, [id], me)
+      await emit(tx, ctx, { id, spaceId: loaded.spaceId, title: loaded.title }, 'event.responded', {
+        userId: me,
+        status: input.status,
+        proposed: false,
+        recurrenceId: key,
+      })
+      return
+    }
     await tx
       .update(eventAttendees)
       .set({
@@ -328,6 +369,20 @@ export const EventService = {
         }
       }
     }
+    // Мой ответ на это повторение (ADR-0229) — важнее ответа на серию
+    const [occurrenceAnswer] = occurrence
+      ? await db()
+          .select({ status: eventOccurrenceResponses.status })
+          .from(eventOccurrenceResponses)
+          .where(
+            and(
+              eq(eventOccurrenceResponses.eventId, id),
+              eq(eventOccurrenceResponses.userId, principalUser(ctx)),
+              eq(eventOccurrenceResponses.recurrenceId, occurrence.recurrenceId),
+            ),
+          )
+          .limit(1)
+      : []
     const calendarRef = {
       id: calendar.id,
       title: calendar.title,
@@ -443,7 +498,7 @@ export const EventService = {
       }),
       reminders: row.reminders as Reminder[],
       myReminders: (mine?.reminders as Reminder[] | null) ?? null,
-      myStatus: (mine?.status as AttendeeStatus | undefined) ?? null,
+      myStatus: ((occurrenceAnswer?.status ?? mine?.status) as AttendeeStatus | undefined) ?? null,
       linkedObjects,
       meetingId: row.meetingId,
       seriesId: row.seriesId,

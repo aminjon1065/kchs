@@ -9,7 +9,9 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  */
 registerLifecycle()
 
-const { BusinessCalendar } = await import('../src/kernel/business-calendar/service.js')
+const { BusinessCalendar, seedUpcomingYears, yearReadiness } = await import(
+  '../src/kernel/business-calendar/service.js'
+)
 
 let fx: TestContext
 /** Год, которого нет у других тестов: исключения прогона не мешают соседям. */
@@ -102,5 +104,52 @@ describe('производственный календарь', () => {
       as: fx.admin,
     })
     expect(trail.json().items.length).toBeGreaterThan(0)
+  })
+})
+
+describe('производственный календарь на годы вперёд (ADR-0229)', () => {
+  // Годы, которых нет у других тестов
+  const NEAR = 2033
+  const FAR = 2034
+  const cleanup = () =>
+    db().execute(sql`DELETE FROM business_calendar WHERE day BETWEEN '2033-01-01' AND '2034-12-31'`)
+  beforeAll(cleanup)
+  afterAll(cleanup)
+
+  it('задание заносит постоянные праздники текущего и следующего года, удалённое не возвращает', async () => {
+    const seeded = await seedUpcomingYears(new Date('2033-06-01T00:00:00Z'))
+    expect(seeded.map((item) => item.year)).toEqual([NEAR, FAR])
+    expect(seeded.every((item) => item.added === 11)).toBe(true)
+    // 9 мая 2034 — праздник: срок в рабочих днях через него не идёт
+    expect(await BusinessCalendar.isWorkingDay('2034-05-09')).toBe(false)
+
+    // Администратор удалил день — повторный запуск его не возвращает
+    await db().execute(sql`DELETE FROM business_calendar WHERE day = '2034-06-27'`)
+    const again = await seedUpcomingYears(new Date('2033-06-01T00:00:00Z'))
+    expect(again).toEqual([])
+    const [row] = await db().execute<{ n: number }>(
+      sql`SELECT count(*)::int AS n FROM business_calendar WHERE day = '2034-06-27'`,
+    )
+    expect(row?.n).toBe(0)
+  })
+
+  it('«Здоровье системы»: год без плавающих праздников и переносов — внимание', async () => {
+    expect(await yearReadiness(NEAR)).toEqual({ fixed: true, adjusted: false })
+    // Иди Рамазон вносит администратор — год готов
+    const set = await call(fx.app, {
+      method: 'PUT',
+      url: '/admin/business-calendar/2033-12-20',
+      as: fx.admin,
+      payload: { kind: 'holiday', note: { ru: 'Иди Рамазон' } },
+    })
+    expect(set.statusCode, set.body).toBe(200)
+    expect(await yearReadiness(NEAR)).toEqual({ fixed: true, adjusted: true })
+
+    const health = await call(fx.app, { url: '/admin/health', as: fx.admin })
+    expect(health.statusCode, health.body).toBe(200)
+    const component = health
+      .json()
+      .components.find((item: { name: string }) => item.name === 'business-calendar')
+    expect(component).toBeTruthy()
   })
 })

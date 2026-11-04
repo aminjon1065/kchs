@@ -1,4 +1,6 @@
 import {
+  CAP_CERTAINTIES,
+  CAP_URGENCIES,
   QuerySpec,
   type WarningArea,
   type WarningContent,
@@ -285,6 +287,19 @@ export const WarningService = {
       : undefined
     const occurredAt = text('occurred_at')
     const observed = occurredAt ? new Date(occurredAt).getTime() <= Date.now() : false
+    // Срочность и достоверность — из самого сообщения CAP, если лента их дала: время
+    // отправки прогноза в прошлом не делает прогноз наблюдением (ADR-0229). Без них —
+    // сообщение наблюдательной ленты: свершилось — «наблюдается», впереди — «ожидается»
+    const urgency = (CAP_URGENCIES as readonly string[]).includes(text('urgency'))
+      ? (text('urgency') as WarningContent['urgency'])
+      : observed
+        ? 'Immediate'
+        : 'Expected'
+    const certainty = (CAP_CERTAINTIES as readonly string[]).includes(text('certainty'))
+      ? (text('certainty') as WarningContent['certainty'])
+      : observed
+        ? 'Observed'
+        : 'Likely'
     const event = {
       tg: known?.event.tg ?? '',
       ru: known?.event.ru ?? hazardLabel ?? '',
@@ -312,8 +327,8 @@ export const WarningService = {
       info,
       categories: known ? [known.category] : ['Other'],
       severity: ALERT_LEVEL_SEVERITY[text('alert_level')] ?? 'Moderate',
-      urgency: observed ? 'Immediate' : 'Expected',
-      certainty: observed ? 'Observed' : 'Likely',
+      urgency,
+      certainty,
       expires: new Date(Date.now() + 24 * 3600_000).toISOString(),
       areas,
       source: { datasetId, rowId: input.rowId },
@@ -330,6 +345,13 @@ export const WarningService = {
     if (statusOf(row) !== 'published') {
       throw errors.conflict('Уточнить или отменить можно только опубликованное', {
         status: row.status,
+      })
+    }
+    // Отмена — конец цепочки (ADR-0229): уточнение или отмена отмены снова выпустили бы
+    // отменённое. Обстановка изменилась — новое предупреждение
+    if (msgTypeOf(row) === 'Cancel') {
+      throw errors.conflict('Отмену не уточняют и не отменяют — выпустите новое предупреждение', {
+        msgType: 'Cancel',
       })
     }
     const [pending] = await tx
@@ -468,7 +490,15 @@ export const WarningService = {
         ? await db()
             .select({ id: warnings.id })
             .from(warnings)
-            .where(and(eq(warnings.referencesId, id), inArray(warnings.status, PENDING)))
+            // Черновик уточнения в корзине — не в работе: кнопки не прячет (ADR-0229)
+            .innerJoin(objects, eq(objects.id, warnings.id))
+            .where(
+              and(
+                eq(warnings.referencesId, id),
+                inArray(warnings.status, PENDING),
+                isNull(objects.deletedAt),
+              ),
+            )
             .limit(1)
         : []
     return {
@@ -515,7 +545,11 @@ export const WarningService = {
         null,
       canEdit: edit.allowed && status === 'draft',
       canSubmit: edit.allowed && status === 'draft',
-      canSupersede: edit.allowed && status === 'published' && pendingSupersede.length === 0,
+      canSupersede:
+        edit.allowed &&
+        status === 'published' &&
+        msgTypeOf(row) !== 'Cancel' &&
+        pendingSupersede.length === 0,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }

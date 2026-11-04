@@ -301,6 +301,11 @@ export const EventRespondInput = z.object({
   status: ResponseStatus,
   comment: z.string().trim().max(2000).optional(),
   proposal: TimeProposal.optional(),
+  /**
+   * Ответ на одно повторение серии (ADR-0229): исходное начало экземпляра. Без него —
+   * ответ на всю серию.
+   */
+  recurrenceId: Timestamp.optional(),
 })
 export type EventRespondInput = z.infer<typeof EventRespondInput>
 

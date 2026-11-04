@@ -105,7 +105,18 @@ export const HAZARDS = options([
 ])
 
 /** Решение дежурного по сообщению: журнал решений — история строки. */
-export const MESSAGE_STATUSES = options([
+export /**
+ * Уровни тревоги: зелёный, оранжевый и красный — GDACS; жёлтый — Moderate предупреждений
+ * Агентства по шкале CAP-профиля Meteoalarm (ADR-0229).
+ */
+const ALERT_LEVELS = options([
+  ['green', 'Зелёный', 'success'],
+  ['yellow', 'Жёлтый', 'warning'],
+  ['orange', 'Оранжевый', 'warning'],
+  ['red', 'Красный', 'danger'],
+])
+
+const MESSAGE_STATUSES = options([
   ['new', 'Новое', 'danger'],
   ['reviewed', 'Рассмотрено', 'info'],
   ['noted', 'Принято к сведению', 'neutral'],
@@ -368,11 +379,7 @@ export const PACK_DATASETS: readonly PackDataset[] = [
         format: { precision: 0 },
       }),
       field('alert_level', 'Уровень тревоги', 'Alert level', 'select', 'category', {
-        options: options([
-          ['green', 'Зелёный', 'success'],
-          ['orange', 'Оранжевый', 'warning'],
-          ['red', 'Красный', 'danger'],
-        ]),
+        options: ALERT_LEVELS,
       }),
       field('frp', 'Мощность очага, МВт', 'Fire radiative power, MW', 'number', 'measure', {
         format: { precision: 1 },
@@ -391,9 +398,23 @@ export const PACK_DATASETS: readonly PackDataset[] = [
     timeField: 'occurred_at',
     territoryField: 'territory',
     rowEvents: true,
+    // Установленный датасет получает жёлтый уровень (ADR-0229)
+    patches: [{ key: 'alert_level', patch: { options: ALERT_LEVELS } }],
     // Журнал решений дежурного (ADR-0201): время каждого шага цепочки «сигнал →
     // уведомление → решение → доведение» ставят правила пакета, а не человек
     extra: [
+      // Вид сообщения CAP (ADR-0229): уточнение и отмена приходят в строку первичного
+      field('msg_type', 'Вид сообщения', 'Message type', 'select', 'category', {
+        options: options([
+          ['alert', 'Предупреждение'],
+          ['update', 'Уточнение'],
+          ['cancel', 'Отмена'],
+        ]),
+      }),
+      // Срочность и достоверность CAP (ADR-0229): предупреждение из сообщения берёт их у
+      // самого сообщения — прогноз не становится наблюдением по времени отправки
+      field('urgency', 'Срочность (CAP)', 'Urgency (CAP)', 'text', 'text'),
+      field('certainty', 'Достоверность (CAP)', 'Certainty (CAP)', 'text', 'text'),
       field('received_at', 'Время приёма', 'Received at', 'datetime', 'time', { format: DATETIME }),
       field('notified_at', 'Уведомлена смена', 'Duty shift notified', 'datetime', 'time', {
         format: DATETIME,

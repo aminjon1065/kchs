@@ -32,6 +32,7 @@ import {
 } from '~/modules/files/public.js'
 import { Integrations } from '~/modules/integrations/public.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
+import { localToday } from '~/shared/dates.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
@@ -501,7 +502,8 @@ async function createDraft(
         subject: subjectOf(letter),
         summary: letter.body || null,
         correspondentId,
-        receivedDate: new Date().toISOString().slice(0, 10),
+        // Дата поступления — по поясу установки (ADR-0229)
+        receivedDate: localToday(),
         deliveryMethod: 'email',
         ...(letter.sentAt ? { externalDate: letter.sentAt.slice(0, 10) } : {}),
       })

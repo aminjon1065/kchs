@@ -221,6 +221,8 @@ beforeAll(async () => {
         { key: 'occurred_at', label: { ru: 'Время' }, type: 'datetime', semantic: 'time' },
         { key: 'territory', label: { ru: 'Район' }, type: 'territory', semantic: 'territory' },
         { key: 'published_at', label: { ru: 'Доведено' }, type: 'datetime', semantic: 'time' },
+        { key: 'urgency', label: { ru: 'Срочность' }, type: 'text', semantic: 'text' },
+        { key: 'certainty', label: { ru: 'Достоверность' }, type: 'text', semantic: 'text' },
       ],
       primaryKey: ['code'],
     },
@@ -577,6 +579,101 @@ describe('выпуск', () => {
       as: fx.admin,
     })
     expect(trash.statusCode).toBe(409)
+  })
+
+  it('отмену не уточняют и не отменяют; черновик уточнения в корзине кнопок не прячет (ADR-0229)', async () => {
+    const first = await readyDraft()
+    await publish(first)
+    const draft = await call(fx.app, {
+      method: 'POST',
+      url: `/warnings/${first}/supersede`,
+      as: fx.users.member,
+      payload: { msgType: 'Update' },
+    })
+    expect(draft.statusCode, draft.body).toBe(200)
+    expect((await getWarning(fx.users.member, first)).canSupersede).toBe(false)
+    const trashed = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${draft.json().id}`,
+      as: fx.users.member,
+    })
+    expect(trashed.statusCode, trashed.body).toBe(200)
+    expect((await getWarning(fx.users.member, first)).canSupersede).toBe(true)
+
+    const cancel = await call(fx.app, {
+      method: 'POST',
+      url: `/warnings/${first}/supersede`,
+      as: fx.users.member,
+      payload: { msgType: 'Cancel' },
+    })
+    expect(cancel.statusCode, cancel.body).toBe(200)
+    const cancelId = cancel.json().id as string
+    await publish(cancelId)
+    expect(await getWarning(fx.users.member, cancelId)).toMatchObject({
+      status: 'published',
+      msgType: 'Cancel',
+      canSupersede: false,
+    })
+    for (const msgType of ['Update', 'Cancel']) {
+      const again = await call(fx.app, {
+        method: 'POST',
+        url: `/warnings/${cancelId}/supersede`,
+        as: fx.users.member,
+        payload: { msgType },
+      })
+      expect(again.statusCode).toBe(409)
+    }
+  })
+
+  it('истёкшее за время подписи не выпускается: подпись откатывается (ADR-0229)', async () => {
+    const id = await readyDraft()
+    const processId = await submit(id)
+    await db().execute(
+      sql`UPDATE warnings SET expires = now() - interval '1 minute' WHERE id = ${id}`,
+    )
+    const signed = await decide(processId, 'sign')
+    expect(signed.statusCode).toBe(409)
+    expect(JSON.stringify(signed.json())).toContain('истёк')
+    expect(await getWarning(fx.users.member, id)).toMatchObject({
+      status: 'on_approval',
+      publishedAt: null,
+    })
+  })
+
+  it('из прогноза — срочность и достоверность из сообщения, а не «наблюдается» (ADR-0229)', async () => {
+    const inserted = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: {
+        rows: [
+          {
+            values: {
+              code: `FC-${run}`,
+              title: 'Прогноз схода селей на завтра',
+              hazard: 'mudflow',
+              alert_level: 'orange',
+              occurred_at: new Date(Date.now() - 600_000).toISOString(),
+              territory: 'TJ-GB',
+              urgency: 'Future',
+              certainty: 'Possible',
+            },
+          },
+        ],
+      },
+    })
+    expect(inserted.statusCode, inserted.body).toBe(200)
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/warnings/from-message',
+      as: fx.users.member,
+      payload: { rowId: inserted.json().items[0]._id },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    expect(await getWarning(fx.users.member, created.json().id)).toMatchObject({
+      urgency: 'Future',
+      certainty: 'Possible',
+    })
   })
 
   it('отказ подписывающего возвращает черновик', async () => {

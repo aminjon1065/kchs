@@ -2,6 +2,7 @@ import { Readable } from 'node:stream'
 import { sql } from 'drizzle-orm'
 import { auditActionCatalog } from '~/kernel/audit/registry.js'
 import { AUDIT_ACTIONS, audit, auditBatches, queryAudit } from '~/kernel/audit/service.js'
+import { yearReadiness } from '~/kernel/business-calendar/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { outboxLag } from '~/kernel/events/dispatcher.js'
 import { healthEvents } from '~/kernel/events/streams.js'
@@ -127,6 +128,8 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
         }),
         // УЦ Комитета: срок ключей подходит к концу — пора сменить (ADR-0224)
         ...(await pkiComponent()),
+        // Производственный календарь: плавающие праздники года не внесены (ADR-0229)
+        await calendarComponent(),
         // Движок — в установке всегда, при разработке — если поднят (ENGINE_INTERNAL_URL)
         ...(config().ENGINE_INTERNAL_URL
           ? [
@@ -182,6 +185,39 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
 }
 
 /** Строка «Здоровья системы» об УЦ Комитета: предупреждение за месяцы до конца срока ключей. */
+/**
+ * Производственный календарь (ADR-0229): постоянные праздники заносит задание
+ * обслуживания, а Иди Рамазон, Иди Қурбон и переносы выходных объявляет Правительство —
+ * их вносит администратор. Год без них — «внимание»: сроки в рабочих днях идут сквозь
+ * праздники. С ноября смотрится и следующий год.
+ */
+async function calendarComponent(now = new Date()): Promise<{
+  name: string
+  status: 'ok' | 'degraded'
+  detail: string | null
+  latencyMs: null
+}> {
+  const year = now.getUTCFullYear()
+  const years = now.getUTCMonth() >= 10 ? [year, year + 1] : [year]
+  const gaps: string[] = []
+  for (const target of years) {
+    const readiness = await yearReadiness(target)
+    if (!readiness.fixed) gaps.push(`${target}: не занесены праздники с постоянной датой`)
+    else if (!readiness.adjusted) {
+      gaps.push(`${target}: не внесены Иди Рамазон, Иди Қурбон и переносы выходных`)
+    }
+  }
+  return {
+    name: 'business-calendar',
+    status: gaps.length > 0 ? 'degraded' : 'ok',
+    detail:
+      gaps.length > 0
+        ? `Производственный календарь — ${gaps.join('; ')}: консоль «Производственный календарь»`
+        : null,
+    latencyMs: null,
+  }
+}
+
 async function pkiComponent(): Promise<
   Array<{ name: string; status: 'ok' | 'degraded'; detail: string | null; latencyMs: null }>
 > {

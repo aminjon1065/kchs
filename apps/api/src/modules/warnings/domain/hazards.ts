@@ -39,7 +39,9 @@ export const HAZARD_EVENTS: Record<
 
 /** Уровень тревоги GDACS и национальных лент → строгость CAP. */
 export const ALERT_LEVEL_SEVERITY: Record<string, CapSeverity> = {
+  // Шкала CAP-профиля Meteoalarm (ADR-0229): у ленты Агентства — то же соответствие
   red: 'Extreme',
   orange: 'Severe',
-  green: 'Moderate',
+  yellow: 'Moderate',
+  green: 'Minor',
 }

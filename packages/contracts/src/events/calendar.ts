@@ -53,6 +53,8 @@ export const CALENDAR_EVENTS = {
     userId: Uuid,
     status: z.enum(['accepted', 'tentative', 'declined']),
     proposed: z.boolean(),
+    /** Ответ на одно повторение серии (ADR-0229); без него — на всю серию. */
+    recurrenceId: z.string().optional(),
   }),
   /** Напоминание экземпляра наступило: доставка — подписчиком через уведомления ядра. */
   'event.reminder': z.object({

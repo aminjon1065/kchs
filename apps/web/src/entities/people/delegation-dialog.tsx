@@ -20,6 +20,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { ApiError } from '~/shared/api/errors.js'
 import { principalsQuery } from '~/shared/api/queries.js'
+import { localIsoDay } from '~/shared/dates.js'
 import { useT } from '~/shared/i18n.js'
 
 const SCOPES = ['all', 'approvals', 'instructions', 'documents', 'meetings'] as const
@@ -33,13 +34,6 @@ export interface DelegationBody {
   endsAt: string
   note: string | null
 }
-
-/**
- * День в поясе браузера (`yyyy-mm-dd`): `toISOString` дал бы день по UTC, и с полуночи до
- * пяти утра по Душанбе подставлялось бы вчера.
- */
-const isoDay = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 /**
  * Назначение заместителя (03-access-model.md §Делегирование): сотрудник, область и
@@ -65,8 +59,8 @@ export function CreateDelegationDialog({
     search: '',
     deputy: null as PrincipalRef | null,
     scope: 'all' as Scope,
-    from: isoDay(new Date()),
-    to: isoDay(new Date(Date.now() + 7 * 86_400_000)),
+    from: localIsoDay(new Date()),
+    to: localIsoDay(new Date(Date.now() + 7 * 86_400_000)),
     note: '',
   })
   const [form, setForm] = useState(empty)

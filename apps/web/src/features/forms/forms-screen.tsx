@@ -26,6 +26,7 @@ import { useId, useState } from 'react'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
+import { localIsoDay } from '~/shared/dates.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { askable } from './askable.js'
@@ -286,7 +287,7 @@ function CreateFormDialog({
           dueMode: 'working',
           dueWorkingDays: 1,
           startsOn: null,
-          dueOn: periodicity === 'once' ? new Date().toISOString().slice(0, 10) : null,
+          dueOn: periodicity === 'once' ? localIsoDay() : null,
         },
         assignments: [] as FormAssignment[],
         review: { enabled: false, reviewers: [] },

@@ -2,7 +2,7 @@ import type { HealthAlerts, HealthMetrics } from '@kchs/contracts'
 import { formatDateTime, formatFileSize, formatNumber, formatPercent } from '@kchs/fields'
 import { Badge, Callout, Card, Skeleton, StatTile } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Cpu, Database, HardDrive, Search, Server } from 'lucide-react'
+import { Activity, CalendarDays, Cpu, Database, HardDrive, Search, Server } from 'lucide-react'
 import { healthQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -15,6 +15,7 @@ const COMPONENT_ICONS: Record<string, typeof Server> = {
   meilisearch: Search,
   storage: HardDrive,
   engine: Cpu,
+  'business-calendar': CalendarDays,
 }
 
 /**

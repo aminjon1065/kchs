@@ -14,8 +14,8 @@ import { bootTestApp, db, registerLifecycle, resetTestData } from './helpers.js'
 registerLifecycle()
 
 const { runInit } = await import('../src/cli/init.js')
-const { importHistory } = await import('../src/seed/history/index.js')
-const { datasets, objects } = await import('../src/db-schema.js')
+const { importHistory, upgradeHistory } = await import('../src/seed/history/index.js')
+const { datasetFields, datasets, objects, users } = await import('../src/db-schema.js')
 
 const PACK_KEY = sql<string>`coalesce(${objects.meta}->>'packKey', ${objects.meta}->>'systemKey')`
 
@@ -175,4 +175,85 @@ describe('загрузка истории ЧС', () => {
     expect(again.mapIds).toEqual(first.mapIds)
     expect(again.dashboardId).toBe(first.dashboardId)
   }, 180_000)
+})
+
+describe('дашборд истории: новые строки реестра считаются (ADR-0229)', () => {
+  it('строка без числа явлений — одно явление; установленный дашборд прежней версии обновляется', async () => {
+    const { Dashboards, DatasetQueries } = await import('../src/modules/data/public.js')
+    const { buildUserCtxFor } = await import('../src/kernel/access/explain.js')
+    const [admin] = await db().select({ id: users.id }).from(users).where(eq(users.login, 'admin'))
+    const ctx = await buildUserCtxFor(admin?.id as string)
+    if (!ctx) throw new Error('нет администратора')
+    const [found] = await db()
+      .select({ id: objects.id })
+      .from(objects)
+      .where(and(isNull(objects.deletedAt), sql`${PACK_KEY} = 'emergency.history.dashboard'`))
+    const dashboardId = found?.id as string
+    type Tile = { id: string; spec?: { data?: { query?: unknown } } }
+    const yearsQuery = async () => {
+      const spec = (await Dashboards.get(dashboardId)).spec as unknown as { tiles: Tile[] }
+      return spec.tiles.find((item) => item.id === 'registry-years')?.spec?.data?.query
+    }
+    const columnOf = async (datasetId: string, key: string) => {
+      const [column] = await db()
+        .select({ name: datasetFields.physicalColumn })
+        .from(datasetFields)
+        .where(and(eq(datasetFields.datasetId, datasetId), eq(datasetFields.key, key)))
+      return column?.name as string
+    }
+
+    // Строка суточной сводки: числа явлений нет
+    const incidents = await datasetByKey('dataset.incidents')
+    const occurrences = await columnOf(incidents.id, 'occurrences')
+    const code = await columnOf(incidents.id, 'code')
+    await db().execute(
+      sql`UPDATE ${sql.identifier('ds')}.${sql.identifier(incidents.table)} SET ${sql.identifier(occurrences)} = NULL WHERE ${sql.identifier(code)} = 'H2019-0001'`,
+    )
+    const total = async () => {
+      const result = await DatasetQueries.run(ctx, (await yearsQuery()) as never)
+      const at = result.fields.findIndex((field) => field.name === 'incidents')
+      return result.rows.reduce((sum, row) => sum + Number(row[at] ?? 0), 0)
+    }
+    // 1 (пусто) + 6 + 1
+    expect(await total()).toBe(8)
+
+    // Установка прежней версии: мера — sum(inc.occurrences) без вычисляемого поля
+    type Step = {
+      type: string
+      fields?: Array<{ name: string }>
+      measures?: Array<{ field: string }>
+    }
+    const old = structuredClone((await Dashboards.get(dashboardId)).spec) as unknown as {
+      tiles: Array<{ spec?: { data?: { query?: { steps?: Step[] } } } }>
+    }
+    for (const item of old.tiles) {
+      const query = item.spec?.data?.query
+      if (!query?.steps) continue
+      query.steps = query.steps
+        .map((step) => ({
+          ...step,
+          ...(step.fields
+            ? { fields: step.fields.filter((entry) => entry.name !== 'occurrences_n') }
+            : {}),
+          ...(step.measures
+            ? {
+                measures: step.measures.map((measure) =>
+                  measure.field === 'occurrences_n'
+                    ? { ...measure, field: 'inc.occurrences' }
+                    : measure,
+                ),
+              }
+            : {}),
+        }))
+        .filter((step) => step.type !== 'compute' || (step.fields ?? []).length > 0)
+    }
+    await db().transaction((tx) => Dashboards.update(tx, ctx, dashboardId, { spec: old }))
+    expect(JSON.stringify(await yearsQuery())).not.toContain('occurrences_n')
+    expect(await total()).toBe(7)
+
+    expect(await upgradeHistory('admin')).toBe(true)
+    expect(await total()).toBe(8)
+    // Второй раз менять нечего
+    expect(await upgradeHistory('admin')).toBe(false)
+  }, 120_000)
 })

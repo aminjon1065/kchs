@@ -4,7 +4,7 @@ import {
   FeedSourceCreateInput,
   FormCreateInput,
   RuleCreateInput,
-  type RuleDefinition,
+  RuleDefinition,
   ServiceAccountCreateInput,
 } from '@kchs/contracts'
 import { and, eq } from 'drizzle-orm'
@@ -18,8 +18,10 @@ import { RuleService } from '~/modules/automation/domain/rule-service.js'
 import { syncRuleSchedule } from '~/modules/automation/domain/schedules.js'
 import { FeedService } from '~/modules/data/domain/feed-service.js'
 import { syncSourceSchedule } from '~/modules/data/domain/source-schedules.js'
+import { SourceService } from '~/modules/data/domain/source-service.js'
 import { FormService } from '~/modules/forms/domain/form-service.js'
 import { config } from '~/shared/config/index.js'
+import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { findPackObject, markPackObject, type PackContext, staffOf, unitId } from './context.js'
 import type { PackStructure } from './structure.js'
@@ -401,17 +403,61 @@ const HYDROMET_CAP = {
       {
         field: 'alert_level',
         value: path('info.severity', {
+          // Шкала цветов CAP-профиля Meteoalarm: Moderate — жёлтый (ADR-0229)
           Extreme: 'red',
           Severe: 'orange',
-          Moderate: 'green',
+          Moderate: 'yellow',
           Minor: 'green',
           '*': '',
         }),
       },
       { field: 'url', value: path('info.web') },
+      // Уточнение и отмена приходят в строку первичного предупреждения: вид — по msgType
+      {
+        field: 'msg_type',
+        value: path('msgType', {
+          Alert: 'alert',
+          Update: 'update',
+          Cancel: 'cancel',
+          '*': 'alert',
+        }),
+      },
+      { field: 'urgency', value: path('info.urgency') },
+      { field: 'certainty', value: path('info.certainty') },
     ],
     ...QUAKE_COMMON,
   },
+}
+
+/**
+ * Лента Агентства, уже установленная пакетом (ADR-0229): Moderate — жёлтый, а не зелёный, и
+ * вид сообщения, срочность и достоверность CAP в строке. Правится только то, что осталось
+ * как у пакета.
+ */
+async function upgradeHydrometFeed(ctx: UserCtx, id: string): Promise<boolean> {
+  const record = await SourceService.get(ctx, id)
+  if (!record.feed) return false
+  let changed = false
+  const mapping = record.feed.mapping.map((entry) => {
+    const value = entry.value
+    if (entry.field === 'alert_level' && value.kind === 'path' && value.map?.Moderate === 'green') {
+      changed = true
+      return { ...entry, value: { ...value, map: { ...value.map, Moderate: 'yellow' } } }
+    }
+    return entry
+  })
+  // Поля, которых у ленты прежней версии нет: вид сообщения, срочность, достоверность
+  for (const key of ['msg_type', 'urgency', 'certainty']) {
+    if (mapping.some((entry) => entry.field === key)) continue
+    const added = HYDROMET_CAP.feed.mapping.find((entry) => entry.field === key)
+    if (added) {
+      mapping.push(added as (typeof mapping)[number])
+      changed = true
+    }
+  }
+  if (!changed) return false
+  await SourceService.update(ctx, id, { feed: { ...record.feed, mapping } })
+  return true
 }
 
 async function ensureFeeds(pack: PackContext, datasets: Ids, writer: string): Promise<string[]> {
@@ -421,7 +467,13 @@ async function ensureFeeds(pack: PackContext, datasets: Ids, writer: string): Pr
   if (!ctx) return []
   const created: string[] = []
   for (const spec of [...FEEDS, HYDROMET_CAP]) {
-    if (await findPackObject('source', spec.key)) continue
+    const existing = await findPackObject('source', spec.key)
+    if (existing) {
+      if (spec.key === HYDROMET_CAP.key && (await upgradeHydrometFeed(ctx, existing))) {
+        created.push(`~${spec.key}`)
+      }
+      continue
+    }
     const id = await FeedService.create(
       ctx,
       FeedSourceCreateInput.parse({
@@ -523,6 +575,33 @@ async function reportsJournal(): Promise<string | null> {
 const FRESH_QUAKE = "date_diff(event.payload.values.occurred_at, now(), 'hour') < 24"
 const FRESH_HAZARD = "date_diff(event.payload.values.occurred_at, now(), 'day') < 7"
 
+/** Уровни, о которых сообщают смене: жёлтый — у предупреждений Агентства (ADR-0229). */
+const HAZARD_LEVELS = "event.payload.values.alert_level in ('yellow', 'orange', 'red')"
+const OLD_HAZARD_LEVELS = "event.payload.values.alert_level in ('orange', 'red')"
+
+/**
+ * Ключ повтора уведомления смены (ADR-0229). USGS и EMSC сообщают об одном толчке почти
+ * одновременно и в разные районы — толчок склеивается по времени. Остальные явления — по
+ * виду, району и времени: сель в Варзобе и сель в Рашту в одну минуту — два уведомления.
+ * Без района — по коду строки, то есть без склейки.
+ */
+export const HAZARD_DEDUPE =
+  "{{if(event.payload.values.hazard = 'earthquake', 'quake', concat(event.payload.values.hazard, ':', coalesce(event.payload.territories.territory.id, event.payload.values.code)))}}:{{substr(event.payload.values.occurred_at, 1, 15)}}"
+/** Прежний ключ — по нему обновление пакета узнаёт неизменённое правило установки. */
+const OLD_HAZARD_DEDUPE =
+  '{{event.payload.values.hazard}}:{{substr(event.payload.values.occurred_at, 1, 15)}}'
+
+/**
+ * Ключ повтора «Происшествие с погибшими» (ADR-0229): возвращённая сводка сдаётся заново
+ * целиком — строки удаляются и вставляются снова, и правило без ключа поднимало бы
+ * руководство второй раз. Ключ — по содержанию строки (подразделение, отчётная дата, район,
+ * вид, время, число погибших): уточнённое число погибших — новое уведомление.
+ */
+export const DEATHS_DEDUPE =
+  '{{event.payload.values.unit}}:{{event.payload.values.report_date}}:{{event.payload.territories.territory.id}}:{{event.payload.values.type_code}}:{{substr(event.payload.values.occurred_at, 1, 16)}}:{{event.payload.values.deaths}}'
+/** Срок поручения по происшествию с погибшими — часы, а не рабочие дни (ADR-0131). */
+export const DEATHS_DUE_AT = "{{date_add(now(), 4, 'hour')}}"
+
 interface PackRule {
   key: string
   /** Включено ли правило после установки; по умолчанию — да. */
@@ -607,7 +686,7 @@ async function packRules(
                   and: [
                     {
                       or: [
-                        { expr: "event.payload.values.alert_level in ('orange', 'red')" },
+                        { expr: HAZARD_LEVELS },
                         {
                           expr: "event.payload.values.hazard in ('flood', 'mudflow', 'landslide', 'avalanche')",
                         },
@@ -644,9 +723,7 @@ async function packRules(
         ],
         limits: {
           maxRunsPerHour: 60,
-          // USGS и EMSC сообщают об одном толчке почти одновременно — одно уведомление
-          dedupeKey:
-            '{{event.payload.values.hazard}}:{{substr(event.payload.values.occurred_at, 1, 15)}}',
+          dedupeKey: HAZARD_DEDUPE,
           dedupeWindowMinutes: 60,
         },
       },
@@ -721,13 +798,61 @@ async function packRules(
               'Уточнить обстановку у регионального управления, силы и средства на месте, потребность в эвакуации и ПВР; доложить руководству штаба.',
             assignee: operations,
             controller: chairman,
-            dueWorkingDays: 1,
+            dueAt: DEATHS_DUE_AT,
             priority: 1,
             // Строка реестра — не объект: поручение привязано к карте обстановки штаба
             source: mapId,
           },
         ],
-        limits: { maxRunsPerHour: 30, dedupeKey: null, dedupeWindowMinutes: 60 },
+        limits: { maxRunsPerHour: 30, dedupeKey: DEATHS_DEDUPE, dedupeWindowMinutes: 1440 },
+      },
+    },
+    {
+      key: 'emergency-hazard-update',
+      definition: {
+        name: {
+          ru: 'Уточнение или отмена предупреждения Агентства — дежурной смене',
+          en: 'Hydromet warning update or cancel — duty shift',
+        },
+        description:
+          'Уточнение и отмена предупреждения Агентства по гидрометеорологии приходят в строку первичного предупреждения: смена узнаёт о новом сообщении нити, а не только о первом.',
+        trigger: { kind: 'event', type: 'dataset.row_updated', filter: { 'object.id': hazard } },
+        conditions: {
+          and: [
+            { expr: "event.payload.values.source = 'hydromet'" },
+            { expr: "event.payload.values.msg_type in ('update', 'cancel')" },
+            // Новое сообщение нити меняет время отправки; правка дежурного — нет
+            { expr: "contains(event.payload.changed, 'occurred_at')" },
+            { expr: "contains(event.payload.territories.territory.path, 'TJ')" },
+          ],
+        },
+        actions: [
+          {
+            type: 'notify',
+            to: [`group:${duty}`],
+            text: `{{if(event.payload.values.msg_type = 'cancel', 'Отмена', 'Уточнение')}} предупреждения Агентства: {{event.payload.labels.hazard}} — {{event.payload.values.title}}, ${where}.`,
+            channels: ['app', 'push'],
+            urgent: true,
+          },
+          {
+            type: 'send_telegram',
+            to: [`group:${duty}`],
+            text: `{{if(event.payload.values.msg_type = 'cancel', 'Отмена', 'Уточнение')}}: {{event.payload.labels.hazard}} — {{event.payload.values.title}}, ${where}`,
+            urgent: true,
+          },
+          {
+            type: 'post_message',
+            text: `{{if(event.payload.values.msg_type = 'cancel', 'Отмена', 'Уточнение')}} предупреждения Агентства: {{event.payload.labels.hazard}} — {{event.payload.values.title}}, ${where}.`,
+            conversation: channel,
+          },
+          { type: 'update_row', fields: { notified_at: '{{now}}' } },
+        ],
+        limits: {
+          maxRunsPerHour: 60,
+          // Одно сообщение нити — одно уведомление: код строки и время отправки
+          dedupeKey: '{{event.payload.values.code}}:{{event.payload.values.occurred_at}}',
+          dedupeWindowMinutes: 1440,
+        },
       },
     },
     ...(water
@@ -862,6 +987,59 @@ async function packRules(
   return list as PackRule[]
 }
 
+/** Выражение условия заменяется во всём дереве; `true`, если что-то заменено. */
+function replaceCondition(node: unknown, from: string, to: string): boolean {
+  if (!node || typeof node !== 'object') return false
+  const record = node as Record<string, unknown>
+  let replaced = false
+  if (record.expr === from) {
+    record.expr = to
+    replaced = true
+  }
+  for (const key of ['and', 'or']) {
+    const children = record[key]
+    if (Array.isArray(children)) {
+      for (const child of children) replaced = replaceCondition(child, from, to) || replaced
+    }
+  }
+  if (record.not) replaced = replaceCondition(record.not, from, to) || replaced
+  return replaced
+}
+
+/**
+ * Правки правил, уже установленных пакетом (ADR-0229). Меняется только место, которое
+ * осталось как у пакета: изменённое администратором правило установки не трогается.
+ * `null` — менять нечего.
+ */
+const RULE_UPGRADES: Record<string, (current: RuleDefinition) => RuleDefinition | null> = {
+  'emergency-hazard-duty': (current) => {
+    const next = structuredClone(current)
+    let changed = false
+    if (next.limits.dedupeKey === OLD_HAZARD_DEDUPE) {
+      next.limits.dedupeKey = HAZARD_DEDUPE
+      changed = true
+    }
+    changed = replaceCondition(next.conditions, OLD_HAZARD_LEVELS, HAZARD_LEVELS) || changed
+    return changed ? next : null
+  },
+  'emergency-incident-deaths': (current) => {
+    const next = structuredClone(current)
+    let changed = false
+    if (next.limits.dedupeKey === null) {
+      next.limits = { ...next.limits, dedupeKey: DEATHS_DEDUPE, dedupeWindowMinutes: 1440 }
+      changed = true
+    }
+    for (const action of next.actions) {
+      if (action.type === 'create_task' && action.dueWorkingDays === 1 && !action.dueAt) {
+        action.dueAt = DEATHS_DUE_AT
+        action.dueWorkingDays = null
+        changed = true
+      }
+    }
+    return changed ? next : null
+  },
+}
+
 async function ensureRules(
   pack: PackContext,
   datasets: Ids,
@@ -873,11 +1051,20 @@ async function ensureRules(
   const created: string[] = []
   for (const rule of await packRules(pack, datasets, structure, alerts, mapId)) {
     const [existing] = await db()
-      .select({ id: rules.id })
+      .select({ id: rules.id, definition: rules.definition })
       .from(rules)
       .where(eq(rules.key, rule.key))
       .limit(1)
-    if (existing) continue
+    if (existing) {
+      const upgrade = RULE_UPGRADES[rule.key]
+      const parsed = RuleDefinition.safeParse(existing.definition)
+      const next = upgrade && parsed.success ? upgrade(parsed.data) : null
+      if (next) {
+        await db().transaction((tx) => RuleService.update(tx, pack.user, existing.id, next))
+        created.push(`~${rule.key}`)
+      }
+      continue
+    }
     const id = await db().transaction((tx) =>
       RuleService.create(
         tx,

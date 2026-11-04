@@ -253,6 +253,7 @@ export const calendar: DeepPartial<Dictionary['calendar']> = {
     tentative: 'Maybe',
     declined: 'No',
     propose: 'Propose another time',
+    onlyThis: 'Reply to this occurrence only',
     proposalTitle: 'Another time',
     comment: 'Comment for the organizer',
     send: 'Send',

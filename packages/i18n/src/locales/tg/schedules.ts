@@ -35,6 +35,7 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     delegationsSync: 'Ивазкуниҳо: оғоз ва анҷом аз рӯи сана',
     inboxWakeSnoozed: 'Воридшудаҳо: баргардонидани корҳои мавқуфгузошта',
     notificationsDigest: 'Огоҳиномаҳо: хулосаи почтавӣ',
+    calendarSeedYears: 'Тақвими истеҳсолӣ: идҳои соли оянда',
     outboxPrune: 'Тоза кардани журнали рӯйдодҳо',
     jobsRedispatch: 'Амалиётҳо: аз нав ба навбат гузоштан ва мутобиқ кардан бо навбат',
     jobsPrune: 'Амалиётҳо: тоза кардани таърих',
