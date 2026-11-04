@@ -247,7 +247,7 @@ describe('дашборд истории: новые строки реестра 
         }))
         .filter((step) => step.type !== 'compute' || (step.fields ?? []).length > 0)
     }
-    await db().transaction((tx) => Dashboards.update(tx, ctx, dashboardId, { spec: old }))
+    await db().transaction((tx) => Dashboards.update(tx, ctx, dashboardId, { spec: old as never }))
     expect(JSON.stringify(await yearsQuery())).not.toContain('occurrences_n')
     expect(await total()).toBe(7)
 
