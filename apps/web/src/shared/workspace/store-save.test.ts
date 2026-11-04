@@ -85,3 +85,27 @@ describe('сохранение рабочего пространства', () =>
     expect(await saves()).toBe(1)
   })
 })
+
+describe('общий компьютер (ADR-0228)', () => {
+  it('вкладки другого сотрудника сбрасываются; свои — остаются', async () => {
+    useWorkspace.getState().claim('u1')
+    useWorkspace.getState().openTab({ kind: 'screen', screen: 'inbox', title: 'Входящие' })
+    const mine = Object.keys(useWorkspace.getState().tabs).length
+    useWorkspace.getState().claim('u1')
+    expect(Object.keys(useWorkspace.getState().tabs)).toHaveLength(mine)
+
+    useWorkspace.getState().claim('u2')
+    const tabs = Object.values(useWorkspace.getState().tabs)
+    expect(tabs.map((tab) => tab.screen)).toEqual(['home'])
+    expect(useWorkspace.getState().ownerId).toBe('u2')
+  })
+
+  it('выход стирает вкладки браузера и не отправляет пустой снимок на сервер', async () => {
+    const { forgetWorkspace } = await import('~/shared/workspace/store.js')
+    useWorkspace.getState().openTab({ kind: 'screen', screen: 'tasks', title: 'Задачи' })
+    forgetWorkspace()
+    expect(await saves()).toBe(0)
+    expect(useWorkspace.getState().ownerId).toBeNull()
+    expect(localStorage.getItem('kchs.workspace')).toBeNull()
+  })
+})

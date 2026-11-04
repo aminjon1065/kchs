@@ -278,6 +278,26 @@ describe('досылка после запуска без сети (ADR-0228)', 
     expect(await snapshot()).toEqual([])
   })
 
+  it('выход стирает справочники сотрудника; неотправленное — только по его выбору', async () => {
+    const store = await import('./store.js')
+    await queue.cachedFetch('forms.duties', async () => ({ items: [1] }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await store.write(store.CACHE_STORE, { key: 'u2:forms.duties', value: 1, at: 0 })
+    queue.setOfflineSender(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    await queue.enqueueFormSubmit(blank('c6'))
+
+    await queue.forgetOfflineData('u1', { discardQueue: false })
+    const keysLeft = (await store.readAll<{ key: string }>(store.CACHE_STORE)).map((i) => i.key)
+    expect(keysLeft).toEqual(['u2:forms.duties'])
+    expect(await snapshot()).toHaveLength(1)
+
+    await queue.forgetOfflineData('u1', { discardQueue: true })
+    expect(await snapshot()).toEqual([])
+    await store.remove(store.CACHE_STORE, 'u2:forms.duties')
+  })
+
   it('досылка идёт в режиме «от имени», в котором запись создана', async () => {
     const seen: Array<string | null | undefined> = []
     queue.setOfflineSender(async (entry) => {

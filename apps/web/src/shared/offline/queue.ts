@@ -16,7 +16,7 @@ import {
   sweepPhotos,
   uploadDocumentPhotos,
 } from './photos.js'
-import { CACHE_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
+import { CACHE_STORE, PHOTOS_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
 
 /**
  * Офлайн-очередь отправок (ADR-0204): сдача сводки и донесение (ADR-0212) без сети не
@@ -412,6 +412,31 @@ export async function discardOfflineEntry(id: string): Promise<void> {
   await remove(QUEUE_STORE, id)
   if (entry?.kind === 'document.create') await forgetPhotos(entry.photos)
   await reload()
+}
+
+/**
+ * Выход с устройства (ADR-0228): справочники и открытые сводки сотрудника стираются —
+ * следующий на общем компьютере их не прочтёт. Неотправленное остаётся до следующего
+ * входа этого сотрудника (другим оно не видно и от их имени не уходит), если он сам не
+ * решил его удалить — тогда стираются и записи очереди, и снимки.
+ */
+export async function forgetOfflineData(
+  userId: string,
+  options: { discardQueue: boolean },
+): Promise<void> {
+  const cached = await readAll<{ key: string }>(CACHE_STORE).catch(() => [])
+  for (const item of cached) {
+    if (item.key.startsWith(`${userId}:`)) await remove(CACHE_STORE, item.key).catch(() => {})
+  }
+  if (!options.discardQueue) return
+  const queued = await readAll<OfflineEntry>(QUEUE_STORE).catch(() => [])
+  for (const entry of queued) {
+    if (entry.userId === userId) await discardOfflineEntry(entry.id)
+  }
+  const photos = await readAll<{ id: string; userId: string }>(PHOTOS_STORE).catch(() => [])
+  for (const photo of photos) {
+    if (photo.userId === userId) await remove(PHOTOS_STORE, photo.id).catch(() => {})
+  }
 }
 
 /** Отправка из очереди дошла: экраны перечитывают свои данные. */

@@ -1,7 +1,7 @@
 import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { t as translate, useT } from '~/shared/i18n.js'
 import { startOfflineQueue } from '~/shared/offline/queue.js'
@@ -63,6 +63,14 @@ export function WorkspaceShell() {
 
   const { data: me } = useQuery(meQuery())
   const userId = me?.user.id
+
+  // Вкладки в хранилище браузера — этого сотрудника (ADR-0228): на общем компьютере
+  // вкладки прежнего не показываются и не сохраняются к нему на сервер. До первого
+  // кадра и до восстановления с сервера
+  const claim = useWorkspace((s) => s.claim)
+  useLayoutEffect(() => {
+    if (userId) claim(userId)
+  }, [claim, userId])
 
   // Офлайн-очередь отправок (ADR-0204): досылается при входе, при появлении сети и
   // по таймеру, пока в ней что-то есть
