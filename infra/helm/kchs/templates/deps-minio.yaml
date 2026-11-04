@@ -158,7 +158,17 @@ spec:
               for b in {{ join " " (values .Values.s3.buckets) }}; do
                 mc mb --ignore-existing "kchs/$b"
               done
-              mc ilm rule add --expire-days 30 "kchs/{{ .Values.s3.buckets.exports }}" 2>/dev/null || true
+              # Правила хранения — один раз (повторный запуск завёл бы второе такое же)
+              case "$(mc ilm rule ls --json "kchs/{{ .Values.s3.buckets.exports }}" 2>/dev/null || true)" in
+                *'"Expiration"'*) ;;
+                *) mc ilm rule add --expire-days 30 "kchs/{{ .Values.s3.buckets.exports }}" ;;
+              esac
+              # Файлы — с версиями: прежняя версия живёт 30 дней (ADR-0227)
+              mc version enable "kchs/{{ .Values.s3.buckets.files }}"
+              case "$(mc ilm rule ls --json "kchs/{{ .Values.s3.buckets.files }}" 2>/dev/null || true)" in
+                *NoncurrentVersionExpiration*) ;;
+                *) mc ilm rule add --noncurrent-expire-days 30 --expire-delete-marker "kchs/{{ .Values.s3.buckets.files }}" ;;
+              esac
               # Пользователь движка: читает исходники, пишет производные (ADR-0176)
               printf '%s' "$ENGINE_POLICY" > /tmp/engine-policy.json
               mc admin policy create kchs kchs-engine /tmp/engine-policy.json

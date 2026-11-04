@@ -10,14 +10,35 @@
 |---|---|---|
 | PostgreSQL | standby на резервном узле по потоковой репликации (ADR-0199) | секунды |
 | PostgreSQL на момент времени | базовые копии раз в неделю и архив WAL на узле: `dr.sh pitr` | ≤ 1 ч, глубина — 4 недели |
+| Окружение, PostgreSQL, файлы — копия за пределами сервера | ночная копия `backup.sh` (restic): репозиторий на сервере, забор компьютером Комитета (ADR-0227) | сутки |
 | PostgreSQL, переносимая копия | `pg_dump` заданием платформы раз в сутки, бакет `kchs-backups` (ADR-0117) | сутки |
 | Объектное хранилище (MinIO) | зеркало бакетов `kchs-*` на узел, `mc mirror --watch` | секунды; выгрузки не копируются |
+| Файлы, прежние версии | версии бакета `kchs-files`: 30 дней (ADR-0227) | — |
 | Meilisearch | перестраивается из Postgres («Переиндексировать поиск») | не резервируется |
 | Redis | очереди восстанавливаются из базы, кэш наполняется заново | не резервируется |
 
-Узел потерян вместе с основным, или его нет — восстановление из копии `pg_dump` ниже.
+Узел потерян вместе с основным, или его нет — восстановление из ночной копии `backup.sh`
+(следующий раздел); копия `pg_dump` платформы — запасной путь для одной базы.
 Основной потерян, узел жив — не восстанавливать, а переключаться: `failover.md`. Логическая
 ошибка (удалили, и это уже на узле) — `dr.sh pitr`, раздел в `failover.md`.
+
+## Ночная копия `backup.sh` (ADR-0227) — основной путь без узла
+
+Окружение (`.env` с мастер-ключом), база и файлы восстанавливаются одной командой на чистой
+установке; порядок для администратора, забор в Комитет и офлайн-секреты —
+`docs/06-guides/27-admin-backup.md`.
+
+```bash
+sudo bash infra/scripts/backup.sh restore --repo /var/lib/kchs-backup/repo --yes
+docker compose --profile app up -d      # или скрипт установки
+```
+
+Тома данных проекта стираются, база пересоздаётся из дампа с владельцами, правами ролей и
+настройками базы, файлы ложатся в хранилище, `minio-init` заново заводит версии, правила
+хранения и пользователей из `.env`. Затем «Переиндексировать поиск». Проверено прогоном
+(04.11.2026): права всех 211 отношений, схем и базы совпали с исходными до бита, файл
+скачивается с тем же содержимым, повторная синхронизация привилегий при старте — без
+изменений.
 
 ## Копии установки S1 (ADR-0117)
 
@@ -28,8 +49,19 @@
 
 ```bash
 docker compose --profile app stop api worker engine web
-docker compose exec -T postgres pg_restore -U postgres -d kchs --clean --if-exists < kchs.dump
+docker compose exec -T postgres pg_restore -U postgres --create --clean --if-exists -d postgres < kchs.dump
 docker compose --profile app up -d
+```
+
+`--create --clean`: база пересоздаётся вместе с правами ролей и своими настройками — дамп
+снят с владельцами и правами (`--create`, ADR-0227). Копии, снятые до этого выпуска
+(`--no-acl`), права ролей не несут: после восстановления перезапустите api (он заново
+раздаст права приложению) и верните роли запросов чтение датасетов:
+
+```bash
+docker compose exec -T postgres psql -U postgres -d kchs -c \
+  "GRANT SELECT ON ALL TABLES IN SCHEMA ds TO kchs_query;
+   ALTER DEFAULT PRIVILEGES FOR ROLE kchs_app IN SCHEMA ds GRANT SELECT ON TABLES TO kchs_query;"
 ```
 
 Архив выгружается из бакета любым клиентом S3 (`mc cp kchs/kchs-backups/pg/<файл> .`).
@@ -46,7 +78,7 @@ docker compose --profile app up -d
 # 1. Копия. Либо кнопка «Сделать копию» в консоли (и выгрузка архива из бакета),
 #    либо — если нужен снимок «прямо сейчас» — тот же дамп напрямую:
 docker compose exec -T postgres \
-  pg_dump --format=custom --no-owner --no-acl -U postgres kchs > drill.dump
+  pg_dump --format=custom --create -U postgres kchs > drill.dump
 
 # 2. Пустая база рядом
 docker compose exec -T postgres psql -U postgres -d postgres \
@@ -54,7 +86,7 @@ docker compose exec -T postgres psql -U postgres -d postgres \
 
 # 3. Восстановление (без --jobs: параллельный режим не читает со стандартного ввода)
 docker compose exec -T postgres \
-  pg_restore -U postgres -d kchs_restore_drill --no-owner --no-acl < drill.dump
+  pg_restore -U postgres -d kchs_restore_drill < drill.dump
 
 # 4. Сверка: размер и счётчики совпадают с источником
 docker compose exec -T postgres psql -U postgres -d kchs_restore_drill -tAc \
@@ -101,7 +133,7 @@ rm -f drill.dump
 2. **Выгрузить копию** из бакета `kchs-backups` (на узле — из его зеркала) и восстановить:
    ```bash
    mc cp kchs/kchs-backups/pg/<файл> kchs.dump
-   docker compose exec -T postgres pg_restore -U postgres -d kchs --clean --if-exists < kchs.dump
+   docker compose exec -T postgres pg_restore -U postgres --create --clean --if-exists -d postgres < kchs.dump
    ```
 3. **Проверить схему и целостность**:
    ```bash
