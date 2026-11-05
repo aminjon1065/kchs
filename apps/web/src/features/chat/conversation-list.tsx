@@ -110,7 +110,7 @@ export function ConversationList({
           onValueChange={setSearch}
           aria-label={t('chats.findChat')}
           placeholder={t('chats.findChat')}
-          className="h-8 flex-1 text-sm"
+          className="h-8 min-w-0 flex-1 text-sm"
         />
         <Button
           size="sm"

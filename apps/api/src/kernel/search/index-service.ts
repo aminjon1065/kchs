@@ -127,7 +127,9 @@ export async function indexObjects(objectIds: string[]): Promise<void> {
     if (document) documents.push(document)
     else removed.push(live[index]?.id ?? '')
   })
-  if (documents.length > 0) await objectsIndex().addDocuments(documents)
+  // Ключ — явно, как у кусков страниц: индекс, созданный самим добавлением, не выбрал бы
+  // его из id, objectId, parentId и прочих полей с «id» и отказал бы задачей
+  if (documents.length > 0) await objectsIndex().addDocuments(documents, { primaryKey: 'id' })
   // Ошибка удаления не глушится (ADR-0228): поиск недоступен — подписчик повторит,
   // иначе закрытый объект остался бы в выдаче. Отсутствующий документ — не ошибка
   if (removed.length > 0) await objectsIndex().deleteDocuments(removed)

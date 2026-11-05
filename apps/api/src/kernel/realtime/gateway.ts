@@ -154,7 +154,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   const log = logger().child({ module: 'realtime' })
   realtimeDeps = deps
 
-  const ownOrigin = new URL(env.KCHS_BASE_URL).origin
+  const allowedOrigins = new Set([new URL(env.KCHS_BASE_URL).origin, ...env.REALTIME_EXTRA_ORIGINS])
   io = new SocketServer<ClientMessages, RtServerEvents, DefaultEventsMap, SocketData>(app.server, {
     path: '/ws',
     cors: { origin: [env.KCHS_BASE_URL], credentials: true },
@@ -163,7 +163,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     // сотрудника (ADR-0225). Без Origin приходят не браузеры: cookie жертвы у них нет
     allowRequest: (request, callback) => {
       const origin = request.headers.origin
-      callback(null, !origin || origin === ownOrigin)
+      callback(null, !origin || allowedOrigins.has(origin))
     },
     serveClient: false,
     transports: ['websocket', 'polling'],

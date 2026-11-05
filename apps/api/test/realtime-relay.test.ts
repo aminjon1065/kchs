@@ -25,6 +25,12 @@ const gateway = await import('../src/kernel/realtime/gateway.js')
 const { publishJobSignal } = await import('../src/kernel/jobs/signal.js')
 const { AuthService } = await import('../src/modules/identity/public.js')
 const { createRedisConnection, redis } = await import('../src/shared/redis/index.js')
+const { resetConfigCache } = await import('../src/shared/config/env.js')
+
+// Дополнительный origin сокета — как у проверки CSP за Caddy (REALTIME_EXTRA_ORIGINS)
+const EXTRA_ORIGIN = 'http://localhost:8088'
+process.env.REALTIME_EXTRA_ORIGINS = EXTRA_ORIGIN
+resetConfigCache()
 
 let fx: TestContext
 let base: string
@@ -135,6 +141,9 @@ describe('узел api', () => {
     const own = new URL(process.env.KCHS_BASE_URL ?? 'http://localhost:5173').origin
     const socket = await connect(fx.users.member, own)
     expect(socket.connected).toBe(true)
+    // Явно разрешённый дополнительный origin — тоже свой
+    const extra = await connect(fx.users.member, EXTRA_ORIGIN)
+    expect(extra.connected).toBe(true)
   })
 
   it('событие вне протокола (ADR-0192) из канала не доставляет', async () => {

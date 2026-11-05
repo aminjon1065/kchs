@@ -23,9 +23,10 @@ registerLifecycle()
 const { startCollab, stopCollab } = await import('../src/kernel/collab/server.js')
 const { AuthService } = await import('../src/modules/identity/public.js')
 const { registerKnowledgeBackground } = await import('../src/modules/knowledge/module.js')
-const { ensurePageChunkIndex, indexPageChunks } = await import(
+const { ensurePageChunkIndex, indexPageChunks, pageChunkIndexName } = await import(
   '../src/modules/knowledge/domain/page-chunks.js'
 )
+const { meili } = await import('../src/kernel/search/index-service.js')
 const { reviewDuePages } = await import('../src/modules/knowledge/domain/page-review.js')
 const { setSemanticSource } = await import('../src/modules/knowledge/domain/semantic-port.js')
 const { SpaceService } = await import('../src/kernel/spaces/service.js')
@@ -544,6 +545,31 @@ describe('дерево, комментарии к фрагментам и пои
     })
     expect(foreign.statusCode).toBe(200)
     expect(foreign.json().items).toEqual([])
+  })
+
+  it('индекс, созданный самим добавлением (события обогнали старт), принимает куски', async () => {
+    // При старте api события страниц из семени могли прийти раньше ensurePageChunkIndex: тогда
+    // индекс создавало добавление, а ключ среди id, pageId и blockId Meilisearch не выбирал
+    await meili().deleteIndex(pageChunkIndexName()).waitTask()
+    const needle = `сходлавины${run}`
+    await addBlocks(childId, [
+      { id: 'race', kind: 'text', title: 'Сход', body: paragraph(`Склон ${needle}`) },
+    ])
+    await indexPageChunks(childId)
+    await ensurePageChunkIndex()
+
+    const deadline = Date.now() + 15_000
+    let items: Json[] = []
+    while (Date.now() < deadline) {
+      const response = await call(fx.app, {
+        url: `/knowledge/search?q=${encodeURIComponent(needle)}`,
+        as: author,
+      })
+      items = response.json().items
+      if (items.length > 0) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    expect(items.map((item) => item.pageId)).toContain(childId)
   })
 
   it('порт семантики: без источника — только слова, с источником — смысловые совпадения', async () => {

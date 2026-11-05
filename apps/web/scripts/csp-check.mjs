@@ -207,12 +207,28 @@ async function crawl(browser, storageFile, s3Origin) {
   state.page = page
 
   const palette = async (query) => {
-    await page.keyboard.press('Meta+k')
+    await page.keyboard.press('ControlOrMeta+k')
     const input = page.getByPlaceholder(/Поиск объектов/)
     await input.waitFor()
     await input.fill(query)
+    // Пункт с названием экрана, а не первый результат: поиск объектов находит и страницы
+    // справки («Файлы и папки») — как `openFromPalette` в e2e/fixtures.ts
+    const loose = page.getByRole('option').filter({ hasText: query }).first()
+    await loose.waitFor()
     await page.waitForTimeout(400)
-    await page.keyboard.press('Enter')
+    // Команда экрана с сочетанием («Файлы G F») — точное имя её не находит
+    const exact = page.getByRole('option', { name: query, exact: true })
+    const command = page
+      .getByRole('option')
+      .filter({ hasText: query })
+      .filter({ has: page.locator('kbd') })
+    const target =
+      (await exact.count()) > 0
+        ? exact.first()
+        : (await command.count()) > 0
+          ? command.first()
+          : loose
+    await target.click()
     await page.getByRole('dialog', { name: 'Палитра команд' }).waitFor({ state: 'hidden' })
   }
 
@@ -333,7 +349,7 @@ async function crawl(browser, storageFile, s3Origin) {
         .getByRole('tab', { name: /Мой день/ })
         .first()
         .waitFor({ timeout: 20_000 })
-      await page.keyboard.press('Meta+\\')
+      await page.keyboard.press('ControlOrMeta+\\')
       const handle = page.locator('[data-panel-resize-handle-id]').first()
       await handle.waitFor({ state: 'visible' })
       // Новая панель перерисовывается (связь с исходной) — граница успокаивается не сразу

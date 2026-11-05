@@ -54,15 +54,19 @@ export async function indexMessage(messageId: number): Promise<void> {
     await removeMessageFromIndex(messageId)
     return
   }
-  await index().addDocuments([
-    {
-      id: String(row.id),
-      conversationId: row.conversationId,
-      authorId: row.authorId,
-      text: row.text.slice(0, 20_000),
-      createdAt: Math.floor(new Date(row.createdAt).getTime() / 1000),
-    },
-  ])
+  // Ключ — явно: индекс, созданный самим добавлением, не выбрал бы его из полей с «id»
+  await index().addDocuments(
+    [
+      {
+        id: String(row.id),
+        conversationId: row.conversationId,
+        authorId: row.authorId,
+        text: row.text.slice(0, 20_000),
+        createdAt: Math.floor(new Date(row.createdAt).getTime() / 1000),
+      },
+    ],
+    { primaryKey: 'id' },
+  )
 }
 
 export async function removeMessageFromIndex(messageId: number): Promise<void> {
