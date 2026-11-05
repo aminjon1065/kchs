@@ -260,7 +260,13 @@ test.describe('Приёмка фазы 2: тетрадь и ИИ', () => {
     const palette = page.getByPlaceholder(/Поиск объектов/)
     await expect(palette).toBeVisible()
     await palette.fill('Хатлон')
-    await page.getByRole('option').filter({ hasText: 'Хатлонская область' }).first().click()
+    // Территория, а не одноимённое пространство подразделения: у пункта подсказка — тип объекта
+    await page
+      .getByRole('option')
+      .filter({ hasText: 'Хатлонская область' })
+      .filter({ hasText: 'Территория' })
+      .first()
+      .click()
     await expect(page.getByRole('heading', { name: 'Хатлонская область' })).toBeVisible({
       timeout: 20_000,
     })
