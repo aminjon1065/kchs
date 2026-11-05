@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   EmptyState,
-  PanelToolbar,
   personTone,
   Select,
   SelectContent,
@@ -173,70 +172,77 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
       value={{ readOnly, awareness: collab?.awareness ?? null, user, participants }}
     >
       <div className="flex h-full min-h-0 flex-col">
-        <PanelToolbar
-          left={
-            <Badge tone={protocol.status === 'confirmed' ? 'success' : 'neutral'}>
-              {t(`meetings.protocol.statuses.${protocol.status}`)}
-            </Badge>
-          }
-          right={
-            <>
-              {protocol.can.draft ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => draft.mutate()}
-                  disabled={draft.isPending}
-                >
-                  <Sparkles className="size-4" />
-                  {t('meetings.protocol.draft')}
-                </Button>
-              ) : null}
-              {protocol.can.confirm ? (
-                <Button size="sm" onClick={() => confirm.mutate()} disabled={confirm.isPending}>
-                  <BadgeCheck className="size-4" />
-                  {t('meetings.protocol.confirm')}
-                </Button>
-              ) : null}
-              {protocol.can.register ? (
-                <Button size="sm" variant="secondary" onClick={() => setRegisterOpen(true)}>
-                  <FileText className="size-4" />
-                  {t('meetings.protocol.register')}
-                </Button>
-              ) : null}
-              {protocol.can.requestAcknowledgment ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => acknowledge.mutate()}
-                  disabled={acknowledge.isPending}
-                >
-                  <UserCheck className="size-4" />
-                  {t('meetings.protocol.acknowledge')}
-                </Button>
-              ) : null}
-            </>
-          }
-        />
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-          {protocol.status === 'confirmed' ? (
-            <Callout tone="info" title={t('meetings.protocol.confirmedTitle')}>
-              {t('meetings.protocol.confirmedHint')}
-            </Callout>
-          ) : protocol.can.edit ? null : (
-            // Правят организатор и секретарь (N30): остальным — чтение и обсуждение
-            <Callout tone="neutral">{t('meetings.secretary.hint')}</Callout>
-          )}
-          {collab?.doc && collab.synced ? (
-            <ProtocolBlocks doc={collab.doc} readOnly={readOnly} />
-          ) : (
-            <Skeleton className="h-40" />
-          )}
-          <ProtocolPrintState protocol={protocol} />
-          <ProtocolAcknowledgments protocol={protocol} />
-          <ProtocolInstructions protocol={protocol} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+            {protocol.status === 'confirmed' ? (
+              <Callout tone="info" title={t('meetings.protocol.confirmedTitle')}>
+                {t('meetings.protocol.confirmedHint')}
+              </Callout>
+            ) : protocol.can.edit ? null : (
+              // Правят организатор и секретарь (N30): остальным — чтение и обсуждение
+              <Callout tone="neutral">{t('meetings.secretary.hint')}</Callout>
+            )}
+            {collab?.doc && collab.synced ? (
+              <ProtocolBlocks doc={collab.doc} readOnly={readOnly} />
+            ) : (
+              <Skeleton className="h-40" />
+            )}
+            <ProtocolPrintState protocol={protocol} />
+            <ProtocolAcknowledgments protocol={protocol} />
+            <ProtocolInstructions protocol={protocol} />
+          </div>
         </div>
+
+        {/* Действия протокола закреплены внизу (ADR-0230): состояние, сколько поручений
+            создастся, основное — «Подтвердить» */}
+        <footer className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-surface px-6 py-3">
+          <Badge tone={protocol.status === 'confirmed' ? 'success' : 'neutral'}>
+            {t(`meetings.protocol.statuses.${protocol.status}`)}
+          </Badge>
+          {collab?.doc && collab.synced && protocol.status !== 'confirmed' ? (
+            <PendingInstructions doc={collab.doc} />
+          ) : null}
+          <div className="flex-1" />
+          {protocol.can.draft ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => draft.mutate()}
+              disabled={draft.isPending}
+            >
+              <Sparkles className="size-4" />
+              {t('meetings.protocol.draft')}
+            </Button>
+          ) : null}
+          {protocol.can.requestAcknowledgment ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => acknowledge.mutate()}
+              disabled={acknowledge.isPending}
+            >
+              <UserCheck className="size-4" />
+              {t('meetings.protocol.acknowledge')}
+            </Button>
+          ) : null}
+          {protocol.can.register ? (
+            <Button size="sm" variant="secondary" onClick={() => setRegisterOpen(true)}>
+              <FileText className="size-4" />
+              {t('meetings.protocol.register')}
+            </Button>
+          ) : null}
+          {protocol.can.confirm ? (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => confirm.mutate()}
+              disabled={confirm.isPending}
+            >
+              <BadgeCheck className="size-4" />
+              {t('meetings.protocol.confirm')}
+            </Button>
+          ) : null}
+        </footer>
       </div>
 
       <RegisterDialog
@@ -278,23 +284,49 @@ function ProtocolBlocks({ doc, readOnly }: { doc: Y.Doc; readOnly: boolean }) {
           description={t('meetings.protocol.noBlocksHint')}
         />
       ) : null}
-      {ids.map((id) => {
-        const block = blocks.get(id)
-        if (!block) return null
-        const kind = block.get('kind')
-        if (typeof kind !== 'string') return null
-        return (
-          <ProtocolBlockCard
-            key={id}
-            block={block}
-            kind={kind as ProtocolBlockKind}
-            onMove={(delta) => moveCell(doc, id, delta)}
-            onRemove={() => removeCell(doc, id)}
-          />
-        )
-      })}
+      {(() => {
+        // Вопросы повестки нумеруются по порядку документа: «Вопрос повестки 2»
+        let agenda = 0
+        return ids.map((id) => {
+          const block = blocks.get(id)
+          if (!block) return null
+          const kind = block.get('kind')
+          if (typeof kind !== 'string') return null
+          if (kind === 'agenda_item') agenda += 1
+          return (
+            <ProtocolBlockCard
+              key={id}
+              block={block}
+              kind={kind as ProtocolBlockKind}
+              ordinal={kind === 'agenda_item' ? agenda : undefined}
+              onMove={(delta) => moveCell(doc, id, delta)}
+              onRemove={() => removeCell(doc, id)}
+            />
+          )
+        })
+      })()}
       {readOnly ? null : <AddBlockButtons onAdd={add} />}
     </section>
+  )
+}
+
+/** Сколько поручений создаст подтверждение: блоки «Поручение» без задачи. */
+function PendingInstructions({ doc }: { doc: Y.Doc }) {
+  const t = useT()
+  const cellsVersion = useYChanges(cellsOf(doc) as unknown as Y.AbstractType<unknown>)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: версия документа — сигнал пересчёта
+  const count = useMemo(() => {
+    let pending = 0
+    cellsOf(doc).forEach((block) => {
+      if (block.get('kind') === 'instruction' && !block.get('taskId')) pending += 1
+    })
+    return pending
+  }, [doc, cellsVersion])
+  if (count === 0) return null
+  return (
+    <span className="text-sm text-fg-secondary">
+      {t('meetings.protocol.pendingInstructions', { count })}
+    </span>
   )
 }
 

@@ -2,6 +2,7 @@ import type { MeetingGuestLink, MeetingJoin } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Avatar,
+  AvatarGroup,
   Badge,
   Button,
   Callout,
@@ -170,24 +171,51 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
   }
 
   const when = meeting.startsAt ? formatDateTime(meeting.startsAt, { locale }) : null
+  const organizer = meeting.participants.find((item) => item.role === 'organizer')?.user
+  const secretaryUser = meeting.participants.find((item) => item.role === 'secretary')?.user
 
   return (
     <Tabs defaultValue="overview" className="flex h-full min-h-0 flex-col">
-      <TabsList className="px-6 pt-4">
-        <TabsTrigger value="overview">{t('meetings.tabs.overview')}</TabsTrigger>
-        <TabsTrigger value="protocol">{t('meetings.protocol.tab')}</TabsTrigger>
-      </TabsList>
+      {/* Шапка встречи над вкладками (ADR-0230): видна и на протоколе — кто ведёт и когда */}
+      <header className="flex shrink-0 flex-col gap-3 border-b border-line bg-surface px-6 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl text-fg">{meeting.title}</h1>
+              <Badge tone={meeting.status === 'live' ? 'success' : 'neutral'}>
+                {t(`meetings.status.${meeting.status}`)}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg-secondary">
+              {when ? <span className="font-mono text-xs tabular">{when}</span> : null}
+              {organizer ? (
+                <span>{t('meetings.header.organizer', { name: organizer.displayName })}</span>
+              ) : null}
+              {secretaryUser ? (
+                <span>{t('meetings.header.secretary', { name: secretaryUser.displayName })}</span>
+              ) : null}
+              {meeting.participants.length > 0 ? (
+                <span>
+                  {t('meetings.header.participants', { count: meeting.participants.length })}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {meeting.participants.length > 0 ? (
+            <AvatarGroup
+              people={meeting.participants.map((item) => ({ name: item.user.displayName }))}
+              max={5}
+            />
+          ) : null}
+        </div>
+        <TabsList>
+          <TabsTrigger value="overview">{t('meetings.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="protocol">{t('meetings.protocol.tab')}</TabsTrigger>
+        </TabsList>
+      </header>
 
       <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-4 p-6">
-          <header className="flex flex-wrap items-center gap-3">
-            <h1 className="text-lg font-semibold">{meeting.title}</h1>
-            <Badge tone={meeting.status === 'live' ? 'success' : 'neutral'}>
-              {t(`meetings.status.${meeting.status}`)}
-            </Badge>
-            {when ? <span className="text-sm text-fg-secondary">{when}</span> : null}
-          </header>
-
           {meeting.can.join ? null : (
             <Callout tone="warning">{t('meetings.errors.unavailable')}</Callout>
           )}

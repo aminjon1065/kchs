@@ -6,6 +6,12 @@ export interface MapOverlayZone {
   geometry: { type: string; coordinates: unknown }
   level: HazardLevel
   title: string
+  /** Территория справочника, если зона — её граница: паспорт ищет обстановку по ней. */
+  territoryId?: string
+  /** Объект-источник зоны (предупреждение) — его открывает паспорт. */
+  objectId?: string
+  /** Тип объекта-источника для вкладки (`warning`). */
+  objectType?: string
 }
 
 /** Данные наложения: подпись строки в панели слоёв и зоны. */

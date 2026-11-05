@@ -60,6 +60,9 @@ export function WarningZonesFeed({ onData }: { onData: (data: MapOverlayData | n
             geometry: geometry as MapOverlayZone['geometry'],
             level,
             title: warning.title,
+            territoryId: area.territoryId ?? undefined,
+            objectId: warning.id,
+            objectType: 'warning',
           })
         } else if (area.polygon && area.polygon.length >= 3) {
           const ring = [...area.polygon, area.polygon[0]]
@@ -67,6 +70,8 @@ export function WarningZonesFeed({ onData }: { onData: (data: MapOverlayData | n
             geometry: { type: 'Polygon', coordinates: [ring] },
             level,
             title: warning.title,
+            objectId: warning.id,
+            objectType: 'warning',
           })
         }
       }

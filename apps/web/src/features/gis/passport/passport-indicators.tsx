@@ -8,6 +8,7 @@ import type {
 } from '@kchs/contracts'
 import { formatNumber, formatPercent } from '@kchs/fields'
 import { Callout, KeyValueList, NumberTile, Skeleton, StatTile } from '@kchs/ui'
+import type { ReactNode } from 'react'
 import { metricTileModel } from '~/entities/data/metric-format.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -96,14 +97,20 @@ function DatasetIndicator({
  * Сетка показателей паспорта (03-screens.md §11): датасеты с полем территории,
  * привязанные показатели (связь `about_territory`) и поручения по территории.
  */
+/** Сетка плиток — по ширине рабочей области (ADR-0230), а не окна. */
+const GRID = 'grid gap-3 @lg:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-5'
+
 export function PassportIndicators({
   passport,
   loading,
+  leading,
   onOpenDataset,
   onOpenTasks,
 }: {
   passport: TerritoryPassport | undefined
   loading: boolean
+  /** Плитки единицы перед показателями данных: население, площадь. */
+  leading?: ReactNode
   onOpenDataset: (dataset: PassportDataset) => void
   onOpenTasks: () => void
 }) {
@@ -111,8 +118,9 @@ export function PassportIndicators({
   const locale = useLocale() as Locale
   if (loading || !passport) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {['a', 'b', 'c', 'd'].map((key) => (
+      <div className={GRID}>
+        {leading}
+        {['a', 'b', 'c'].map((key) => (
           <Skeleton key={key} className="h-28 w-full" />
         ))}
       </div>
@@ -121,7 +129,8 @@ export function PassportIndicators({
   const tasks: PassportTasks = passport.tasks
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={GRID}>
+        {leading}
         {passport.datasets.map((dataset) => (
           <DatasetIndicator
             key={dataset.id}

@@ -160,7 +160,17 @@ export const meetings: DeepPartial<Dictionary['meetings']> = {
   organizer: 'Organizer',
   participants: 'Participants',
   participantsCount: 'Participants',
+  header: {
+    organizer: 'Organizer — {name}',
+    secretary: 'Secretary — {name}',
+    participants: '{count, plural, one {# participant} other {# participants}}',
+  },
   protocol: {
+    createdOnConfirm: 'created on confirmation',
+    addLabel: 'Add',
+    addToolbar: 'Add block',
+    pendingInstructions:
+      '{count, plural, one {# instruction will be created} other {# instructions will be created}} on confirmation',
     ack: {
       mine: 'You are asked to review the minutes',
       mineHint: 'The mark stays in the acknowledgment record and in the inbox',

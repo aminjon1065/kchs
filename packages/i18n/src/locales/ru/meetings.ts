@@ -159,7 +159,18 @@ export const meetings = {
   organizer: 'Организатор',
   participants: 'Участники',
   participantsCount: 'Участников',
+  header: {
+    organizer: 'Организатор — {name}',
+    secretary: 'Секретарь — {name}',
+    participants:
+      '{count, plural, one {# участник} few {# участника} many {# участников} other {# участника}}',
+  },
   protocol: {
+    createdOnConfirm: 'создастся при подтверждении',
+    addLabel: 'Добавить',
+    addToolbar: 'Добавить блок',
+    pendingInstructions:
+      '{count, plural, one {# поручение создастся} few {# поручения создадутся} many {# поручений создадутся} other {# поручения создадутся}} при подтверждении',
     ack: {
       mine: 'Вас просят ознакомиться с протоколом',
       mineHint: 'Отметка останется в учёте ознакомления и во Входящих',

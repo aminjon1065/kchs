@@ -162,7 +162,16 @@ export const meetings: DeepPartial<Dictionary['meetings']> = {
   organizer: 'Ташкилкунанда',
   participants: 'Иштирокчиён',
   participantsCount: 'Иштирокчиён',
+  header: {
+    organizer: 'Ташкилкунанда — {name}',
+    secretary: 'Котиб — {name}',
+    participants: '{count, plural, one {# иштирокчӣ} other {# иштирокчӣ}}',
+  },
   protocol: {
+    createdOnConfirm: 'ҳангоми тасдиқ эҷод мешавад',
+    addLabel: 'Илова кардан',
+    addToolbar: 'Илова кардани блок',
+    pendingInstructions: '{count, plural, one {# супориш} other {# супориш}} ҳангоми тасдиқ эҷод мешавад',
     ack: {
       mine: 'Аз шумо хоҳиш мекунанд, ки бо протокол шинос шавед',
       mineHint: 'Қайд дар баҳисобгирии шиносоӣ ва дар Воридшудаҳо мемонад',

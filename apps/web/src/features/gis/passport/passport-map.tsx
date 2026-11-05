@@ -21,7 +21,9 @@ import { useT } from '~/shared/i18n.js'
 import { BasemapSwitcher } from '../basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import type { GeoCollection } from '../choropleth/geojson.js'
+import { HazardLegend } from '../hazard-legend.js'
 import { type RenderEntry, useRenderedLayers } from '../layer-render.js'
+import type { OverlayRow } from '../overlay-layers.js'
 import { layerQuery } from '../queries.js'
 import { boundaryQuery, childShapesQuery } from './queries.js'
 
@@ -89,6 +91,7 @@ export function PassportMap({
   heatmap,
   onChild,
   onLegends,
+  overlay,
 }: {
   territoryId: string
   name: string
@@ -98,6 +101,15 @@ export function PassportMap({
   onChild: (id: string) => void
   /** Легенды слоёв объектов — для панели рядом с картой. */
   onLegends?: (legends: ReturnType<typeof useRenderedLayers>['legends']) => void
+  /**
+   * Наложения других фич (зоны предупреждений, ADR-0230): источники и слои рисует
+   * паспорт одним набором поставщиков — он же по зонам показывает плашку обстановки.
+   */
+  overlay?: {
+    sources: Record<string, MapSourceSpecification>
+    layers: MapLayerSpecification[]
+    rows: readonly OverlayRow[]
+  }
 }) {
   const t = useT()
   const locale = useLocale() as Locale
@@ -196,14 +208,15 @@ export function PassportMap({
   }
 
   return (
-    <div ref={setRoot} className="flex min-h-0 flex-1 flex-col">
+    <div ref={setRoot} className="relative flex min-h-0 flex-1 flex-col">
       <MapCanvas
         className="min-h-[360px] flex-1"
         basemapStyle={basemap.style}
         prepare={registerPmtilesProtocol}
         controls={<BasemapSwitcher auto={basemap.auto} current={basemap.basemap} />}
-        sources={{ ...own.sources, ...rendered.sources }}
-        layers={[...own.below, ...rendered.layers, ...own.above]}
+        sources={{ ...own.sources, ...overlay?.sources, ...rendered.sources }}
+        // Зоны предупреждений — под объектами, над заливкой вложенных единиц
+        layers={[...own.below, ...(overlay?.layers ?? []), ...rendered.layers, ...own.above]}
         images={rendered.images}
         camera={camera}
         onCameraChange={setCamera}
@@ -212,6 +225,7 @@ export function PassportMap({
         onFeatureClick={onFeatureClick}
         aria-label={t('gis.passport.mapLabel', { name })}
       />
+      {overlay ? <HazardLegend rows={overlay.rows} /> : null}
     </div>
   )
 }
