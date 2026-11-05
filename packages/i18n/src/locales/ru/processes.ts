@@ -7,6 +7,24 @@ export const processes = {
     revise: 'Доработать и отправить повторно: {title}',
   },
   /** Линия маршрута и действия шага (ADR-0083). */
+  overview: {
+    label: 'Маршрут шагами',
+    title: 'Маршрут · {name}',
+    titleHours: 'Маршрут · {name} · сроки в часах',
+    mine: 'Ваш шаг',
+    mineLeft: 'Ваш шаг · осталось {left}',
+    mineLeftOf: 'Ваш шаг · осталось {left} из {norm}',
+    mineOverdue: 'Ваш шаг · срок прошёл',
+    mineNames: '{names} · вы',
+    took: 'за {duration}',
+    normHours: 'норма {count} ч',
+    normDays:
+      'норма {count, plural, one {# рабочий день} few {# рабочих дня} many {# рабочих дней} other {# рабочего дня}}',
+    until: 'до {time}',
+    overdue: 'просрочено на {duration}',
+    rejected: 'отклонено {date}',
+    empty: 'Шагов пока нет',
+  },
   line: {
     version: 'Версия {number}',
     overdue: 'Просрочен',

@@ -36,7 +36,12 @@ export const ui: DeepPartial<Dictionary['ui']> = {
     tentativeAt: 'Maybe busy {range}',
   },
   tree: { collapse: 'Collapse', expand: 'Expand' },
-  stepper: { done: 'completed step', current: 'current step', upcoming: 'upcoming step' },
+  stepper: {
+    done: 'completed step',
+    current: 'current step',
+    upcoming: 'upcoming step',
+    rejected: 'rejected step',
+  },
   command: {
     label: 'Command palette',
     close: 'Close command palette',

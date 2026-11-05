@@ -9,21 +9,24 @@ import { documentKeys } from '../queries.js'
 import { errorText, fieldErrors } from '../status.js'
 import { useDocument } from './document-context.js'
 import { GovEdmsSection } from './gov-edms-section.js'
+import { LinksBlock } from './links-block.js'
 import { DocumentOfficeSection } from './office-section.js'
 import { documentsCardApi } from './queries.js'
 import { type CardValue, cardPayload, cardValueOf, RequisitesForm } from './requisites-form.js'
+import { RequisitesView } from './requisites-view.js'
+import { RouteOverviewCard } from './route-overview-card.js'
 
 /**
- * Вкладка «Карточка» (03-screens.md §12): реквизиты и поля типа — правятся
- * при праве правки, пока документ не закрыт; регистрационные данные и
- * аннулирование — справочно.
+ * Вкладка «Карточка» (03-screens.md §12, ADR-0230): сверху маршрут шагами, слева
+ * реквизиты — форма у того, кто правит, строками «подпись — значение» у остальных;
+ * справа регистрация, связи и разделы делопроизводства. Аннулирование — справочно.
  */
 export function CardTab() {
   const t = useT()
   const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
-  const { document, refresh } = useDocument()
+  const { document, refresh, openSection } = useDocument()
   const { data: me } = useQuery(meQuery())
   const [value, setValue] = useState<CardValue>(() => cardValueOf(document))
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -55,75 +58,94 @@ export function CardTab() {
   const canCreateCorrespondent = me?.capabilities.includes('documents.register') ?? false
 
   return (
-    <div className="mx-auto flex max-w-[980px] flex-col gap-5 p-6">
+    <div className="@container mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-6 py-5">
       {document.status === 'cancelled' ? (
         <Callout tone="warning" title={t('documents.cancel.cancelled')}>
           {document.cancelReason}
         </Callout>
       ) : null}
-      {registration ? (
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-fg">{t('documents.card.registration')}</h2>
-          <KeyValueList
-            columns={2}
-            items={[
-              {
-                key: 'number',
-                label: t('documents.fields.regNumber'),
-                value: <span className="font-mono tabular">{registration.number}</span>,
-              },
-              {
-                key: 'date',
-                label: t('documents.fields.regDate'),
-                value: document.regDate ? formatDate(document.regDate, { locale }) : '—',
-              },
-              {
-                key: 'journal',
-                label: t('documents.fields.journal'),
-                value: registration.journalName,
-              },
-              {
-                key: 'by',
-                label: t('documents.card.registeredBy'),
-                value: `${registration.registeredBy?.displayName ?? '—'} · ${formatDateTime(registration.registeredAt, { locale })}`,
-              },
-            ]}
-          />
-          {registration.reserved ? (
-            <p className="mt-2 text-xs text-fg-muted">{t('documents.card.fromReservation')}</p>
-          ) : null}
+      <RouteOverviewCard onDetails={() => openSection('route')} />
+      <div className="grid items-start gap-4 @2xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <section
+          aria-label={t('documents.card.requisites')}
+          className={
+            document.can.edit
+              ? 'rounded-xl border border-line bg-surface p-4 shadow-sm'
+              : 'rounded-xl border border-line bg-surface px-4.5 py-1.5 shadow-sm'
+          }
+        >
+          {document.can.edit ? (
+            <>
+              <RequisitesForm
+                type={document.type}
+                value={value}
+                onChange={setValue}
+                errors={errors}
+                canCreateCorrespondent={canCreateCorrespondent}
+              />
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-line pt-3">
+                {dirty ? (
+                  <Button variant="ghost" onClick={() => setValue(cardValueOf(document))}>
+                    {t('common.actions.reset')}
+                  </Button>
+                ) : null}
+                <Button
+                  variant="primary"
+                  disabled={!dirty}
+                  loading={save.isPending}
+                  onClick={() => save.mutate()}
+                >
+                  {t('common.actions.save')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <RequisitesView document={document} />
+          )}
         </section>
-      ) : null}
-      <DocumentOfficeSection />
-      <GovEdmsSection />
-
-      <section className="rounded-lg border border-line bg-surface p-4">
-        <RequisitesForm
-          type={document.type}
-          value={value}
-          onChange={setValue}
-          errors={errors}
-          readOnly={!document.can.edit}
-          canCreateCorrespondent={canCreateCorrespondent}
-        />
-        {document.can.edit ? (
-          <div className="mt-4 flex items-center justify-end gap-2 border-t border-line pt-3">
-            {dirty ? (
-              <Button variant="ghost" onClick={() => setValue(cardValueOf(document))}>
-                {t('common.actions.reset')}
-              </Button>
-            ) : null}
-            <Button
-              variant="primary"
-              disabled={!dirty}
-              loading={save.isPending}
-              onClick={() => save.mutate()}
+        <div className="flex min-w-0 flex-col gap-4">
+          {registration ? (
+            <section
+              aria-label={t('documents.card.registration')}
+              className="rounded-xl border border-line bg-surface px-4 py-3.5 shadow-sm"
             >
-              {t('common.actions.save')}
-            </Button>
-          </div>
-        ) : null}
-      </section>
+              <h2 className="mb-2.5 font-mono text-2xs uppercase tracking-wider text-fg-muted">
+                {t('documents.card.registration')}
+              </h2>
+              <KeyValueList
+                items={[
+                  {
+                    key: 'number',
+                    label: t('documents.fields.regNumber'),
+                    value: <span className="font-mono tabular">{registration.number}</span>,
+                  },
+                  {
+                    key: 'date',
+                    label: t('documents.fields.regDate'),
+                    value: document.regDate ? formatDate(document.regDate, { locale }) : '—',
+                  },
+                  {
+                    key: 'journal',
+                    label: t('documents.fields.journal'),
+                    value: registration.journalName,
+                  },
+                  {
+                    key: 'by',
+                    label: t('documents.card.registeredBy'),
+                    value: `${registration.registeredBy?.displayName ?? '—'} · ${formatDateTime(registration.registeredAt, { locale })}`,
+                  },
+                ]}
+              />
+              {registration.reserved ? (
+                <p className="mt-2 text-xs text-fg-muted">{t('documents.card.fromReservation')}</p>
+              ) : null}
+            </section>
+          ) : null}
+          <LinksBlock documentId={document.id} onAll={() => openSection('links')} />
+          <DocumentOfficeSection />
+          <GovEdmsSection />
+        </div>
+      </div>
     </div>
   )
 }

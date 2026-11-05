@@ -376,11 +376,32 @@ export function KeyValueList({
   items,
   className,
   columns = 1,
+  layout = 'grid',
 }: {
   items: KeyValueItem[]
   className?: string
   columns?: 1 | 2
+  /**
+   * `rows` — реквизиты строками «подпись — значение» с разделителем (карточка документа,
+   * ADR-0230); `grid` — плотная сетка без разделителей.
+   */
+  layout?: 'grid' | 'rows'
 }) {
+  if (layout === 'rows') {
+    return (
+      <dl className={cn('flex flex-col text-sm', className)}>
+        {items.map((item) => (
+          <div
+            key={item.key}
+            className="grid grid-cols-[minmax(7rem,10.5rem)_minmax(0,1fr)] gap-3 border-b border-line py-2.5 last:border-b-0"
+          >
+            <dt className="text-fg-muted">{item.label}</dt>
+            <dd className="min-w-0 break-words text-fg">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    )
+  }
   return (
     <dl
       className={cn(

@@ -8,3 +8,8 @@ import { lazy } from 'react'
 export const LazyPrintMenu = lazy(() =>
   import('./print/print-menu.js').then((module) => ({ default: module.PrintMenu })),
 )
+
+/** Документ дела во Входящих — только для чтения (ADR-0230). */
+export const LazyDocumentSummary = lazy(() =>
+  import('./card/document-summary.js').then((module) => ({ default: module.DocumentSummary })),
+)

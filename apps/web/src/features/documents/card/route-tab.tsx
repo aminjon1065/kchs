@@ -331,39 +331,3 @@ export function RouteTab() {
     </div>
   )
 }
-
-/**
- * Идущий маршрут в шапке карточки: текущий шаг, кто ждёт и срок; просрочка —
- * красным. Щелчок ведёт на вкладку «Маршрут».
- */
-export function DocumentRouteIndicator() {
-  const t = useT()
-  const locale = useLocale()
-  const { document, openSection } = useDocument()
-  const step = document.route?.steps[0]
-  if (!document.route || !step) return null
-  const name = text(step.name, locale) ?? text(document.route.name, locale) ?? ''
-  const names = step.pending.map((user) => user.displayName).join(', ')
-  const label = names ? t('documents.header.routeStep', { step: name, names }) : name
-  // Шаг с длинным названием и списком ждущих не вытесняет заголовок документа:
-  // подпись обрезается, целиком — в подсказке
-  return (
-    <Tooltip
-      content={
-        step.dueAt
-          ? `${label} · ${t('documents.route.dueShort', { date: formatDateTime(step.dueAt, { locale }) })}`
-          : label
-      }
-    >
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<Route className="size-3.5 shrink-0" />}
-        onClick={() => openSection('route')}
-        className={step.overdue ? 'min-w-0 max-w-72 text-danger' : 'min-w-0 max-w-72'}
-      >
-        <span className="truncate">{label}</span>
-      </Button>
-    </Tooltip>
-  )
-}

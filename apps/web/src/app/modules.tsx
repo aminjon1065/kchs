@@ -265,6 +265,8 @@ export function registerModules(): void {
 
   registerModule({
     key: 'inbox',
+    // Дело по документу показывает сам документ (ADR-0230): реквизиты, маршрут, поля типа
+    namespaces: ['documents', 'processes', 'data', 'gis'],
     screens: [
       { key: 'inbox', titleKey: 'shell.rail.inbox', icon: 'inbox', render: () => <InboxScreen /> },
     ],

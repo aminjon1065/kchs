@@ -16,3 +16,8 @@ export const LazyRouteLine = lazy(() =>
 export const LazyProcessStepActions = lazy(() =>
   import('./step-actions.js').then((module) => ({ default: module.ProcessStepActions })),
 )
+
+/** Маршрут шагами по горизонтали — карточка документа (ADR-0230). */
+export const LazyRouteOverview = lazy(() =>
+  import('./route-overview.js').then((module) => ({ default: module.RouteOverview })),
+)
