@@ -47,6 +47,21 @@ function log(message) {
 }
 
 /** Значение из окружения, иначе из .env корня (секреты не печатаются). */
+/** Сброс сохранённого рабочего пространства — как resetWorkspaceState в e2e/fixtures.ts. */
+async function resetWorkspaceState(request) {
+  const me = await request.get('/api/v1/me')
+  const csrfToken = (await me.json()).session.csrfToken
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await request.put('/api/v1/me/workspace-state', {
+      data: { state: null },
+      headers: { 'x-csrf-token': csrfToken },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    const current = await request.get('/api/v1/me/workspace-state')
+    if ((await current.json()).state === null) return
+  }
+}
+
 function envValue(key) {
   if (process.env[key]) return process.env[key]
   const file = path.join(ROOT, '.env')
@@ -344,19 +359,31 @@ async function crawl(browser, storageFile, s3Origin) {
   await step(
     'разделение панелей и перетаскивание границы',
     async () => {
+      // Чистое рабочее пространство, как openWorkspace в e2e: вкладки прошлых шагов
+      // восстанавливаются с сервера асинхронно и могли заменить раскладку после разделения.
+      // Уход со страницы досохраняет вкладки (keepalive) — сброс после него, до тишины
+      await page.goto('about:blank')
+      await resetWorkspaceState(page.request)
       await page.goto('/')
       await page
         .getByRole('tab', { name: /Мой день/ })
         .first()
         .waitFor({ timeout: 20_000 })
-      await page.keyboard.press('ControlOrMeta+\\')
-      const handle = page.locator('[data-panel-resize-handle-id]').first()
-      await handle.waitFor({ state: 'visible' })
-      // Новая панель перерисовывается (связь с исходной) — граница успокаивается не сразу
+      const tablists = page.getByRole('tablist')
       let box = null
       for (let attempt = 0; attempt < 10 && !box; attempt++) {
-        box = await handle.boundingBox()
-        if (!box) await page.waitForTimeout(200)
+        if ((await tablists.count()) < 2) {
+          // После загрузки фокус не на документе — сочетание не дошло бы (как openScreen в e2e)
+          await page.locator('body').click({ position: { x: 5, y: 5 } })
+          await page.keyboard.press('ControlOrMeta+\\')
+        }
+        // Новая панель перерисовывается (связь с исходной) — граница успокаивается не сразу
+        box = await page
+          .locator('[data-panel-resize-handle-id]')
+          .first()
+          .boundingBox({ timeout: 2_000 })
+          .catch(() => null)
+        if (!box) await page.waitForTimeout(300)
       }
       if (!box) throw new Error('нет границы панелей')
       // Перетаскивание включает глобальный курсор — react-resizable-panels вставляет <style>
