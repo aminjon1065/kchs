@@ -121,6 +121,12 @@ test.describe('Пакет ЧС: приёмка', () => {
     await expect(page.getByText('Сегодня', { exact: true }).first()).toBeVisible()
     await expect(page.locator('canvas.maplibregl-canvas').first()).toBeVisible({ timeout: 20_000 })
     await tiles
+    // Подписи sr-only у таблиц внизу экрана не растягивают документ: колесо прокручивает
+    // панель дашборда, а не уводит всю страницу в пустоту под строкой состояния
+    await expect(page.locator('caption').first()).toBeAttached()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+    ).toBeLessThanOrEqual(0)
     await page.screenshot({ path: testInfo.outputPath('situation.png'), fullPage: true })
 
     // TV-режим: экран дежурной смены на весь монитор, крупные плитки, выход по Esc
