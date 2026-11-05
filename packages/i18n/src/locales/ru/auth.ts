@@ -13,6 +13,9 @@ export const auth = {
     locked: 'Учётная запись временно заблокирована. Повторите через {minutes} мин',
     blocked: 'Учётная запись отключена. Обратитесь к администратору',
     tooManyAttempts: 'Слишком много попыток. Повторите через {seconds} с',
+    mapLabel: 'Карта Таджикистана по районам',
+    mapAttribution: '© участники OpenStreetMap, geoBoundaries',
+    capitalAt: '{lat}° с. ш. · {lon}° в. д.',
   },
   mfa: {
     title: 'Подтверждение входа',

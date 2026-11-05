@@ -16,6 +16,9 @@ export const auth: DeepPartial<Dictionary['auth']> = {
     locked: 'Ҳисоб муваққатан баста шудааст. Пас аз {minutes} дақ такрор кунед',
     blocked: 'Ҳисоб хомӯш карда шудааст. Ба маъмур муроҷиат кунед',
     tooManyAttempts: 'Кӯшишҳо аз ҳад зиёданд. Пас аз {seconds} с такрор кунед',
+    mapLabel: 'Харитаи Тоҷикистон аз рӯи ноҳияҳо',
+    mapAttribution: '© иштирокчиёни OpenStreetMap, geoBoundaries',
+    capitalAt: '{lat}° арзи шимолӣ · {lon}° тӯли шарқӣ',
   },
   mfa: {
     title: 'Тасдиқи воридшавӣ',
