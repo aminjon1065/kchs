@@ -45,14 +45,15 @@ export function PanelToolbar({
   return (
     <div
       className={cn(
-        'flex min-h-10 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-2.5 py-1',
+        'flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line bg-surface px-2.5 py-1',
         className,
       )}
     >
-      {/* Не помещается в узкой панели — левая группа переносится строкой ниже, а не
-          уходит под правую (кнопки правой группы перекрывали её и перехватывали щелчки) */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{left}</div>
-      <div className="flex shrink-0 items-center gap-1">{right}</div>
+      {/* Не помещается в одну строку — правая группа целиком уходит строкой ниже, к правому
+          краю. Прежде сжималась левая: подписи переключателя ломались и правые кнопки
+          перекрывали их и перехватывали щелчки */}
+      <div className="flex min-w-0 grow flex-wrap items-center gap-2">{left}</div>
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">{right}</div>
     </div>
   )
 }

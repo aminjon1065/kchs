@@ -185,8 +185,10 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 flex-col gap-3 border-b border-line bg-surface px-6 pb-3 pt-3">
-        <div className="flex items-start justify-between gap-5">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {/* Действия не помещаются рядом с названием — уходят строкой ниже целиком, а не по
+            одной кнопке; названию остаётся не меньше 18rem */}
+        <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2">
+          <div className="flex min-w-0 grow basis-72 flex-col gap-1">
             <Breadcrumbs
               items={[
                 { id: 'data', label: t('data.catalog.title'), onClick: openCatalog },
@@ -204,7 +206,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
               />
             </div>
           </div>
-          <div className="flex max-w-1/2 shrink-0 flex-wrap items-center justify-end gap-1.5">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
             {editing ? (
               <>
                 <Button

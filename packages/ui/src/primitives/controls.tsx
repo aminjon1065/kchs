@@ -237,7 +237,8 @@ export function SegmentedControl<T extends string>({
           title={option.title}
           aria-label={typeof option.label === 'string' && option.label ? undefined : option.title}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-xs px-2 font-medium text-fg-secondary',
+            // Высота пункта фиксирована — подпись в две строки наползала бы на соседей
+            'inline-flex items-center gap-1.5 whitespace-nowrap rounded-xs px-2 font-medium text-fg-secondary',
             'transition-colors duration-[var(--duration-fast)]',
             'hover:text-fg data-[state=on]:bg-surface data-[state=on]:text-fg data-[state=on]:shadow-sm',
             size === 'sm' ? 'h-6 text-xs' : 'h-7 text-sm',

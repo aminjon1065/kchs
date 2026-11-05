@@ -159,7 +159,8 @@ export function CollectionView<T>({
             onValueChange={(search) => set({ search })}
             onClear={() => set({ search: '' })}
             placeholder={t('ui.collection.search')}
-            className="w-56"
+            // Сжимается до 10rem, прежде чем действия уйдут отдельной строкой в узкой панели
+            className="min-w-0 max-w-56 grow basis-40"
           />
           <div className="ml-auto flex items-center gap-1.5">
             {sortable.length > 0 ? (
