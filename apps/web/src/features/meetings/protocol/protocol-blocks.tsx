@@ -4,9 +4,8 @@ import {
   type UserRef,
 } from '@kchs/contracts'
 import {
-  Badge,
-  type BadgeProps,
   Button,
+  cn,
   Field,
   IconButton,
   Input,
@@ -29,16 +28,28 @@ import { useT } from '~/shared/i18n.js'
 import { useProtocol } from './protocol-context.js'
 import { bodyFragment, titleText } from './protocol-doc.js'
 
-/** Значок вида блока: решение и поручение видно в ленте протокола сразу. */
-const TONE: Record<ProtocolBlockKind, BadgeProps['tone']> = {
-  agenda_item: 'neutral',
-  decision: 'accent',
-  instruction: 'warning',
-  note: 'outline',
+/**
+ * Метка вида блока (ADR-0230): моноширинная строка цвета смысла — вопрос акцентом на
+ * подложке, решение — успехом, поручение — акцентом, заметка — приглушённо. Предупреждающий
+ * тон у поручения не используется: рядом шкала обстановки, и «жёлтое» читалось бы уровнем.
+ */
+const KIND_TEXT: Record<ProtocolBlockKind, string> = {
+  agenda_item: 'rounded-sm bg-accent-subtle px-1.5 py-0.5 text-accent',
+  decision: 'text-success',
+  instruction: 'text-accent',
+  note: 'text-fg-muted',
 }
 
 /** Заголовок блока: `Y.Text` — правки двух авторов сливаются посимвольно. */
-function BlockTitle({ block, label }: { block: CellMap; label: string }) {
+function BlockTitle({
+  block,
+  label,
+  prominent,
+}: {
+  block: CellMap
+  label: string
+  prominent: boolean
+}) {
   const text = titleText(block)
   const { readOnly } = useProtocol()
   useYChanges(text as unknown as Y.AbstractType<unknown> | null)
@@ -50,7 +61,7 @@ function BlockTitle({ block, label }: { block: CellMap; label: string }) {
       aria-label={label}
       placeholder={label}
       readOnly={readOnly}
-      className="font-medium"
+      className={prominent ? 'text-md font-semibold' : 'font-medium'}
     />
   )
 }
@@ -117,15 +128,21 @@ function InstructionFields({ block }: { block: CellMap }) {
   )
 }
 
-/** Блок протокола: заголовок, текст и — у поручения — исполнитель и срок. */
+/**
+ * Блок протокола (ADR-0230): вопрос повестки — карточкой с номером, решения и поручения —
+ * под ним с отступом; заголовок, текст и — у поручения — исполнитель и срок.
+ */
 export function ProtocolBlockCard({
   block,
   kind,
+  ordinal,
   onMove,
   onRemove,
 }: {
   block: CellMap
   kind: ProtocolBlockKind
+  /** Номер вопроса повестки по порядку документа. */
+  ordinal?: number
   onMove: (delta: -1 | 1) => void
   onRemove: () => void
 }) {
@@ -134,11 +151,22 @@ export function ProtocolBlockCard({
   const body = bodyFragment(block)
   const taskId = useCellValue<string | null>(block, 'taskId') ?? null
   const label = t(`meetings.protocol.kinds.${kind}`)
+  const agenda = kind === 'agenda_item'
 
   return (
-    <article className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">
+    <article
+      className={cn(
+        'flex flex-col gap-2 rounded-xl border border-line bg-surface transition-colors focus-within:border-accent',
+        agenda ? 'mt-2 p-4 shadow-sm first:mt-0' : 'ml-6 p-3',
+      )}
+    >
       <div className="flex items-center gap-2">
-        <Badge tone={TONE[kind]}>{label}</Badge>
+        <span className={cn('font-mono text-xs tracking-wider uppercase', KIND_TEXT[kind])}>
+          {ordinal ? `${label} ${ordinal}` : label}
+        </span>
+        {kind === 'instruction' && !taskId && !readOnly ? (
+          <span className="text-xs text-fg-muted">{t('meetings.protocol.createdOnConfirm')}</span>
+        ) : null}
         <div className="flex-1" />
         {readOnly ? null : (
           <>
@@ -170,7 +198,7 @@ export function ProtocolBlockCard({
           </>
         )}
       </div>
-      <BlockTitle block={block} label={label} />
+      <BlockTitle block={block} label={label} prominent={agenda} />
       {body ? (
         <RichTextEditor
           aria-label={t('meetings.protocol.body')}
@@ -190,7 +218,12 @@ export function AddBlockButtons({ onAdd }: { onAdd: (kind: ProtocolBlockKind) =>
   const t = useT()
   const kinds: ProtocolBlockKind[] = ['agenda_item', 'decision', 'instruction', 'note']
   return (
-    <div className="flex flex-wrap gap-2">
+    <div
+      role="toolbar"
+      aria-label={t('meetings.protocol.addToolbar')}
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-line-strong p-2"
+    >
+      <span className="px-1.5 text-xs text-fg-muted">{t('meetings.protocol.addLabel')}</span>
       {kinds.map((kind) => (
         <Button key={kind} size="sm" variant="secondary" onClick={() => onAdd(kind)}>
           {t(`meetings.protocol.add.${kind}`)}
