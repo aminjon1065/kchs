@@ -204,6 +204,37 @@ export const KeyValues: Story = {
   ),
 }
 
+export const KeyValueRows: Story = {
+  name: 'Ключ — значение строками',
+  render: () => (
+    <div className="max-w-[560px] rounded-lg border border-line bg-surface px-4">
+      <KeyValueList
+        layout="rows"
+        items={[
+          { key: 'kind', label: 'Вид происшествия', value: 'Снежная лавина · природные' },
+          { key: 'scale', label: 'Масштаб', value: 'Локальный' },
+          {
+            key: 'place',
+            label: 'Место',
+            value: (
+              <span className="flex flex-col gap-0.5">
+                <span>Айнинский район, а/д Душанбе — Худжанд, 74 км</span>
+                <span className="font-mono text-xs text-fg-secondary">39,03000, 68,79000</span>
+              </span>
+            ),
+          },
+          {
+            key: 'summary',
+            label: 'Краткое содержание',
+            value:
+              'Движение перекрыто в обе стороны, на подъезде к перевалу ожидают автомобили. Ведётся расчистка.',
+          },
+        ]}
+      />
+    </div>
+  ),
+}
+
 export const TabsStory: Story = {
   name: 'Вкладки',
   render: () => (

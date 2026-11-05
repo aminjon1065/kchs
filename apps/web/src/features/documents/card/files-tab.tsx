@@ -36,36 +36,8 @@ import { documentVersionsQuery } from '../queries.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+import { editableFiles } from './office-editing-badge.js'
 import { documentsCardApi } from './queries.js'
-
-/** Файлы версии, которые открывает редактор: основной и приложения. */
-function editableFiles(version: DocumentVersionRecord | null | undefined): DocumentFileRef[] {
-  if (!version) return []
-  return [version.mainFile, ...version.attachments].filter(
-    (file): file is DocumentFileRef => file !== null && officeEditable(file),
-  )
-}
-
-/**
- * «Файл правят» в шапке карточки (N70): файл текущей версии открыт в редакторе —
- * видно с любой вкладки, кто именно, — в подсказке.
- */
-export function OfficeEditingBadge() {
-  const t = useT()
-  const { document } = useDocument()
-  const files = editableFiles(document.currentVersion)
-  const editing = useOfficeEditing(files.map((file) => file.id))
-  const first = files.map((file) => editing.get(file.id)).find(Boolean)
-  if (!first) return null
-  return (
-    <Tooltip content={t('files.office.editingNow', { names: editorNames(first) })}>
-      <Badge size="sm" tone="warning">
-        <PenLine className="size-2.5" aria-hidden />
-        {t('files.office.editingFile')}
-      </Badge>
-    </Tooltip>
-  )
-}
 
 /**
  * Вкладка «Файлы и версии» (03-screens.md §12): PDF-представление выбранной

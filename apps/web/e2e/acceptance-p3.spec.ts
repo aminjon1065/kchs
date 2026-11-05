@@ -500,7 +500,7 @@ test('сценарий B: входящее → резолюция → поруч
 
   // ── Итог: связь «в ответ на», маршрут, лист согласования в PDF ───────────
   await openDocument(executor, replyId)
-  await executor.getByRole('tab', { name: 'Связи', exact: true }).click()
+  await executor.getByRole('tab', { name: /^Связи/ }).click()
   const chain = executor.getByRole('region', { name: 'Переписка' })
   await expect(chain.getByText(incomingNumber)).toBeVisible()
   await expect(executor.getByRole('heading', { name: 'В ответ на', exact: true })).toBeVisible()

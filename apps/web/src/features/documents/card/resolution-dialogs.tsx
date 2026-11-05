@@ -35,7 +35,7 @@ import { documentsCardApi } from './queries.js'
 const NO_TEMPLATE = '__none'
 
 /** Срок резолюции из поля: дата (не раньше сегодняшней) или 1…366 рабочих дней. */
-function dueOf(value: DueValue): Pick<ResolutionInput, 'dueDate' | 'dueWorkingDays'> | null {
+export function dueOf(value: DueValue): Pick<ResolutionInput, 'dueDate' | 'dueWorkingDays'> | null {
   if (value.mode === 'date') {
     return value.date && value.date >= localToday() ? { dueDate: value.date } : null
   }
@@ -51,16 +51,29 @@ function dueOf(value: DueValue): Pick<ResolutionInput, 'dueDate' | 'dueWorkingDa
  * Делопроизводитель вносит резолюцию от имени руководителя; вложенная —
  * к резолюции, где пишущий — ответственный или соисполнитель.
  */
+/** Набранное в форме карточки — диалог «Все параметры» продолжает с него (ADR-0230). */
+export interface ResolutionDraft {
+  text: string
+  responsible: PickedUser | null
+  coExecutors: PickedUser[]
+  due: DueValue
+  control: boolean
+}
+
 export function ResolutionDialog({
   document,
   view,
   parent,
+  initial,
   onClose,
+  onSaved,
 }: {
   document: DocumentRecord
   view: DocumentResolutions
   parent: ResolutionRecord | null
+  initial?: ResolutionDraft
   onClose: () => void
+  onSaved?: () => void
 }) {
   const t = useT()
   const locale = useLocale()
@@ -75,11 +88,11 @@ export function ResolutionDialog({
     onBehalf ? pickedOf(waiting) : null,
   )
   const [templateId, setTemplateId] = useState(NO_TEMPLATE)
-  const [text, setText] = useState('')
-  const [responsible, setResponsible] = useState<PickedUser | null>(null)
-  const [coExecutors, setCoExecutors] = useState<PickedUser[]>([])
-  const [due, setDue] = useState<DueValue>(() => emptyDue())
-  const [control, setControl] = useState(!parent)
+  const [text, setText] = useState(initial?.text ?? '')
+  const [responsible, setResponsible] = useState<PickedUser | null>(initial?.responsible ?? null)
+  const [coExecutors, setCoExecutors] = useState<PickedUser[]>(initial?.coExecutors ?? [])
+  const [due, setDue] = useState<DueValue>(() => initial?.due ?? emptyDue())
+  const [control, setControl] = useState(initial?.control ?? !parent)
   const [controller, setController] = useState<PickedUser | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const dueInput = dueOf(due)
@@ -116,6 +129,7 @@ export function ResolutionDialog({
       void client.invalidateQueries({ queryKey: ['object', document.id] })
       void client.invalidateQueries({ queryKey: documentKeys.all })
       toast.show({ title: t('documents.resolutions.saved'), tone: 'success' })
+      onSaved?.()
       onClose()
     },
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),

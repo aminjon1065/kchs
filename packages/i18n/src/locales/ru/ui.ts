@@ -34,7 +34,12 @@ export const ui = {
     tentativeAt: 'Возможно, занят {range}',
   },
   tree: { collapse: 'Свернуть', expand: 'Развернуть' },
-  stepper: { done: 'шаг пройден', current: 'текущий шаг', upcoming: 'шаг впереди' },
+  stepper: {
+    done: 'шаг пройден',
+    current: 'текущий шаг',
+    upcoming: 'шаг впереди',
+    rejected: 'шаг отклонён',
+  },
   command: {
     label: 'Палитра команд',
     close: 'Закрыть палитру команд',

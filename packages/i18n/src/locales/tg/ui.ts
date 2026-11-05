@@ -50,6 +50,7 @@ export const ui: DeepPartial<Dictionary['ui']> = {
     done: 'қадам гузашт',
     current: 'қадами ҷорӣ',
     upcoming: 'қадами оянда',
+    rejected: 'қадам рад шуд',
   },
   command: {
     label: 'Лавҳаи фармонҳо',

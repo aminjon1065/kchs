@@ -33,7 +33,8 @@ import {
 } from '@kchs/ui'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
-import { useEffect, useId, useMemo, useState } from 'react'
+import { Suspense, useEffect, useId, useMemo, useState } from 'react'
+import { LazyDocumentSummary } from '~/features/documents/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { inboxCountsQuery, keys } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -586,49 +587,73 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
     (!action.requiresSecondFactor || Boolean(code.trim())) &&
     (action.input !== 'due_date' || Boolean(date))
 
+  // Дело по документу (ADR-0230): справа — сам документ, действия дела — внизу, закреплены
+  const documentObject = item.object?.type === 'document' ? item.object : null
   return (
-    <article className="mx-auto flex max-w-[760px] flex-col gap-4 p-6">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs text-fg-muted">
-          <Badge tone="accent" size="sm">
-            {t(`inbox.groups.${inboxGroupOf(item.kind)}`)}
-          </Badge>
-          {item.dueAt ? (
-            <span className={cn(new Date(item.dueAt) < new Date() && 'text-danger')}>
-              {t('inbox.dueIn', { date: formatDateTime(item.dueAt, { locale }) })}
-            </span>
+    <article
+      className={cn(
+        'flex flex-col',
+        documentObject ? 'min-h-full' : 'mx-auto max-w-[760px] gap-4 p-6',
+      )}
+    >
+      <div
+        className={cn(
+          'flex flex-col gap-4',
+          documentObject && 'mx-auto w-full max-w-[1040px] flex-1 px-7 pt-5 pb-6',
+        )}
+      >
+        <header className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-xs text-fg-muted">
+            <Badge tone="accent" size="sm">
+              {t(`inbox.groups.${inboxGroupOf(item.kind)}`)}
+            </Badge>
+            {item.dueAt ? (
+              <span className={cn(new Date(item.dueAt) < new Date() && 'text-danger')}>
+                {t('inbox.dueIn', { date: formatDateTime(item.dueAt, { locale }) })}
+              </span>
+            ) : null}
+          </div>
+          <h2 className="text-lg font-semibold text-fg">{item.title}</h2>
+          {item.object ? (
+            <div>
+              <ObjectChip
+                object={{ ...item.object }}
+                onOpen={(object) =>
+                  openTab({
+                    kind: 'object',
+                    objectId: object.id,
+                    objectType: object.type,
+                    title: object.title,
+                    mode: 'permanent',
+                  })
+                }
+              />
+            </div>
           ) : null}
-        </div>
-        <h2 className="text-lg font-semibold text-fg">{item.title}</h2>
-        {item.object ? (
-          <div>
-            <ObjectChip
-              object={{ ...item.object }}
-              onOpen={(object) =>
-                openTab({
-                  kind: 'object',
-                  objectId: object.id,
-                  objectType: object.type,
-                  title: object.title,
-                  mode: 'permanent',
-                })
-              }
-            />
+        </header>
+
+        {item.body ? <p className="text-sm text-fg-secondary">{item.body}</p> : null}
+        {documentObject ? (
+          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+            <LazyDocumentSummary objectId={documentObject.id} />
+          </Suspense>
+        ) : null}
+        {requestedDueAt ? (
+          <div className="flex flex-col gap-1 text-sm text-fg-secondary">
+            <span>{t('inbox.requestedDue', { date: formatDate(requestedDueAt, { locale }) })}</span>
+            {reason ? (
+              <span className="whitespace-pre-line">{t('inbox.reason', { reason })}</span>
+            ) : null}
           </div>
         ) : null}
-      </header>
+      </div>
 
-      {item.body ? <p className="text-sm text-fg-secondary">{item.body}</p> : null}
-      {requestedDueAt ? (
-        <div className="flex flex-col gap-1 text-sm text-fg-secondary">
-          <span>{t('inbox.requestedDue', { date: formatDate(requestedDueAt, { locale }) })}</span>
-          {reason ? (
-            <span className="whitespace-pre-line">{t('inbox.reason', { reason })}</span>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-2 border-t border-line',
+          documentObject ? 'sticky bottom-0 bg-surface px-7 py-3.5' : 'pt-4',
+        )}
+      >
         {item.actions.map((action, index) => (
           <Button
             key={action.key}

@@ -111,7 +111,7 @@ test.describe('Документы: переписка, дела и архив', 
     await expect(page.getByRole('heading', { name: 'Отправка', exact: true })).toBeVisible()
 
     // Вкладка «Связи»: цепочка переписки и связь «в ответ на» входящее
-    await page.getByRole('tab', { name: 'Связи', exact: true }).click()
+    await page.getByRole('tab', { name: /^Связи/ }).click()
     const chain = page.getByRole('region', { name: 'Переписка' })
     await expect(chain.getByRole('listitem')).toHaveCount(2)
     await expect(chain.getByText(incomingNumber)).toBeVisible()
