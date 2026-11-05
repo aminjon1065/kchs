@@ -234,6 +234,12 @@ jobs:
       - name: Бюджет оболочки
         run: pnpm --filter @kchs/web budget
 
+      # Журналы api и web (dev-api.sh, dev-web.sh): предупреждения подписчиков и заданий
+      # на стороне сервера, которых нет в трассах Playwright
+      - name: Журналы api и web при сбое
+        if: failure()
+        run: cp -r /tmp/kchs-logs apps/web/test-results/server-logs || true
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -241,6 +247,7 @@ jobs:
           path: |
             apps/web/playwright-report
             apps/web/test-results/csp-check
+            apps/web/test-results/server-logs
           retention-days: 7
 
   ui-visual:
