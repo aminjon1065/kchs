@@ -1292,6 +1292,7 @@ export const data: DeepPartial<Dictionary['data']> = {
       metric: 'Нишондиҳанда',
       map: 'Харита',
       text: 'Матн',
+      heading: 'Сарлавҳа',
     },
     pickChart: 'Диаграмма',
     noCharts: 'Дар фазо диаграмма нест — диаграммаро аз «Тадқиқ» нигоҳ доред',

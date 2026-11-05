@@ -41,21 +41,25 @@ import type { ResultData } from './result-export-queries.js'
 /** Высота строки сетки, px: обычный вид — auto-rows-[80px], TV — auto-rows-[112px]. */
 const ROW = 80
 const TV_ROW = 112
-/** Классы размеров плитки — литералами, чтобы Tailwind их собрал (без встроенных стилей, CSP). */
+/**
+ * Ширина плитки — по ширине рабочей области (контейнерные запросы, ADR-0230), а не окна:
+ * в узкой — во всю ширину, в средней — половина или вся, в широкой — по раскладке.
+ * Классы — литералами, чтобы Tailwind их собрал (без встроенных стилей, CSP).
+ */
 const COL_SPAN = [
   '',
-  'col-span-1',
-  'col-span-2',
-  'col-span-3',
-  'col-span-4',
-  'col-span-5',
-  'col-span-6',
-  'col-span-7',
-  'col-span-8',
-  'col-span-9',
-  'col-span-10',
-  'col-span-11',
-  'col-span-12',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-1',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-2',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-3',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-4',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-5',
+  'col-span-12 @2xl:col-span-6 @5xl:col-span-6',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-7',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-8',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-9',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-10',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-11',
+  'col-span-12 @2xl:col-span-12 @5xl:col-span-12',
 ]
 const ROW_SPAN = [
   '',
@@ -83,6 +87,7 @@ function tileTitle(
   if (tile.title) return tile.title
   if (tile.kind === 'metric') return data?.metric?.name ?? t('data.dashboard.tileKinds.metric')
   if (tile.kind === 'map') return t('data.dashboard.tileKinds.map')
+  if (tile.kind === 'heading') return t('data.dashboard.tileKinds.heading')
   return t(`data.dashboard.tileKinds.${tile.kind === 'text' ? 'text' : 'chart'}`)
 }
 
@@ -145,6 +150,21 @@ export function TileCard({
   )
   const result = useLabelledResult(data?.result ?? undefined, valueLabels)
 
+  if (tile.kind === 'heading' && !editing) {
+    return (
+      <h2
+        className={cn(
+          COL_SPAN[tile.w] ?? 'col-span-12',
+          ROW_SPAN[height],
+          'flex min-w-0 items-end pb-1 font-semibold text-fg',
+          large ? 'text-2xl' : 'text-lg',
+        )}
+      >
+        <span className="truncate">{tile.text || tile.title}</span>
+      </h2>
+    )
+  }
+
   let body: ReactNode
   if (tile.kind === 'map') {
     body = (
@@ -202,10 +222,14 @@ export function TileCard({
 
   return (
     <Card
-      className={cn(COL_SPAN[tile.w] ?? 'col-span-6', ROW_SPAN[height], 'min-w-0 overflow-hidden')}
+      className={cn(
+        COL_SPAN[tile.w] ?? 'col-span-6',
+        ROW_SPAN[height],
+        'min-w-0 overflow-hidden rounded-xl',
+      )}
       // Карта — во всю плитку, без полей карточки
       padded={tile.kind !== 'map'}
-      title={tileTitle(tile, data, t)}
+      title={<span className="text-md">{tileTitle(tile, data, t)}</span>}
       action={
         editing ? (
           // Узкой плитке (показатель — 3/12) кнопки правки переносятся, а не прячут заголовок

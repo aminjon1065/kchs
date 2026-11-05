@@ -1180,7 +1180,7 @@ export const data: DeepPartial<Dictionary['data']> = {
     addTileTitle: 'New tile',
     addFilter: 'Filter',
     addFilterTitle: 'New filter',
-    tileKinds: { chart: 'Chart', metric: 'Metric', map: 'Map', text: 'Text' },
+    tileKinds: { chart: 'Chart', metric: 'Metric', map: 'Map', text: 'Text', heading: 'Heading' },
     pickChart: 'Chart',
     noCharts: 'No charts in this space yet — save one from Explore',
     pickMetric: 'Metric',
