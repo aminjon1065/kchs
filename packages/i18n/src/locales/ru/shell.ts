@@ -161,6 +161,7 @@ export const shell = {
     offlineFailedToast: 'Отправка из очереди не прошла: {error}',
   },
   opsBand: {
+    calm: 'Действующих предупреждений нет',
     label: 'Обстановка',
     levels: {
       normal: 'Норма',

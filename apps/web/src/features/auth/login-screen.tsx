@@ -8,6 +8,7 @@ import { ApiError } from '~/shared/api/errors.js'
 import { setCsrfToken } from '~/shared/api/session.js'
 import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { passkeysSupported, requestPasskey } from '~/shared/auth/webauthn.js'
+import { BrandMark } from '~/shared/brand-mark.js'
 import { useT } from '~/shared/i18n.js'
 import { capitalCoordinates, LoginMap } from './login-map.js'
 import { authApi, methodsQuery } from './queries.js'
@@ -128,22 +129,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   })
 
   const coordinates = capitalCoordinates(locale)
-  const mark = branding?.logo ? (
-    <img src={branding.logo} alt="" className="size-8 rounded-md object-contain" />
-  ) : (
-    <div className="flex size-8 items-center justify-center rounded-md bg-accent text-accent-fg">
-      <svg viewBox="0 0 32 32" className="size-5" aria-hidden>
-        <path
-          d="M9 8v16M9 16l8-8M9 16l8 8"
-          stroke="currentColor"
-          strokeWidth="2.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      </svg>
-    </div>
-  )
+  const mark = <BrandMark />
 
   return (
     <div className="flex min-h-full bg-surface">

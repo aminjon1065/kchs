@@ -8,3 +8,8 @@ import { lazy } from 'react'
 export const LazySituationWidget = lazy(() =>
   import('./situation-widget.js').then((module) => ({ default: module.SituationWidget })),
 )
+
+/** Обстановка крупной плашкой — шапка ситуационного экрана (TV-режим дашборда). */
+export const LazySituationBand = lazy(() =>
+  import('./situation-band.js').then((module) => ({ default: module.SituationBand })),
+)

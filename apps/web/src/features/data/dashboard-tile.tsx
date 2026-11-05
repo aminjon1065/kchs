@@ -102,6 +102,8 @@ export function TileCard({
   onRemove,
   onPick,
   large = false,
+  rowHeight,
+  rowGap = 0,
   refreshMs = null,
   exportData = null,
 }: {
@@ -118,6 +120,10 @@ export function TileCard({
   /** Щелчок по элементу графика вне режима правки — детализация до строк. */
   onPick?: (pick: ChartPick) => void
   large?: boolean
+  /** Высота строки сетки, px, если её задаёт экран (TV подгоняет её под высоту). */
+  rowHeight?: number
+  /** Промежуток сетки, px, — к высоте графика при заданной `rowHeight`. */
+  rowGap?: number
   /** Автообновление дашборда, мс: плитка-карта перечитывает слои с тем же периодом. */
   refreshMs?: number | null
   /** Выгрузка данных плитки-графика с фильтрами дашборда (ADR-0159). */
@@ -129,6 +135,9 @@ export function TileCard({
   const [bindings, setBindings] = useState(false)
   const chartRef = useRef<ChartHandle | null>(null)
   const height = Math.min(tile.h, 8)
+  // Показатель в TV — без шапки карточки: строка сетки подогнана под экран, и шапка
+  // съела бы место числа
+  const bareMetric = large && tile.kind === 'metric'
   // Варианты выбора — подписями полей датасета-источника встроенного графика;
   // территории, подразделения и сотрудники — названиями (ADR-0057)
   const query = tile.spec && 'query' in tile.spec.data ? tile.spec.data.query : null
@@ -173,11 +182,18 @@ export function TileCard({
   } else if (data?.error) {
     body = <Callout tone="danger">{t('data.dashboard.failed')}</Callout>
   } else if (tile.kind === 'metric' && data?.metric) {
+    const period = periodText(data.metric.period, t, locale)
     body = (
       <NumberTile
         size={large ? 'lg' : 'md'}
-        // Подпись внутри плитки — период: имя показателя уже в заголовке карточки
-        model={metricTileModel(data.metric, t, locale, periodText(data.metric.period, t, locale))}
+        // Подпись внутри плитки — период: имя показателя уже в заголовке карточки. В TV
+        // заголовка нет (ADR-0230): подпись — имя и период, число встаёт сразу под ней
+        model={metricTileModel(
+          data.metric,
+          t,
+          locale,
+          bareMetric ? `${tileTitle(tile, data, t)} · ${period}` : period,
+        )}
         className="h-full border-0 bg-transparent p-0"
       />
     )
@@ -187,7 +203,11 @@ export function TileCard({
       <Chart
         spec={data.spec}
         result={result}
-        height={height * (large ? TV_ROW : ROW) - 64}
+        height={
+          rowHeight
+            ? height * rowHeight + (height - 1) * rowGap - 64
+            : height * (large ? TV_ROW : ROW) - 64
+        }
         pending={pending}
         handleRef={chartRef}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
@@ -202,10 +222,15 @@ export function TileCard({
 
   return (
     <Card
-      className={cn(COL_SPAN[tile.w] ?? 'col-span-6', ROW_SPAN[height], 'min-w-0 overflow-hidden')}
+      className={cn(
+        COL_SPAN[tile.w] ?? 'col-span-6',
+        ROW_SPAN[height],
+        'min-w-0 overflow-hidden',
+        large && 'rounded-xl',
+      )}
       // Карта — во всю плитку, без полей карточки
       padded={tile.kind !== 'map'}
-      title={tileTitle(tile, data, t)}
+      title={bareMetric ? undefined : tileTitle(tile, data, t)}
       action={
         editing ? (
           // Узкой плитке (показатель — 3/12) кнопки правки переносятся, а не прячут заголовок
