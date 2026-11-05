@@ -17,7 +17,7 @@ export const auth: DeepPartial<Dictionary['auth']> = {
     blocked: 'Account disabled. Contact your administrator',
     tooManyAttempts: 'Too many attempts. Try again in {seconds} s',
     mapLabel: 'Map of Tajikistan by district',
-    mapAttribution: '© OpenStreetMap contributors, geoBoundaries',
+    mapAttribution: '© OpenStreetMap, geoBoundaries',
     capitalAt: '{lat}° N · {lon}° E',
   },
   mfa: {

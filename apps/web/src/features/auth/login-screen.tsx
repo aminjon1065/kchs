@@ -137,8 +137,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       <aside className="relative hidden min-w-0 flex-1 flex-col justify-between gap-10 overflow-hidden bg-rail px-14 py-12 lg:flex">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {mark}
-            <span className="text-md font-semibold text-rail-fg-active">{t('common.appName')}</span>
+            <BrandMark size="xl" />
+            <span className="text-lg font-semibold text-rail-fg-active">{t('common.appName')}</span>
           </div>
           {coordinates ? (
             <span className="font-mono text-xs tracking-wider text-rail-fg">
