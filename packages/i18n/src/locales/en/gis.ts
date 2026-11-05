@@ -3,6 +3,7 @@ import type { Dictionary } from '../ru/index.js'
 
 export const gis: DeepPartial<Dictionary['gis']> = {
   map: {
+    pointPreview: 'Location on the map',
     swipe: {
       start: 'Compare with a swipe',
       stop: 'Remove the swipe',

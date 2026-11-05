@@ -164,6 +164,8 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     offlineFailedToast: 'Ирсол аз навбат нагузашт: {error}',
   },
   opsBand: {
+    calm: 'Огоҳиномаҳои амалкунанда нестанд',
+    zones: 'Минтақаҳои огоҳинома',
     label: 'Вазъият',
     levels: {
       normal: 'Мӯътадил',

@@ -67,3 +67,22 @@ export const Band: Story = {
     </div>
   ),
 }
+
+export const BandLarge: Story = {
+  name: 'Полоса обстановки — ситуационный экран',
+  render: () => (
+    <div className="flex max-w-[1400px] flex-col gap-4 bg-canvas p-4">
+      {([0, 2, 3] as const).map((level) => (
+        <OpsBand
+          key={level}
+          size="lg"
+          level={level}
+          levelLabel={LABELS[level]}
+          title={level === 0 ? 'Действующих предупреждений нет' : 'Снежная лавина'}
+          details={level === 0 ? null : 'Айни, Варзоб · перевал Анзоб'}
+          meta={level === 0 ? null : 'до 05.11.2026, 18:00 · ещё 2 предупреждения'}
+        />
+      ))}
+    </div>
+  ),
+}

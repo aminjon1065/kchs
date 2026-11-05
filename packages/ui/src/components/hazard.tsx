@@ -99,6 +99,8 @@ export interface OpsBandProps extends Omit<HTMLAttributes<HTMLDivElement>, 'titl
   /** Справа перед действиями: срок действия, «ещё 2». */
   meta?: ReactNode
   actions?: ReactNode
+  /** `lg` — ситуационный экран (TV): крупная плашка с рамкой вместо строки оболочки. */
+  size?: 'md' | 'lg'
 }
 
 /**
@@ -112,14 +114,19 @@ export function OpsBand({
   details,
   meta,
   actions,
+  size = 'md',
   className,
   ...props
 }: OpsBandProps) {
+  const large = size === 'lg'
   return (
     <div
       role="status"
       className={cn(
-        'flex h-(--opsband-h) shrink-0 items-center gap-3 border-b pr-2 text-sm',
+        'flex shrink-0 items-center',
+        large
+          ? 'h-16 gap-5 overflow-hidden rounded-xl border pr-6 text-lg'
+          : 'h-(--opsband-h) gap-3 border-b pr-2 text-sm',
         BAND[level],
         className,
       )}
@@ -127,16 +134,23 @@ export function OpsBand({
     >
       <span
         className={cn(
-          'flex h-full shrink-0 items-center px-3 text-xs font-bold tracking-wide uppercase',
+          'flex h-full shrink-0 items-center font-bold tracking-wide uppercase',
+          large ? 'px-6 text-lg' : 'px-3 text-xs',
           FILL[level],
         )}
       >
         {`${HAZARD_NUMERAL[level]} · ${levelLabel}`}
       </span>
-      <span className="min-w-0 truncate font-semibold text-fg">{title}</span>
+      <span className={cn('min-w-0 truncate font-semibold text-fg', large && 'text-xl')}>
+        {title}
+      </span>
       {details ? <span className="min-w-0 truncate text-fg-secondary">{details}</span> : null}
       <span className="flex-1" />
-      {meta ? <span className="tabular shrink-0 text-xs text-fg-secondary">{meta}</span> : null}
+      {meta ? (
+        <span className={cn('tabular shrink-0 text-fg-secondary', large ? 'text-md' : 'text-xs')}>
+          {meta}
+        </span>
+      ) : null}
       {actions ? <div className="flex shrink-0 items-center gap-1.5">{actions}</div> : null}
     </div>
   )

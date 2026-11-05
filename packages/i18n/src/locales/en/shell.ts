@@ -163,6 +163,8 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     offlineFailedToast: 'A queued submission was rejected: {error}',
   },
   opsBand: {
+    calm: 'No warnings in effect',
+    zones: 'Warning zones',
     label: 'Situation',
     levels: {
       normal: 'Normal',

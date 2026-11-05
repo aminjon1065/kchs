@@ -5,6 +5,28 @@ export function orderedTiles(tiles: readonly DashboardTile[]): DashboardTile[] {
   return [...tiles].sort((a, b) => a.y - b.y || a.x - b.x)
 }
 
+/** Строк сетки под плитками: нижний край самой низкой (высота плитки — не больше 8). */
+export function gridRows(tiles: readonly DashboardTile[]): number {
+  return tiles.reduce((rows, tile) => Math.max(rows, tile.y + Math.min(tile.h, 8)), 0)
+}
+
+/** Строка TV-режима: не ниже этой, иначе в плитке не уместятся заголовок и число. */
+export const TV_MIN_ROW = 40
+/** И не выше прежней: на большом экране плитки не растягиваются. */
+export const TV_MAX_ROW = 112
+
+/**
+ * Высота строки TV-режима (ADR-0230): дашборд дежурной части должен быть виден на
+ * экране целиком. Строки делят высоту области поровну за вычетом промежутков; ниже
+ * `TV_MIN_ROW` — прокрутка, выше `TV_MAX_ROW` не растут. Область ещё не измерена —
+ * прежняя высота.
+ */
+export function tvRowHeight(areaHeight: number, rows: number, gap: number): number {
+  if (areaHeight <= 0 || rows <= 0) return TV_MAX_ROW
+  const fit = Math.floor((areaHeight - gap * (rows - 1)) / rows)
+  return Math.min(TV_MAX_ROW, Math.max(TV_MIN_ROW, fit))
+}
+
 /**
  * Раскладка по порядку: плитки встают в строку слева направо, не помещается —
  * новая строка ниже самой высокой плитки предыдущей. Так позиции после правки

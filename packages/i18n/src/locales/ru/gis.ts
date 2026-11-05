@@ -1,5 +1,6 @@
 export const gis = {
   map: {
+    pointPreview: 'Место на карте',
     swipe: {
       start: 'Сравнить шторкой',
       stop: 'Убрать шторку',

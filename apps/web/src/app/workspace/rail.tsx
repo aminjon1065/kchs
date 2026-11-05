@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
+import { BrandMark } from '~/shared/brand-mark.js'
 import { useT } from '~/shared/i18n.js'
 import {
   listNavItems,
@@ -74,26 +75,10 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
       <button
         type="button"
         onClick={() => open({ key: 'home', labelKey: 'shell.rail.home' })}
-        className={cn(
-          'mb-1 flex size-8 items-center justify-center overflow-hidden rounded-md',
-          branding?.logo ? 'bg-surface' : 'bg-accent text-accent-fg',
-        )}
+        className="mb-1 rounded-md"
         aria-label={brandName}
       >
-        {branding?.logo ? (
-          <img src={branding.logo} alt="" className="size-full object-contain" />
-        ) : (
-          <svg viewBox="0 0 32 32" className="size-5" aria-hidden>
-            <path
-              d="M9 8v16M9 16l8-8M9 16l8 8"
-              stroke="currentColor"
-              strokeWidth="2.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-        )}
+        <BrandMark />
       </button>
 
       <div className="flex flex-col items-center gap-0.5">

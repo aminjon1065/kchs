@@ -1,12 +1,16 @@
 import type { DashboardTile } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
 import {
+  gridRows,
   moveTile,
   nextId,
   orderedTiles,
   packTiles,
   parseValues,
   periodValue,
+  TV_MAX_ROW,
+  TV_MIN_ROW,
+  tvRowHeight,
 } from './dashboard-layout.js'
 
 const tile = (id: string, w: number, h: number, x = 0, y = 0): DashboardTile =>
@@ -36,5 +40,22 @@ describe('раскладка дашборда', () => {
     expect(periodValue('year')).toEqual({ unit: 'year', from: 0, to: 0 })
     expect(periodValue('last30')).toEqual({ unit: 'day', from: -29, to: 0 })
     expect(parseValues(' Хатлон, Согд ,,')).toEqual(['Хатлон', 'Согд'])
+  })
+})
+
+describe('сетка TV-режима (ADR-0230)', () => {
+  it('строк — по нижнему краю самой низкой плитки', () => {
+    expect(gridRows([tile('a', 6, 2, 0, 0), tile('b', 6, 7, 6, 2), tile('c', 12, 3, 0, 9)])).toBe(
+      12,
+    )
+    expect(gridRows([])).toBe(0)
+  })
+
+  it('высота строки делит экран поровну и не выходит за пределы', () => {
+    // 17 строк ситуационного экрана в области 1920×1080 — около 44 px
+    expect(tvRowHeight(1000, 17, 16)).toBe(Math.floor((1000 - 16 * 16) / 17))
+    expect(tvRowHeight(600, 17, 16)).toBe(TV_MIN_ROW)
+    expect(tvRowHeight(4000, 4, 16)).toBe(TV_MAX_ROW)
+    expect(tvRowHeight(0, 17, 16)).toBe(TV_MAX_ROW)
   })
 })

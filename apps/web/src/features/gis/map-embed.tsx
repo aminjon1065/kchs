@@ -29,9 +29,11 @@ import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
+import { HazardLegend } from './hazard-legend.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
 import { layerDatasetQuery } from './layer-source-queries.js'
 import { useMapSlot } from './map-slots.js'
+import { useMapOverlays } from './overlay-layers.js'
 import { layerQuery, mapQuery } from './queries.js'
 
 /** Вид по умолчанию до охвата слоя — Таджикистан, как у новой карты. */
@@ -84,6 +86,8 @@ export function MapEmbed({
   const openTab = useWorkspace((s) => s.openTab)
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
+  // Зоны действующих предупреждений и другие наложения — как на карте студии (ADR-0230)
+  const overlays = useMapOverlays(theme)
   const slot = useMapSlot(root)
   const [picked, setPicked] = useState<{
     layerId: string
@@ -169,6 +173,7 @@ export function MapEmbed({
       ref={setRoot}
       className={cn('relative h-full min-h-[160px] w-full overflow-hidden', className)}
     >
+      {overlays.feeds}
       {loading ? (
         <Skeleton className="h-full w-full" />
       ) : slot.live ? (
@@ -176,8 +181,8 @@ export function MapEmbed({
           className="h-full w-full"
           basemapStyle={basemap.style}
           prepare={registerPmtilesProtocol}
-          sources={rendered.sources}
-          layers={rendered.layers}
+          sources={{ ...overlays.sources, ...rendered.sources }}
+          layers={[...overlays.layers, ...rendered.layers]}
           images={rendered.images}
           camera={view}
           fitBounds={fit}
@@ -258,6 +263,7 @@ export function MapEmbed({
               />
             </div>
           ) : null}
+          <HazardLegend rows={overlays.rows} />
         </MapCanvas>
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-2 bg-surface-2 p-3 text-center">

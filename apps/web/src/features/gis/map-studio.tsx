@@ -28,9 +28,11 @@ import { AddLayerDialog } from './add-layer-dialog.js'
 import { BasemapSwitcher } from './basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
+import { HazardLegend } from './hazard-legend.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
 import { MapExportDialog } from './map-export-dialog.js'
+import { useMapOverlays } from './overlay-layers.js'
 import { gisApi, gisKeys, gisRenderSettingsQuery, layerQuery, mapQuery } from './queries.js'
 import { serviceLayersQuery } from './service-layer-queries.js'
 import { serviceEntries, useServiceLayers } from './service-render.js'
@@ -111,6 +113,8 @@ export function MapStudio({
   const closeTab = useWorkspace((s) => s.closeTab)
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
+  // Наложения других фич — зоны действующих предупреждений и подобное (ADR-0230)
+  const overlays = useMapOverlays(theme)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: map, isLoading, error, refetch } = useQuery(mapQuery(objectId))
@@ -470,9 +474,12 @@ export function MapStudio({
           }
         />
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-[280px] shrink-0 flex-col border-r border-line bg-surface-2 md:flex">
+          <aside className="hidden w-[280px] shrink-0 flex-col border-r border-line bg-surface md:flex">
+            {overlays.feeds}
             <LayerPanel
               layers={panelLayers}
+              overlays={overlays.rows}
+              onToggleOverlay={overlays.toggle}
               legends={rendered.legends}
               canEdit={canEdit}
               onToggle={(layerId, visible) => editEntry(layerId, { visible })}
@@ -564,9 +571,10 @@ export function MapStudio({
               className="min-h-[320px] flex-1"
               basemapStyle={basemap.style}
               prepare={registerPmtilesProtocol}
-              sources={{ ...services.sources, ...rendered.sources }}
+              sources={{ ...services.sources, ...overlays.sources, ...rendered.sources }}
               layers={[
                 ...services.layers,
+                ...overlays.layers,
                 ...(swipe
                   ? rendered.layers.filter(
                       (layer) => !layer.id.startsWith(`kchs-data:${swipe.layerId}:`),
@@ -619,8 +627,8 @@ export function MapStudio({
                     className="absolute inset-0"
                     basemapStyle={basemap.style}
                     prepare={registerPmtilesProtocol}
-                    sources={{ ...services.sources, ...rendered.sources }}
-                    layers={[...services.layers, ...rendered.layers]}
+                    sources={{ ...services.sources, ...overlays.sources, ...rendered.sources }}
+                    layers={[...services.layers, ...overlays.layers, ...rendered.layers]}
                     images={rendered.images}
                     camera={view}
                     staticView
@@ -631,6 +639,7 @@ export function MapStudio({
                 </SwipeCompare>
               ) : null}
               <TimeBar />
+              <HazardLegend rows={overlays.rows} />
               <CursorCoordinates />
               <StudioLinks />
               {picked && pickedLayer ? (

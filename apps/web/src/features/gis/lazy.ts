@@ -45,3 +45,11 @@ export const LazyChoroplethMapButton = lazy(() =>
 export const LazyAreasMap = lazy(() =>
   import('./areas-map.js').then((module) => ({ default: module.AreasMap })),
 )
+
+/**
+ * @public — превью места: точка по координатам на подложке, без взаимодействия
+ * (ADR-0230); подключает карточка документа.
+ */
+export const LazyPointMap = lazy(() =>
+  import('./point-map.js').then((module) => ({ default: module.PointMap })),
+)

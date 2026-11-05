@@ -1,12 +1,10 @@
 import { formatDateTime } from '@kchs/fields'
 import { Button, OpsBand } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
-import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { warningsQuery } from './queries.js'
-import { ACTIVE_WARNINGS_QUERY, HAZARD_WORD, pickSituation } from './situation.js'
+import { HAZARD_WORD, pickSituation } from './situation.js'
+import { usePublishedWarnings } from './use-situation.js'
 
 /**
  * Полоса обстановки (ADR-0230): пока действует предупреждение уровня I и выше, над
@@ -17,18 +15,10 @@ export function WarningsOpsBand() {
   const t = useT()
   const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
-  const { data: me } = useQuery(meQuery())
-  const hidden = new Set<string>(me?.hiddenScreens ?? []).has('warnings')
+  const items = usePublishedWarnings()
 
-  const { data } = useQuery({
-    ...warningsQuery(ACTIVE_WARNINGS_QUERY),
-    enabled: Boolean(me) && !hidden,
-    refetchInterval: 60_000,
-    retry: false,
-  })
-
-  if (hidden || !data) return null
-  const situation = pickSituation(data.items, Date.now())
+  if (!items) return null
+  const situation = pickSituation(items, Date.now())
   if (!situation) return null
   const { warning, level, count } = situation
 
