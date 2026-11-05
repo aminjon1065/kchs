@@ -65,6 +65,11 @@ test.describe('Документы: обмен с госЭДО', () => {
     await item.getByRole('button').click()
     await expect(page).toHaveURL(/\/o\/[0-9a-f-]{36}$/)
     await expect(page.getByText('Черновик', { exact: true }).first()).toBeVisible()
+    // Реквизиты письма сервер дописывает после разбора текста: регистрация раньше этого
+    // получает «Заполните реквизиты» — ждём распознанного корреспондента в карточке
+    await expect(
+      page.getByText('Министерство финансов Республики Таджикистан').first(),
+    ).toBeVisible({ timeout: 30_000 })
 
     // ── Регистрация — обычной карточкой ─────────────────────────────────────────
     await context(page)
