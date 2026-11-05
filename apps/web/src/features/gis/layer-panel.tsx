@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Field,
+  HazardMark,
   IconButton,
   Input,
   MapLegend,
@@ -48,6 +49,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '~/shared/i18n.js'
+import type { OverlayRow } from './overlay-layers.js'
 
 export interface PanelLayer {
   entry: MapLayerEntry
@@ -89,6 +91,9 @@ export interface LayerPanelProps {
   onToggleService: (serviceId: string, visible: boolean) => void
   onAddService: (serviceId: string) => void
   onRemoveService: (serviceId: string) => void
+  /** Наложения других фич — зоны действующих предупреждений (ADR-0230): поверх слоёв. */
+  overlays?: readonly OverlayRow[]
+  onToggleOverlay?: (id: string, visible: boolean) => void
 }
 
 const OPACITIES = [1, 0.75, 0.5, 0.25] as const
@@ -130,6 +135,8 @@ export function LayerPanel({
   onToggleService,
   onAddService,
   onRemoveService,
+  overlays = [],
+  onToggleOverlay,
   ...actions
 }: LayerPanelProps) {
   const t = useT()
@@ -153,9 +160,14 @@ export function LayerPanel({
   return (
     <section aria-label={t('gis.map.layers')} className="flex min-h-0 flex-col">
       <div className="flex items-center justify-between gap-1 px-3 py-2">
-        <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
           {t('gis.map.layers')}
         </h2>
+        {ordered.length > 0 ? (
+          <span className="mr-auto font-mono text-2xs text-fg-muted">{ordered.length}</span>
+        ) : (
+          <span className="mr-auto" />
+        )}
         {onExport && ordered.length > 0 ? (
           <IconButton size="sm" label={t('gis.map.export.action')} onClick={onExport}>
             <Download className="size-4" />
@@ -172,6 +184,13 @@ export function LayerPanel({
           </Button>
         ) : null}
       </div>
+      {overlays.length > 0 ? (
+        <ul aria-label={t('shell.opsBand.label')} className="flex flex-col gap-0.5 px-2 pb-1">
+          {overlays.map((overlay) => (
+            <OverlayItem key={overlay.id} overlay={overlay} onToggle={onToggleOverlay} />
+          ))}
+        </ul>
+      ) : null}
       {ordered.length === 0 ? (
         <EmptyState
           icon={<Layers />}
@@ -179,7 +198,7 @@ export function LayerPanel({
           description={canEdit ? t('gis.map.noLayersHint') : undefined}
         />
       ) : (
-        <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto px-2 pb-3">
+        <ul className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
           {panelBlocks(ordered).map((block) => {
             if (block.kind === 'layer') return item(block)
             const visible = block.items.filter(({ item: layer }) => layer.entry.visible).length
@@ -303,7 +322,7 @@ function LayerItem({
   const name = layer?.name ?? t('gis.map.layerUnavailable')
   const noData = layer !== null && !layer.dataAccess
   return (
-    <li className="rounded-md border border-line bg-surface">
+    <li className="rounded-md transition-colors hover:bg-surface-2">
       <div className="flex min-w-0 items-center gap-2 px-2 py-1.5">
         <Checkbox
           checked={entry.visible}
@@ -415,7 +434,7 @@ function LayerItem({
         </DropdownMenu>
       </div>
       {entry.visible && legend?.show ? (
-        <div className="border-t border-line px-3 py-2">
+        <div className="pr-2 pb-2 pl-8">
           <MapLegend legend={legend} renderIcon={renderMapIcon} />
         </div>
       ) : null}
@@ -565,5 +584,31 @@ function ServiceSection({
         })}
       </ul>
     </div>
+  )
+}
+
+/** Строка наложения: переключатель, старший уровень зон, подпись и число зон. */
+function OverlayItem({
+  overlay,
+  onToggle,
+}: {
+  overlay: OverlayRow
+  onToggle: ((id: string, visible: boolean) => void) | undefined
+}) {
+  const t = useT()
+  const top = overlay.levels[overlay.levels.length - 1]
+  return (
+    <li className="rounded-md bg-surface-2">
+      <div className="flex min-w-0 items-center gap-2 px-2 py-1.5">
+        <Checkbox
+          checked={overlay.visible}
+          onCheckedChange={(checked) => onToggle?.(overlay.id, checked === true)}
+          aria-label={t('gis.map.toggleLayer', { name: overlay.label })}
+        />
+        {top !== undefined ? <HazardMark level={top} size="sm" /> : null}
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{overlay.label}</span>
+        <span className="shrink-0 font-mono text-xs text-fg-muted">{overlay.count}</span>
+      </div>
+    </li>
   )
 }

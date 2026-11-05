@@ -6,6 +6,7 @@
 export * from './basemaps.js'
 export * from './choropleth/param-items.js'
 export * from './lazy.js'
+export * from './map-overlays.js'
 export * from './map-slots.js'
 export * from './queries.js'
 export * from './service-layer-queries.js'

@@ -10,6 +10,7 @@ import type { ChatsScreenState } from '~/features/chat/chats-screen.js'
 import { chatModule } from '~/features/chat/module.js'
 import type { SavedSqlLab } from '~/features/data/sql-lab-screen.js'
 import { delegationModule } from '~/features/delegation/module.js'
+import { registerMapOverlay } from '~/features/gis/map-overlays.js'
 import type { MapTabState } from '~/features/gis/map-studio.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { knowledgeModule } from '~/features/knowledge/module.js'
@@ -18,6 +19,7 @@ import { spacesModule } from '~/features/spaces/module.js'
 import type { ControlScreenState } from '~/features/tasks/control-screen.js'
 import type { TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
+import { LazyWarningZonesFeed } from '~/features/warnings/lazy.js'
 import { WarningsOpsBand } from '~/features/warnings/ops-band.js'
 import { withNamespaces } from '~/shared/i18n.js'
 import { registerModule } from '~/shared/workspace/registry.js'
@@ -743,6 +745,8 @@ export function registerModules(): void {
     ],
   })
 
+  // Зоны действующих предупреждений на картах gis (ADR-0230): карта знает только реестр
+  registerMapOverlay({ id: 'warnings', Feed: LazyWarningZonesFeed })
   registerModule({
     key: 'warnings',
     namespaces: ['warnings', 'processes', 'tasks'],

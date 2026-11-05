@@ -165,6 +165,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
   },
   opsBand: {
     calm: 'Огоҳиномаҳои амалкунанда нестанд',
+    zones: 'Минтақаҳои огоҳинома',
     label: 'Вазъият',
     levels: {
       normal: 'Мӯътадил',

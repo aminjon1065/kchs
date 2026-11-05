@@ -164,6 +164,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
   },
   opsBand: {
     calm: 'No warnings in effect',
+    zones: 'Warning zones',
     label: 'Situation',
     levels: {
       normal: 'Normal',

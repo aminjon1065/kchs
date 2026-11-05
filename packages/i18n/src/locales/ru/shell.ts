@@ -162,6 +162,7 @@ export const shell = {
   },
   opsBand: {
     calm: 'Действующих предупреждений нет',
+    zones: 'Зоны предупреждений',
     label: 'Обстановка',
     levels: {
       normal: 'Норма',

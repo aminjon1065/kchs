@@ -13,3 +13,8 @@ export const LazySituationWidget = lazy(() =>
 export const LazySituationBand = lazy(() =>
   import('./situation-band.js').then((module) => ({ default: module.SituationBand })),
 )
+
+/** Поставщик зон действующих предупреждений для карт gis (реестр наложений, ADR-0230). */
+export const LazyWarningZonesFeed = lazy(() =>
+  import('./warning-zones.js').then((module) => ({ default: module.WarningZonesFeed })),
+)
