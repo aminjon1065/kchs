@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { LOGIN_MAP } from './login-map-data.js'
 import { capitalCoordinates } from './login-map.js'
+import { LOGIN_MAP } from './login-map-data.js'
 
 describe('карта экрана входа', () => {
   it('города лежат внутри карты, столица одна, названия на трёх языках', () => {

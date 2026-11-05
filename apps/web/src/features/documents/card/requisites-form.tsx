@@ -29,6 +29,7 @@ import { useFieldControls } from '~/features/data/field-controls.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { CorrespondentPicker } from '../correspondent-picker.js'
+import { PlacePreview } from './place-preview.js'
 
 /** Реквизиты карточки в форме: люди и корреспондент — с подписями для показа. */
 export interface CardValue {
@@ -388,6 +389,12 @@ export function RequisitesForm({
             serverErrors={fieldErrors}
             readOnly={readOnly}
           />
+          {/* Место на карте — превью точки под полями типа (ADR-0230) */}
+          {type.cardSchema.fields
+            .filter((field) => field.type === 'geometry')
+            .map((field) => (
+              <PlacePreview key={field.key} value={value.fields[field.key]} height={160} />
+            ))}
         </section>
       ) : null}
     </div>

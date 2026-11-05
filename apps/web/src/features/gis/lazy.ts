@@ -47,8 +47,8 @@ export const LazyAreasMap = lazy(() =>
 )
 
 /**
- * @public — превью места: точка по координатам на подложке, без взаимодействия
- * (ADR-0230); подключает карточка документа.
+ * Превью места: точка по координатам на подложке, без взаимодействия (ADR-0230), — для
+ * карточки документа.
  */
 export const LazyPointMap = lazy(() =>
   import('./point-map.js').then((module) => ({ default: module.PointMap })),

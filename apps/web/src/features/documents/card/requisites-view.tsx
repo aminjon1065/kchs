@@ -4,6 +4,7 @@ import { type KeyValueItem, KeyValueList } from '@kchs/ui'
 import type { ReactNode } from 'react'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { PlacePreview } from './place-preview.js'
 import { useRequisiteControls } from './requisites-form.js'
 
 /** Поля, значение которых — ссылка (сотрудник, территория, объект): подпись даёт их контрол. */
@@ -107,11 +108,7 @@ export function RequisitesView({ document }: { document: DocumentRecord }) {
     add(
       `field-${field.key}`,
       label,
-      field.type === 'geometry' ? (
-        <span className="font-mono text-xs tabular">{shown}</span>
-      ) : (
-        shown
-      ),
+      field.type === 'geometry' ? <GeometryValue value={value} shown={shown} /> : shown,
     )
   }
 
@@ -127,4 +124,14 @@ export function RequisitesView({ document }: { document: DocumentRecord }) {
     return <p className="py-3 text-sm text-fg-muted">{t('documents.card.noRequisites')}</p>
   }
   return <KeyValueList layout="rows" items={items} />
+}
+
+/** Место: координаты моноширинно и превью точки на подложке (ADR-0230), если это точка. */
+function GeometryValue({ value, shown }: { value: unknown; shown: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="font-mono text-xs tabular">{shown}</span>
+      <PlacePreview value={value} />
+    </div>
+  )
 }
