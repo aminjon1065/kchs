@@ -409,6 +409,12 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     empty: 'No row has a point',
     failed: 'The points did not load: {reason}',
   },
+  linkedPoints: {
+    label: 'Map alongside the “{name}” table',
+    points: '{name} · {count, plural, one {# point} other {# points}}',
+    truncated: '{name} · first {count} points — refine the filter',
+    selected: 'Selected · {count}',
+  },
   point: {
     pick: 'Set location',
     clear: 'Remove point',

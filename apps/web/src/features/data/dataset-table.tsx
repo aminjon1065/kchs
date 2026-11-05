@@ -26,8 +26,8 @@ import {
   useDebouncedValue,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Link2, Plus, RefreshCw, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BarChart3, Download, Link2, Map as MapIcon, Plus, RefreshCw, X } from 'lucide-react'
+import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTerritoryFilterEditor } from '~/entities/territory/territory-filter.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
@@ -40,6 +40,7 @@ import {
   usePaneLinkGroup,
   useViewContext,
 } from '~/shared/workspace/view-context.js'
+import { ColumnProfileStrip } from './column-profile.js'
 import { ExportDialog } from './export-dialog.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf } from './field-types.js'
@@ -89,7 +90,24 @@ function toRows(result: QueryResult): Loaded {
  * `POST /datasets/{id}/rows/query` — сортировка и поиск на сервере, правка ячеек
  * с версией строки; конфликт возвращает ячейки и показывает текущие значения.
  */
-export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; canEdit: boolean }) {
+/** Карта рядом с таблицей: её даёт экран датасета (модуль ГИС), таблица — условия связи. */
+export interface DatasetMapSlot {
+  field: string
+  where: FilterNode | null
+  group: string
+  label: string
+}
+
+export function DatasetTable({
+  dataset,
+  canEdit,
+  renderMap,
+}: {
+  dataset: DatasetRecord
+  canEdit: boolean
+  /** Карта рядом (ADR-0230); нет — таблица без карты (например, в карточке ГИС). */
+  renderMap?: (slot: DatasetMapSlot) => ReactNode
+}) {
   const t = useT()
   const locale = useLocale()
   const client = useQueryClient()
@@ -117,7 +135,18 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
 
   // Связанные представления (ADR-0073): фильтр и охват соседних панелей сужают
   // таблицу, выделение строк уходит к ним (карта подсвечивает объекты)
-  const group = usePaneLinkGroup()
+  // Карта рядом (ADR-0230): у датасета с геометрией таблица и карта связаны той же
+  // связью, что соседние панели; панель не связана — своя группа экрана датасета
+  const geometryField = renderMap
+    ? (dataset.fields.find((field) => field.type === 'geometry')?.key ?? null)
+    : null
+  const [mapOpen, setMapOpen] = useState(geometryField !== null)
+  const [profileOpen, setProfileOpen] = useState(true)
+  const [activeKey, setActiveKey] = useState<string | null>(null)
+  const paneGroup = usePaneLinkGroup()
+  const inlineGroup = `inline:${useId()}`
+  const inlineLink = !paneGroup && geometryField !== null && mapOpen
+  const group = paneGroup ?? (inlineLink ? inlineGroup : null)
   const source = useLinkSource(group)
   const linked = useLinkedDataset(group, dataset.id)
   const linkedFilter = linked.filter && linked.filter.source !== source ? linked.filter : null
@@ -136,6 +165,11 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
       : []),
   ]
   const where = conditions.length > 1 ? { and: conditions } : conditions[0]
+  const mapConditions: FilterNode[] = [
+    ...(filter ? [filter] : []),
+    ...(linkedFilter ? [linkedFilter.where] : []),
+  ]
+  const mapWhere = mapConditions.length > 1 ? { and: mapConditions } : (mapConditions[0] ?? null)
   const whereKey = where ? JSON.stringify(where) : ''
   const bbox =
     inExtent && linkedExtent ? { field: linkedExtent.field, bbox: linkedExtent.bbox } : null
@@ -223,6 +257,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   rowAt.current = getRow
   const onSelectionChange = useCallback(
     (info: DataGridSelectionInfo) => {
+      if (info.active) setActiveKey(info.active.key)
       if (!group) return
       const ids = idsOfSpans(info.rowSpans, (index) => rowAt.current(index)?.id)
       useViewContext.getState().select(group, dataset.id, ids, source)
@@ -326,141 +361,216 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
     void client.invalidateQueries({ queryKey: dataKeys.versions(dataset.id) })
   }, [client, dataset.id])
 
+  const activeField = dataset.fields.find((field) => field.key === activeKey) ?? null
+  const showMap = geometryField !== null && mapOpen
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-2.5 py-1.5">
-        <SearchInput
-          value={search}
-          onValueChange={setSearch}
-          onClear={() => setSearch('')}
-          placeholder={t('data.table.search')}
-          aria-label={t('data.table.search')}
-          className="h-7 w-72"
-        />
-        <div className="ml-auto flex items-center gap-1">
-          {writable ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Plus className="size-3.5" />}
-              onClick={() => setCreating(true)}
-            >
-              {t('data.row.add')}
-            </Button>
-          ) : null}
-          {canExport ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Download className="size-3.5" />}
-              onClick={() => setExporting(true)}
-            >
-              {t('data.export.action')}
-            </Button>
-          ) : null}
-          <DataGridColumnsButton columns={columns} state={columnState} onChange={setColumnState} />
-          <IconButton
-            label={t('data.table.refresh')}
-            size="sm"
-            onClick={() => setReloads((value) => value + 1)}
-          >
-            <RefreshCw className="size-3.5" />
-          </IconButton>
-        </div>
-      </div>
-      <div className="shrink-0 border-b border-line bg-surface px-2.5 py-1.5">
-        <FilterBuilder
-          fields={filterFields}
-          value={filter}
-          onChange={setFilter}
-          renderValue={territoryEditor}
-          request={filterRequest}
-        />
-      </div>
-      {group && (linkedExtent || linkedSelection || linkedFilter) ? (
-        <section
-          aria-label={t('data.table.linked.title')}
-          className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface-2 px-2.5 py-1"
-        >
-          <span className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-fg-secondary">
-            <Link2 className="size-3.5 shrink-0 text-accent" aria-hidden />
-            {t('data.table.linked.title')}
-          </span>
-          {linkedExtent ? (
-            <Switch
-              checked={inExtent}
-              onCheckedChange={(checked) => setInExtent(checked)}
-              label={
-                <span className="whitespace-nowrap text-xs text-fg-secondary">
-                  {t('data.table.linked.inExtent')}
-                </span>
-              }
+    <div className="@container flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1">
+        <section aria-label={t('data.dataset.tabs.table')} className="flex min-w-0 flex-1 flex-col">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-surface px-2.5 py-1.5">
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              onClear={() => setSearch('')}
+              placeholder={t('data.table.search')}
+              aria-label={t('data.table.search')}
+              className="h-7 w-56 min-w-0"
             />
-          ) : null}
-          {linkedSelection ? (
-            <Switch
-              checked={onlyLinked}
-              onCheckedChange={(checked) => setOnlyLinked(checked)}
-              label={
-                <span className="whitespace-nowrap text-xs text-fg-secondary">
-                  {t('data.table.linked.onlySelected', { count: linkedSelection.ids.length })}
-                </span>
-              }
-            />
-          ) : null}
-          {linkedFilter ? (
-            <span className="flex min-w-0 max-w-96 items-center gap-1 rounded-sm border border-line bg-surface py-0.5 pl-1.5 pr-0.5 text-xs text-fg-secondary">
-              <span className="truncate">
-                {t('data.table.linked.filter', { label: linkedFilter.label })}
-              </span>
-              <IconButton
-                label={t('data.table.linked.clearFilter')}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+              {writable ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Plus className="size-3.5" />}
+                  onClick={() => setCreating(true)}
+                >
+                  {t('data.row.add')}
+                </Button>
+              ) : null}
+              {canExport ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Download className="size-3.5" />}
+                  onClick={() => setExporting(true)}
+                >
+                  {t('data.export.action')}
+                </Button>
+              ) : null}
+              <DataGridColumnsButton
+                columns={columns}
+                state={columnState}
+                onChange={setColumnState}
+              />
+              <Button
+                variant="ghost"
                 size="sm"
-                onClick={() =>
-                  useViewContext.getState().filter(group, dataset.id, null, source, true)
-                }
+                icon={<BarChart3 className="size-3.5" />}
+                aria-pressed={profileOpen}
+                onClick={() => setProfileOpen((open) => !open)}
               >
-                <X className="size-3" aria-hidden />
+                {t('data.table.profile.toggle')}
+              </Button>
+              {geometryField ? (
+                // Узкой рабочей области карта не помещается — кнопка там не нужна
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden @4xl:inline-flex"
+                  icon={<MapIcon className="size-3.5" />}
+                  aria-pressed={mapOpen}
+                  onClick={() => setMapOpen((open) => !open)}
+                >
+                  {t('data.table.map.toggle')}
+                </Button>
+              ) : null}
+              <IconButton
+                label={t('data.table.refresh')}
+                size="sm"
+                onClick={() => setReloads((value) => value + 1)}
+              >
+                <RefreshCw className="size-3.5" />
               </IconButton>
-            </span>
+            </div>
+          </div>
+          <div className="shrink-0 border-b border-line bg-surface px-2.5 py-1.5">
+            <FilterBuilder
+              fields={filterFields}
+              value={filter}
+              onChange={setFilter}
+              renderValue={territoryEditor}
+              request={filterRequest}
+            />
+          </div>
+          {group && (linkedExtent || linkedSelection || linkedFilter) ? (
+            <section
+              aria-label={t('data.table.linked.title')}
+              className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface-2 px-2.5 py-1"
+            >
+              <span className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-fg-secondary">
+                <Link2 className="size-3.5 shrink-0 text-accent" aria-hidden />
+                {inlineLink ? t('data.table.map.linkedTitle') : t('data.table.linked.title')}
+              </span>
+              {linkedExtent ? (
+                <Switch
+                  checked={inExtent}
+                  onCheckedChange={(checked) => setInExtent(checked)}
+                  label={
+                    <span className="whitespace-nowrap text-xs text-fg-secondary">
+                      {t('data.table.linked.inExtent')}
+                    </span>
+                  }
+                />
+              ) : null}
+              {linkedSelection ? (
+                <Switch
+                  checked={onlyLinked}
+                  onCheckedChange={(checked) => setOnlyLinked(checked)}
+                  label={
+                    <span className="whitespace-nowrap text-xs text-fg-secondary">
+                      {inlineLink
+                        ? t('data.table.map.onlySelected', { count: linkedSelection.ids.length })
+                        : t('data.table.linked.onlySelected', {
+                            count: linkedSelection.ids.length,
+                          })}
+                    </span>
+                  }
+                />
+              ) : null}
+              {linkedFilter ? (
+                <span className="flex min-w-0 max-w-96 items-center gap-1 rounded-sm border border-line bg-surface py-0.5 pl-1.5 pr-0.5 text-xs text-fg-secondary">
+                  <span className="truncate">
+                    {t('data.table.linked.filter', { label: linkedFilter.label })}
+                  </span>
+                  <IconButton
+                    label={t('data.table.linked.clearFilter')}
+                    size="sm"
+                    onClick={() =>
+                      useViewContext.getState().filter(group, dataset.id, null, source, true)
+                    }
+                  >
+                    <X className="size-3" aria-hidden />
+                  </IconButton>
+                </span>
+              ) : null}
+            </section>
           ) : null}
+          {failure ? (
+            <Callout tone="danger" className="m-2.5">
+              {failure}
+            </Callout>
+          ) : null}
+          <DataGrid
+            aria-label={dataset.name}
+            className="min-h-0 flex-1"
+            columns={columns}
+            rowCount={rowCount}
+            totalCount={dataset.rowCount}
+            getRow={getRow}
+            onVisibleRangeChange={onVisibleRangeChange}
+            sort={sort}
+            onSortChange={setSort}
+            onColumnFilter={(key) => setFilterRequest({ field: key, nonce: Date.now() })}
+            filteredKeys={filteredKeys}
+            columnState={columnState}
+            onColumnStateChange={setColumnState}
+            {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
+            onSelectionChange={onSelectionChange}
+            onRowOpen={(row) => setOpenRow(row.id)}
+            loading={loading}
+            empty={
+              <span className="text-sm text-fg-muted">
+                {debouncedSearch || where
+                  ? t('data.table.nothingFound')
+                  : writable
+                    ? t('data.table.emptyEditable')
+                    : t('data.table.empty')}
+              </span>
+            }
+            locale={locale}
+            {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
+          />
         </section>
+        {showMap && geometryField && group ? (
+          <section
+            aria-label={t('data.table.map.title')}
+            className="hidden w-2/5 max-w-xl shrink-0 flex-col border-l border-line bg-surface @4xl:flex"
+          >
+            <div className="flex shrink-0 items-center gap-2.5 border-b border-line px-3.5 py-1.5">
+              <span aria-hidden className="size-2 shrink-0 rounded-full bg-accent" />
+              <h2 className="text-sm font-semibold text-fg">{t('data.table.map.title')}</h2>
+              <span className="truncate text-xs text-fg-muted">{t('data.table.map.hint')}</span>
+              <IconButton
+                label={t('data.table.map.hide')}
+                size="sm"
+                className="ml-auto"
+                onClick={() => setMapOpen(false)}
+              >
+                <X className="size-3.5" />
+              </IconButton>
+            </div>
+            <div className="min-h-0 flex-1">
+              {renderMap?.({
+                field: geometryField,
+                where: mapWhere,
+                group,
+                label: dataset.name,
+              })}
+            </div>
+          </section>
+        ) : null}
+      </div>
+      {profileOpen ? (
+        <ColumnProfileStrip
+          datasetId={dataset.id}
+          field={activeField}
+          options={
+            activeField ? (fieldOptions.get(activeField.key) ?? activeField.options) : undefined
+          }
+          onHide={() => setProfileOpen(false)}
+        />
       ) : null}
-      {failure ? (
-        <Callout tone="danger" className="m-2.5">
-          {failure}
-        </Callout>
-      ) : null}
-      <DataGrid
-        aria-label={dataset.name}
-        className="min-h-0 flex-1"
-        columns={columns}
-        rowCount={rowCount}
-        totalCount={dataset.rowCount}
-        getRow={getRow}
-        onVisibleRangeChange={onVisibleRangeChange}
-        sort={sort}
-        onSortChange={setSort}
-        onColumnFilter={(key) => setFilterRequest({ field: key, nonce: Date.now() })}
-        filteredKeys={filteredKeys}
-        columnState={columnState}
-        onColumnStateChange={setColumnState}
-        {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
-        onSelectionChange={onSelectionChange}
-        onRowOpen={(row) => setOpenRow(row.id)}
-        loading={loading}
-        empty={
-          <span className="text-sm text-fg-muted">
-            {debouncedSearch || where
-              ? t('data.table.nothingFound')
-              : writable
-                ? t('data.table.emptyEditable')
-                : t('data.table.empty')}
-          </span>
-        }
-        locale={locale}
-        {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
-      />
       {openRow ? (
         <RowCard
           dataset={dataset}

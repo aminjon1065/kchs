@@ -423,6 +423,12 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     empty: 'Ягон сатр нуқта надорад',
     failed: 'Нуқтаҳо бор нашуданд: {reason}',
   },
+  linkedPoints: {
+    label: 'Харита дар паҳлӯи ҷадвали «{name}»',
+    points: '{name} · {count, plural, one {# нуқта} other {# нуқта}}',
+    truncated: '{name} · {count} нуқтаи аввал — филтрро дақиқ кунед',
+    selected: 'Интихоб шуд · {count}',
+  },
   point: {
     pick: 'Ҷойро нишон додан',
     clear: 'Нуқтаро тоза кардан',

@@ -9,6 +9,7 @@ import type {
 import { formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
+  Breadcrumbs,
   Button,
   Callout,
   Dialog,
@@ -19,7 +20,6 @@ import {
   InlineEdit,
   Input,
   ObjectIcon,
-  PanelToolbar,
   SegmentedControl,
   Select,
   SelectContent,
@@ -44,7 +44,7 @@ import { TerritorySelect } from '~/entities/territory/territory-select.js'
 import { MapSlotsProvider } from '~/features/gis/index.js'
 import { dashboardPrintPath } from '~/features/reports/index.js'
 import { ApiError, staleVersion } from '~/shared/api/errors.js'
-import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
+import { keys, objectListQuery, objectQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
@@ -88,6 +88,8 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const locale = useLocale()
 
   const { data: object } = useQuery(objectQuery(objectId))
+  const { data: spaces } = useQuery(spacesQuery())
+  const openTab = useWorkspace((s) => s.openTab)
   const {
     data: dashboard,
     isLoading,
@@ -170,144 +172,162 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const setTiles = (next: DashboardTile[]) =>
     draft && setDraft({ ...draft, tiles: packTiles(next) })
 
+  const spaceName = spaces?.find((space) => space.id === dashboard.spaceId)?.name ?? null
+  const openCatalog = () =>
+    openTab({
+      kind: 'screen',
+      screen: 'data',
+      title: t('data.catalog.title'),
+      icon: 'dataset',
+      mode: 'permanent',
+    })
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelToolbar
-        left={
-          <>
-            <ObjectIcon type="dashboard" className="size-4 shrink-0 text-fg-muted" />
-            <InlineEdit
-              value={dashboard.name}
-              disabled={!canEdit}
-              onSave={(next) => rename.mutate(next)}
-              className="text-sm font-semibold text-fg"
-              aria-label={t('common.labels.name')}
+      <header className="flex shrink-0 flex-col gap-3 border-b border-line bg-surface px-6 pb-3 pt-3">
+        <div className="flex items-start justify-between gap-5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <Breadcrumbs
+              items={[
+                { id: 'data', label: t('data.catalog.title'), onClick: openCatalog },
+                ...(spaceName ? [{ id: 'space', label: spaceName }] : []),
+              ]}
             />
-          </>
-        }
-        right={
-          editing ? (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Filter className="size-3.5" />}
-                onClick={() => setAddingFilter(true)}
-              >
-                {t('data.dashboard.addFilter')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<Plus className="size-3.5" />}
-                onClick={() => setAdding(true)}
-              >
-                {t('data.dashboard.addTile')}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                {t('data.dashboard.cancel')}
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={save.isPending}
-                onClick={() => save.mutate(spec)}
-              >
-                {t('data.dashboard.done')}
-              </Button>
-            </>
-          ) : (
-            <>
-              {data.dataUpdatedAt ? (
-                <span className="hidden text-xs text-fg-muted md:inline">
-                  {t('data.dashboard.updated', {
-                    time: formatRelativeTime(new Date(data.dataUpdatedAt), { locale }),
-                  })}
-                </span>
-              ) : null}
-              <PresenceAvatars objectId={objectId} />
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Tv className="size-3.5" />}
-                disabled={tiles.length === 0}
-                onClick={() => setTv(true)}
-              >
-                {t('data.dashboard.tv.enter')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Printer className="size-3.5" />}
-                disabled={tiles.length === 0}
-                onClick={() =>
-                  window.open(dashboardPrintPath(objectId, values), '_blank', 'noopener')
-                }
-              >
-                {t('data.dashboard.print')}
-              </Button>
-              <IconButton
-                label={t('data.dashboard.refresh')}
-                onClick={() =>
-                  void client.invalidateQueries({ queryKey: ['dashboard', objectId, 'data'] })
-                }
-              >
-                <RefreshCw className="size-4" />
-              </IconButton>
-              {canEdit ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <ObjectIcon type="dashboard" className="size-5 shrink-0 text-accent" />
+              <InlineEdit
+                value={dashboard.name}
+                disabled={!canEdit}
+                onSave={(next) => rename.mutate(next)}
+                className="min-w-0 text-2xl font-semibold text-fg"
+                aria-label={t('common.labels.name')}
+              />
+            </div>
+          </div>
+          <div className="flex max-w-1/2 shrink-0 flex-wrap items-center justify-end gap-1.5">
+            {editing ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Filter className="size-3.5" />}
+                  onClick={() => setAddingFilter(true)}
+                >
+                  {t('data.dashboard.addFilter')}
+                </Button>
                 <Button
                   variant="secondary"
                   size="sm"
-                  icon={<Pencil className="size-3.5" />}
-                  onClick={() => setDraft(dashboard.spec)}
+                  icon={<Plus className="size-3.5" />}
+                  onClick={() => setAdding(true)}
                 >
-                  {t('data.dashboard.edit')}
+                  {t('data.dashboard.addTile')}
                 </Button>
-              ) : null}
-              <IconButton label={t('common.actions.share')} onClick={() => setShareOpen(true)}>
-                <Share2 className="size-4" />
-              </IconButton>
-              {canManage ? (
-                <IconButton
-                  label={t('common.actions.delete')}
-                  variant="danger"
-                  onClick={() => setDeleteOpen(true)}
+                <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
+                  {t('data.dashboard.cancel')}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={save.isPending}
+                  onClick={() => save.mutate(spec)}
                 >
-                  <Trash2 className="size-4" />
+                  {t('data.dashboard.done')}
+                </Button>
+              </>
+            ) : (
+              <>
+                <PresenceAvatars objectId={objectId} />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Tv className="size-3.5" />}
+                  disabled={tiles.length === 0}
+                  onClick={() => setTv(true)}
+                >
+                  {t('data.dashboard.tv.enter')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Printer className="size-3.5" />}
+                  disabled={tiles.length === 0}
+                  onClick={() =>
+                    window.open(dashboardPrintPath(objectId, values), '_blank', 'noopener')
+                  }
+                >
+                  {t('data.dashboard.print')}
+                </Button>
+                {canEdit ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<Pencil className="size-3.5" />}
+                    onClick={() => setDraft(dashboard.spec)}
+                  >
+                    {t('data.dashboard.edit')}
+                  </Button>
+                ) : null}
+                <IconButton
+                  label={t('data.dashboard.refresh')}
+                  onClick={() =>
+                    void client.invalidateQueries({ queryKey: ['dashboard', objectId, 'data'] })
+                  }
+                >
+                  <RefreshCw className="size-4" />
                 </IconButton>
-              ) : null}
-            </>
-          )
-        }
-      />
-
-      {spec.filters.length > 0 ? (
-        <div className="flex shrink-0 flex-wrap items-end gap-3 border-b border-line bg-surface-2 px-4 py-2">
-          {spec.filters.map((filter) => (
-            <FilterControl
-              key={filter.id}
-              filter={filter}
-              value={values[filter.id]}
-              onChange={(value) => setValues((current) => ({ ...current, [filter.id]: value }))}
-              onRemove={
-                editing
-                  ? () =>
-                      setDraft({
-                        ...spec,
-                        filters: spec.filters.filter((item) => item.id !== filter.id),
-                        tiles: spec.tiles.map((tile) => {
-                          const { [filter.id]: _removed, ...bindings } = tile.filterBindings
-                          return { ...tile, filterBindings: bindings }
-                        }),
-                      })
-                  : undefined
-              }
-            />
-          ))}
+                <IconButton label={t('common.actions.share')} onClick={() => setShareOpen(true)}>
+                  <Share2 className="size-4" />
+                </IconButton>
+                {canManage ? (
+                  <IconButton
+                    label={t('common.actions.delete')}
+                    variant="danger"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
-      ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto bg-canvas p-4">
+        {spec.filters.length > 0 || data.dataUpdatedAt ? (
+          <div className="flex flex-wrap items-end gap-3">
+            {spec.filters.map((filter) => (
+              <FilterControl
+                key={filter.id}
+                filter={filter}
+                value={values[filter.id]}
+                onChange={(value) => setValues((current) => ({ ...current, [filter.id]: value }))}
+                onRemove={
+                  editing
+                    ? () =>
+                        setDraft({
+                          ...spec,
+                          filters: spec.filters.filter((item) => item.id !== filter.id),
+                          tiles: spec.tiles.map((tile) => {
+                            const { [filter.id]: _removed, ...bindings } = tile.filterBindings
+                            return { ...tile, filterBindings: bindings }
+                          }),
+                        })
+                    : undefined
+                }
+              />
+            ))}
+            {data.dataUpdatedAt && !editing ? (
+              <span className="ml-auto pb-1 font-mono text-2xs uppercase tracking-wide text-fg-muted">
+                {t('data.dashboard.updated', {
+                  time: formatRelativeTime(new Date(data.dataUpdatedAt), { locale }),
+                })}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </header>
+
+      <div className="@container min-h-0 flex-1 overflow-auto bg-canvas px-6 py-5">
         {tiles.length === 0 ? (
           <EmptyState
             title={t('data.dashboard.empty')}
@@ -316,7 +336,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
         ) : (
           // Живых карт — только в видимых плитках и не больше четырёх; под TV-режимом — ни одной
           <MapSlotsProvider paused={tv}>
-            <div className="grid auto-rows-[80px] grid-cols-12 gap-3">
+            <div className="grid auto-rows-[80px] grid-cols-12 gap-4">
               {tiles.map((tile, index) => (
                 <TileCard
                   key={tile.id}

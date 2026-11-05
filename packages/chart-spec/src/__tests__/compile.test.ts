@@ -48,6 +48,55 @@ function colorsFromTheme(option: unknown): void {
 }
 
 describe('столбцы', () => {
+  it('год-число на оси категорий — без разделителя разрядов, показатель — с ним', () => {
+    const years = result(
+      [
+        { name: 'year', type: 'integer' },
+        { name: 'incidents', type: 'integer' },
+      ],
+      [
+        [2013, 1200],
+        [2014, 980],
+      ],
+    )
+    const c = echarts(
+      compileChart(
+        spec({
+          type: 'bar',
+          encoding: {
+            x: { field: 'year', type: 'ordinal' },
+            y: [{ field: 'incidents', type: 'quantitative' }],
+          },
+        }),
+        years,
+        THEME,
+      ),
+    )
+    expect(c.o.xAxis.data).toEqual(['2013', '2014'])
+    // Явный формат поля сильнее: разделитель по просьбе остаётся
+    const grouped = result(
+      [
+        { name: 'year', type: 'integer', format: { thousands: true } },
+        { name: 'incidents', type: 'integer' },
+      ],
+      [[2013, 1200]],
+    )
+    const g = echarts(
+      compileChart(
+        spec({
+          type: 'bar',
+          encoding: {
+            x: { field: 'year', type: 'ordinal' },
+            y: [{ field: 'incidents', type: 'quantitative' }],
+          },
+        }),
+        grouped,
+        THEME,
+      ),
+    )
+    expect(g.o.xAxis.data[0]).not.toBe('2013')
+  })
+
   it('сортировка по показателю, скругление конца, подписи при немногих категориях', () => {
     const c = echarts(
       compileChart(byDistrict({}, { sort: { by: 'incidents', dir: 'desc' } }), DISTRICTS, THEME),

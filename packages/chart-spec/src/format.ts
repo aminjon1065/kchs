@@ -59,10 +59,21 @@ export function categoryLabel(
 ): string {
   if (value === null || value === undefined || value === '') return ctx.t('ui.chart.none')
   if (field) {
-    const out = formatValue(value, { type: field.type, format: field.format ?? undefined }, ctx.fmt)
+    const out = formatValue(value, { type: field.type, format: categoryFormat(field) }, ctx.fmt)
     if (out) return out
   }
   return String(value)
+}
+
+/**
+ * Число в роли категории — год, код, номер: без разделителя разрядов («2013», а не
+ * «2 013»), если формат поля не просит его явно. Значения показателей форматирует
+ * `measureFormat` — с разделителем.
+ */
+function categoryFormat(field: QueryResultField): FieldFormat | undefined {
+  const numeric = field.type === 'integer' || field.type === 'number'
+  if (!numeric || field.format?.thousands !== undefined) return field.format ?? undefined
+  return { ...(field.format ?? {}), thousands: false }
 }
 
 /** Полная подпись периода (тултип, таблица) по настенному моменту. */
