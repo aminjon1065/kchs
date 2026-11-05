@@ -171,7 +171,8 @@ export const meetings: DeepPartial<Dictionary['meetings']> = {
     createdOnConfirm: 'ҳангоми тасдиқ эҷод мешавад',
     addLabel: 'Илова кардан',
     addToolbar: 'Илова кардани блок',
-    pendingInstructions: '{count, plural, one {# супориш} other {# супориш}} ҳангоми тасдиқ эҷод мешавад',
+    pendingInstructions:
+      '{count, plural, one {# супориш} other {# супориш}} ҳангоми тасдиқ эҷод мешавад',
     ack: {
       mine: 'Аз шумо хоҳиш мекунанд, ки бо протокол шинос шавед',
       mineHint: 'Қайд дар баҳисобгирии шиносоӣ ва дар Воридшудаҳо мемонад',

@@ -297,9 +297,9 @@ export function HomeScreen() {
         ) : (
           // Колонки — по ширине рабочей области, а не окна: панели оболочки её сужают
           <div className="@container">
-            <div className="grid grid-flow-row-dense items-start gap-4 @3xl:grid-cols-2 @6xl:grid-cols-3">
+            <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-4 @3xl:grid-cols-2 @6xl:grid-cols-3">
               {shown.map((widget) => (
-                <div key={widget} className={cn(WIDE.has(widget) && '@3xl:col-span-2')}>
+                <div key={widget} className={cn('min-w-0', WIDE.has(widget) && '@3xl:col-span-2')}>
                   {render[widget]()}
                 </div>
               ))}
