@@ -40,3 +40,8 @@ export const LazyChoroplethMapButton = lazy(() =>
     default: module.ChoroplethMapButton,
   })),
 )
+
+/** Области предупреждения на карте — заливкой цвета уровня шкалы (ADR-0230). */
+export const LazyAreasMap = lazy(() =>
+  import('./areas-map.js').then((module) => ({ default: module.AreasMap })),
+)

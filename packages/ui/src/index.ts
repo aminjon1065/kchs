@@ -58,6 +58,7 @@ export {
 } from './maps/map-style-controls.js'
 export { readMapTheme, useMapTheme } from './maps/map-theme.js'
 export * from './primitives/button.js'
+export * from './primitives/code-input.js'
 export * from './primitives/controls.js'
 export * from './primitives/input.js'
 export * from './primitives/overlays.js'

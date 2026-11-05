@@ -42,6 +42,7 @@ export const THEME_LIGHT: MapTheme = {
     neutral: '#666875',
     purple: '#7B45F5',
   },
+  hazard: ['#1F9A6E', '#F2C230', '#F07A1F', '#D92D2D'],
   text: '#17181C',
   surface: '#FFFFFF',
 }
@@ -78,6 +79,7 @@ export const THEME_DARK: MapTheme = {
     neutral: '#8A8C99',
     purple: '#A78BFA',
   },
+  hazard: ['#3CC79A', '#F5C842', '#FF8A3D', '#FF5A57'],
   text: '#ECECEF',
   surface: '#16171A',
 }

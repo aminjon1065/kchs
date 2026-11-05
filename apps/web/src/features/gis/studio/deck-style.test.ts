@@ -49,6 +49,7 @@ const THEME: MapTheme = {
     neutral: '#666875',
     purple: '#7B45F5',
   },
+  hazard: ['#1F9A6E', '#F2C230', '#F07A1F', '#D92D2D'],
   text: '#17181C',
   surface: '#FFFFFF',
 }

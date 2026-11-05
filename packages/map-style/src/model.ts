@@ -42,6 +42,11 @@ export interface MapTheme {
   /** Расходящиеся шкалы, 7 шагов: полюс → нейтраль → полюс (`--div-*`). */
   diverging: Readonly<Record<DivergingRamp, readonly string[]>>
   tokens: Readonly<Record<MapColorToken, string>>
+  /**
+   * Шкала обстановки (ADR-0230), 4 цвета: 0 — норма, I — внимание, II — опасно,
+   * III — чрезвычайно (`--hazard-0…3`). Отдельна от `tokens.warning`/`tokens.danger`.
+   */
+  hazard: readonly string[]
   /** Текст подписей. */
   text: string
   /** Поверхность: гало подписей и кольцо кластеров. */
