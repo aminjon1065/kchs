@@ -79,6 +79,8 @@ test.describe('Правила автоматизации', () => {
     // Сохранение и включение
     await page.getByRole('button', { name: 'Сохранить' }).click()
     await expect(page.getByText('Правило сохранено')).toBeVisible()
+    // Тост первого сохранения должен уйти: иначе второй проверке подходили бы оба
+    await expect(page.getByText('Правило сохранено')).toBeHidden({ timeout: 15_000 })
     await page.getByLabel('Включено').click()
     await page.getByRole('button', { name: 'Сохранить' }).click()
     await expect(page.getByText('Правило сохранено')).toBeVisible()
