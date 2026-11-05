@@ -1,6 +1,6 @@
 import type { WarningSummary } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
-import { pickSituation } from './ops-band.js'
+import { activeWarnings, pickSituation } from './situation.js'
 
 const NOW = Date.parse('2026-11-04T12:00:00Z')
 
@@ -21,7 +21,7 @@ const warning = (patch: Partial<WarningSummary>): WarningSummary => ({
   ...patch,
 })
 
-describe('полоса обстановки', () => {
+describe('обстановка по предупреждениям', () => {
   it('без действующих предупреждений полосы нет', () => {
     expect(pickSituation([], NOW)).toBeNull()
     expect(
@@ -60,5 +60,17 @@ describe('полоса обстановки', () => {
   it('бессрочное и с неизвестной строгостью — на виду как «внимание»', () => {
     const situation = pickSituation([warning({ severity: 'Unknown', expires: null })], NOW)
     expect(situation?.level).toBe(1)
+  })
+
+  it('виджет «Обстановка» видит и уровень 0: строгие первыми', () => {
+    const list = activeWarnings(
+      [
+        warning({ id: '00000000-0000-4000-8000-00000000000d', severity: 'Minor' }),
+        warning({ id: '00000000-0000-4000-8000-00000000000e', severity: 'Extreme' }),
+        warning({ id: '00000000-0000-4000-8000-00000000000f', status: 'cancelled' }),
+      ],
+      NOW,
+    )
+    expect(list.map((item) => item.level)).toEqual([3, 0])
   })
 })

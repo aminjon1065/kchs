@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   ErrorState,
+  HazardBadge,
   KeyValueList,
   Skeleton,
   Tabs,
@@ -19,7 +20,7 @@ import { ObjectRoutePanel } from '~/features/processes/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { SEVERITY_TONE, STATUS_TONE } from './labels.js'
+import { HAZARD_LEVEL, STATUS_TONE } from './labels.js'
 import { errorText, warningKeys, warningQuery, warningsApi } from './queries.js'
 import { draftOf, type WarningDraft, WarningForm } from './warning-form.js'
 
@@ -112,9 +113,9 @@ export function WarningView({ objectId }: { objectId: string }) {
             {t(`warnings.msgType.${warning.msgType}`)}
           </Badge>
         ) : null}
-        <Badge tone={SEVERITY_TONE[warning.severity]} size="sm">
+        <HazardBadge level={HAZARD_LEVEL[warning.severity]}>
           {t(`warnings.severity.${warning.severity}`)}
-        </Badge>
+        </HazardBadge>
         <Badge tone={STATUS_TONE[warning.status]} size="sm" dot>
           {t(`warnings.status.${warning.status}`)}
         </Badge>

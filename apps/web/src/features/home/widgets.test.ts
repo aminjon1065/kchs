@@ -30,6 +30,12 @@ describe('виджеты «Мой день»', () => {
     }
   })
 
+  it('«Обстановка» — в наборе каждой роли (ADR-0230)', () => {
+    for (const roles of [['registrar'], ['data_steward'], ['system_admin'], ['employee']]) {
+      expect(presetFor(roles)).toContain('situation')
+    }
+  })
+
   it('исчезнувшие виджеты и повторы отбрасываются, мусор — набор по роли', () => {
     expect(widgetsFor(['weather', 'inbox', 'inbox'], ['employee'])).toEqual(['inbox'])
     expect(widgetsFor(['weather'], ['registrar'])).toEqual(presetFor(['registrar']))

@@ -359,17 +359,25 @@ export function InboxScreen() {
                     return (
                       <li key={item.id}>
                         {heading ? (
-                          <div className="flex items-center justify-between bg-surface-2 px-3 py-1 text-2xs font-semibold tracking-wide text-fg-muted uppercase">
+                          <div className="flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 font-mono text-2xs tracking-wider text-fg-muted uppercase">
                             <span>{t(`inbox.groups.${itemGroup}`)}</span>
+                            <span aria-hidden>·</span>
                             <span className="tabular">{groupCounts[itemGroup]}</span>
                           </div>
                         ) : null}
                         <div
                           className={cn(
-                            'flex items-start gap-2 pl-3',
+                            'relative flex items-start gap-2 pl-3',
                             selected?.id === item.id ? 'bg-accent-subtle' : 'hover:bg-surface-2',
                           )}
                         >
+                          {/* Срочное — полоской у края: видно, не читая строку */}
+                          {item.priority === 'urgent' || item.priority === 'high' ? (
+                            <span
+                              aria-hidden
+                              className="absolute inset-y-0 left-0 w-0.5 bg-danger"
+                            />
+                          ) : null}
                           <Checkbox
                             className="mt-3"
                             checked={checked.has(item.id)}
@@ -423,34 +431,49 @@ export function InboxScreen() {
   )
 }
 
-/** Строка дела: заголовок, «срочно», инициатор, срок, замещение. */
+/**
+ * Строка дела (облик — ADR-0230): что сделать и срок, название в две строки, кто прислал
+ * и от чьего имени. «Срочно» — словом и полоской у края строки.
+ */
 function InboxRow({ item }: { item: InboxItem }) {
   const t = useT()
   const locale = useLocale()
+  const urgent = item.priority === 'urgent' || item.priority === 'high'
+  const overdue = item.dueAt ? new Date(item.dueAt) < new Date() : false
+  const action = item.actions[0]?.labelKey
   return (
     <>
-      <span className="flex items-center gap-2">
-        <ObjectIcon type={item.object?.type ?? 'inbox'} className="size-4 shrink-0 text-fg-muted" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{item.title}</span>
-        {item.priority === 'urgent' || item.priority === 'high' ? (
+      <span className="flex items-center gap-2 text-xs">
+        <ObjectIcon
+          type={item.object?.type ?? 'inbox'}
+          className="size-3.5 shrink-0 text-fg-muted"
+        />
+        {action ? (
+          <span className={cn('truncate font-semibold', urgent ? 'text-danger' : 'text-accent')}>
+            {t(action)}
+          </span>
+        ) : null}
+        {urgent ? (
           <Badge tone="danger" size="sm">
             {t('inbox.urgent')}
           </Badge>
         ) : null}
-      </span>
-      <span className="flex items-center gap-2 text-xs text-fg-muted">
-        {item.actor ? <span className="truncate">{item.actor.displayName}</span> : null}
+        <span className="flex-1" />
         {item.dueAt ? (
           <span
             className={cn(
-              'flex items-center gap-1',
-              new Date(item.dueAt) < new Date() && 'text-danger',
+              'tabular flex shrink-0 items-center gap-1 font-mono',
+              overdue ? 'text-danger' : 'text-fg-secondary',
             )}
           >
             <Clock3 className="size-3" aria-hidden />
             {formatRelativeTime(item.dueAt, { locale })}
           </span>
         ) : null}
+      </span>
+      <span className="line-clamp-2 text-sm font-medium text-fg">{item.title}</span>
+      <span className="flex items-center gap-2 text-xs text-fg-muted">
+        {item.actor ? <span className="truncate">{item.actor.displayName}</span> : null}
         {item.onBehalfOf ? (
           <span className="flex items-center gap-1 text-warning">
             <User className="size-3" aria-hidden />

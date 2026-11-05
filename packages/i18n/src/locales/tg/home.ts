@@ -11,6 +11,7 @@ export const home: DeepPartial<Dictionary['home']> = {
   widgets: {
     inbox: 'Воридшудаҳо',
     today: 'Имрӯз',
+    situation: 'Вазъият',
     tasks: 'Вазифаҳо ва супоришҳои ман',
     assigned: 'Супоридаҳои ман',
     continue: 'Идома',
@@ -29,6 +30,19 @@ export const home: DeepPartial<Dictionary['home']> = {
     uploadFile: 'Боргузории файл',
   },
   inboxAll: 'Ҳама',
+  allInbox: 'Ҳамаи воридшудаҳо',
+  summary: {
+    decide: '{count, plural, one {# қарор интизори шумост} other {# қарор интизори шумост}}',
+    dueToday: '{count, plural, one {# кор бо мӯҳлати имрӯз} other {# кор бо мӯҳлати имрӯз}}',
+    overdue: '{count, plural, one {# кор мӯҳлаташ гузаштааст} other {# кор мӯҳлаташ гузаштааст}}',
+    delegated: '{count, plural, one {# кор аз рӯи ивазкунӣ} other {# кор аз рӯи ивазкунӣ}}',
+    clear: 'Корҳое, ки қарори шуморо интизоранд, нестанд',
+  },
+  situation: {
+    active: '{count, plural, one {# огоҳиномаи амалкунанда} other {# огоҳиномаи амалкунанда}}',
+    none: 'Огоҳиномаи амалкунанда нест',
+    unavailable: 'Огоҳиномаҳоро гирифта нашуд',
+  },
   emptyRecent: 'Ҳоло чизе кушода нашудааст',
   emptyFavorites: 'Ҳоло интихобшуда нест',
   emptyFavoritesHint: 'Он чиро, ки ба он бармегардед, бо ситорача қайд кунед',
@@ -65,5 +79,4 @@ export const home: DeepPartial<Dictionary['home']> = {
     overdue: 'мӯҳлат гузашт: {count}',
     overdueTitle: 'Мӯҳлатгузаштаҳо дар шуъба',
   },
-  delegated: 'Ивазкунӣ',
 }

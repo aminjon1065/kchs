@@ -1,51 +1,12 @@
-import type { WarningSummary } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
-import { Button, type HazardLevel, OpsBand } from '@kchs/ui'
+import { Button, OpsBand } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { HAZARD_LEVEL } from './labels.js'
 import { warningsQuery } from './queries.js'
-
-const LEVEL_KEY = {
-  0: 'normal',
-  1: 'caution',
-  2: 'danger',
-  3: 'extreme',
-} as const satisfies Record<HazardLevel, string>
-
-/** Действует сейчас: опубликовано, не учения и не отмена, срок не истёк. */
-function isActive(warning: WarningSummary, now: number): boolean {
-  return (
-    warning.status === 'published' &&
-    warning.capStatus === 'Actual' &&
-    warning.msgType !== 'Cancel' &&
-    (warning.expires === null || Date.parse(warning.expires) > now)
-  )
-}
-
-const issuedAt = (warning: WarningSummary): number =>
-  Date.parse(warning.publishedAt ?? warning.updatedAt)
-
-/**
- * Что показать в полосе: самое строгое из действующих (при равной строгости — самое
- * свежее) и сколько их всего. Уровень 0 полосу не поднимает — это обычный фон.
- */
-export function pickSituation(
-  items: readonly WarningSummary[],
-  now: number,
-): { warning: WarningSummary; level: HazardLevel; count: number } | null {
-  const active = items
-    .filter((warning) => isActive(warning, now))
-    .map((warning) => ({ warning, level: HAZARD_LEVEL[warning.severity] }))
-    .filter((item) => item.level > 0)
-  if (active.length === 0) return null
-  active.sort((a, b) => b.level - a.level || issuedAt(b.warning) - issuedAt(a.warning))
-  const [top] = active
-  return top ? { ...top, count: active.length } : null
-}
+import { ACTIVE_WARNINGS_QUERY, HAZARD_WORD, pickSituation } from './situation.js'
 
 /**
  * Полоса обстановки (ADR-0230): пока действует предупреждение уровня I и выше, над
@@ -60,7 +21,7 @@ export function WarningsOpsBand() {
   const hidden = new Set<string>(me?.hiddenScreens ?? []).has('warnings')
 
   const { data } = useQuery({
-    ...warningsQuery({ status: 'published', limit: 50 }),
+    ...warningsQuery(ACTIVE_WARNINGS_QUERY),
     enabled: Boolean(me) && !hidden,
     refetchInterval: 60_000,
     retry: false,
@@ -97,7 +58,7 @@ export function WarningsOpsBand() {
     <OpsBand
       aria-label={t('shell.opsBand.label')}
       level={level}
-      levelLabel={t(`shell.opsBand.levels.${LEVEL_KEY[level]}`)}
+      levelLabel={t(`shell.opsBand.levels.${HAZARD_WORD[level]}`)}
       title={warning.title}
       details={warning.areas.length > 0 ? warning.areas.join(', ') : null}
       meta={until}

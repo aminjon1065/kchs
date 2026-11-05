@@ -255,7 +255,10 @@ function RailButton({
           </span>
         ) : null}
         {active ? (
-          <span aria-hidden className="absolute -left-2 h-5 w-0.5 rounded-r-full bg-rail-indicator" />
+          <span
+            aria-hidden
+            className="absolute -left-2 h-5 w-0.5 rounded-r-full bg-rail-indicator"
+          />
         ) : null}
       </button>
     </Tooltip>

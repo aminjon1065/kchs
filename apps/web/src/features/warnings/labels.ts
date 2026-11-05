@@ -13,14 +13,6 @@ export const STATUS_TONE: Record<WarningStatus, Tone> = {
   cancelled: 'danger',
 }
 
-export const SEVERITY_TONE: Record<CapSeverity, Tone> = {
-  Extreme: 'danger',
-  Severe: 'danger',
-  Moderate: 'warning',
-  Minor: 'accent',
-  Unknown: 'neutral',
-}
-
 /**
  * Уровень шкалы обстановки по строгости CAP (ADR-0230). Неизвестная строгость — как
  * «внимание»: действующее предупреждение не должно пропасть из виду из-за пустого поля.

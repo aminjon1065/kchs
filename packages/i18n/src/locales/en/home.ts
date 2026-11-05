@@ -11,6 +11,7 @@ export const home: DeepPartial<Dictionary['home']> = {
   widgets: {
     inbox: 'Inbox',
     today: 'Today',
+    situation: 'Situation',
     tasks: 'My tasks and instructions',
     assigned: 'Assigned by me',
     continue: 'Continue',
@@ -27,6 +28,19 @@ export const home: DeepPartial<Dictionary['home']> = {
   emptyToday: 'Nothing scheduled today',
   actions: { uploadFile: 'Upload file' },
   inboxAll: 'All',
+  allInbox: 'All inbox items',
+  summary: {
+    decide: '{count, plural, one {# decision awaits you} other {# decisions await you}}',
+    dueToday: '{count, plural, one {# item due today} other {# items due today}}',
+    overdue: '{count, plural, one {# overdue} other {# overdue}}',
+    delegated: '{count, plural, one {# item as a delegate} other {# items as a delegate}}',
+    clear: 'Nothing awaits your decision',
+  },
+  situation: {
+    active: '{count, plural, one {# active warning} other {# active warnings}}',
+    none: 'No active warnings',
+    unavailable: 'Could not load warnings',
+  },
   emptyRecent: 'Nothing opened yet',
   emptyFavorites: 'No favorites yet',
   emptyFavoritesHint: 'Star the things you come back to',
@@ -63,5 +77,4 @@ export const home: DeepPartial<Dictionary['home']> = {
     overdue: 'overdue: {count}',
     overdueTitle: 'Overdue in the unit',
   },
-  delegated: 'Delegation',
 }

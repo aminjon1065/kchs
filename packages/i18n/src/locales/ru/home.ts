@@ -8,6 +8,7 @@ export const home = {
   widgets: {
     inbox: 'Входящие',
     today: 'Сегодня',
+    situation: 'Обстановка',
     tasks: 'Мои задачи и поручения',
     assigned: 'Выданные мной',
     continue: 'Продолжить',
@@ -24,6 +25,24 @@ export const home = {
   emptyToday: 'На сегодня событий нет',
   actions: { uploadFile: 'Загрузить файл' },
   inboxAll: 'Все',
+  allInbox: 'Все входящие',
+  summary: {
+    decide:
+      '{count, plural, one {# решение ждёт вас} few {# решения ждут вас} many {# решений ждут вас} other {# решения ждут вас}}',
+    dueToday:
+      '{count, plural, one {# дело со сроком сегодня} few {# дела со сроком сегодня} many {# дел со сроком сегодня} other {# дела со сроком сегодня}}',
+    overdue:
+      '{count, plural, one {# дело просрочено} few {# дела просрочены} many {# дел просрочено} other {# дела просрочено}}',
+    delegated:
+      '{count, plural, one {# дело по замещению} few {# дела по замещению} many {# дел по замещению} other {# дела по замещению}}',
+    clear: 'Дел, ждущих вашего решения, нет',
+  },
+  situation: {
+    active:
+      '{count, plural, one {# действующее предупреждение} few {# действующих предупреждения} many {# действующих предупреждений} other {# действующего предупреждения}}',
+    none: 'Действующих предупреждений нет',
+    unavailable: 'Не удалось получить предупреждения',
+  },
   emptyRecent: 'Пока ничего не открывали',
   emptyFavorites: 'Избранного пока нет',
   emptyFavoritesHint: 'Отметьте звёздочкой то, к чему возвращаетесь',
@@ -60,5 +79,4 @@ export const home = {
     overdue: 'просрочено: {count}',
     overdueTitle: 'Просроченные в отделе',
   },
-  delegated: 'Замещение',
 } as const

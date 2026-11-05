@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   EmptyState,
+  HazardBadge,
   Select,
   SelectContent,
   SelectItem,
@@ -22,7 +23,7 @@ import { useState } from 'react'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { SEVERITY_TONE, STATUS_TONE } from './labels.js'
+import { HAZARD_LEVEL, STATUS_TONE } from './labels.js'
 import {
   errorText,
   warningKeys,
@@ -108,9 +109,9 @@ export function WarningsScreen() {
       header: t('warnings.columns.severity'),
       width: 140,
       cell: (row) => (
-        <Badge tone={SEVERITY_TONE[row.severity]} size="sm">
+        <HazardBadge level={HAZARD_LEVEL[row.severity]}>
           {t(`warnings.severity.${row.severity}`)}
-        </Badge>
+        </HazardBadge>
       ),
     },
     {
