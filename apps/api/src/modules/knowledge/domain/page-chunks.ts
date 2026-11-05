@@ -152,7 +152,9 @@ export async function indexPageChunks(pageId: string): Promise<void> {
   }))
   try {
     await index().deleteDocuments({ filter: `pageId = ${meiliValue(pageId)}` })
-    if (documents.length > 0) await index().addDocuments(documents)
+    // Ключ — явно: индекс, созданный самим добавлением (события страниц обогнали
+    // ensurePageChunkIndex при старте), выбирал бы ключ из id, pageId и blockId и отказывал
+    if (documents.length > 0) await index().addDocuments(documents, { primaryKey: 'id' })
   } catch (error) {
     logger().warn(
       { err: error, module: 'knowledge', pageId },
