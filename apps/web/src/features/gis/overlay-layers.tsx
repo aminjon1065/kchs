@@ -1,7 +1,7 @@
 import type { MapTheme } from '@kchs/map-style'
 import type { HazardLevel, MapLayerSpecification, MapSourceSpecification } from '@kchs/ui'
 import { type ReactNode, Suspense, useMemo, useState } from 'react'
-import { type MapOverlayData, mapOverlays } from './map-overlays.js'
+import { type MapOverlayData, type MapOverlayZone, mapOverlays } from './map-overlays.js'
 
 /** Строка наложения в панели слоёв: подпись, сколько зон, какие уровни, видна ли. */
 export interface OverlayRow {
@@ -26,6 +26,8 @@ const overlaySource = (id: string) => `kchs-overlay:${id}`
 export function useMapOverlays(theme: MapTheme | null): {
   feeds: ReactNode
   rows: OverlayRow[]
+  /** Все зоны наложений, в том числе скрытых на карте, — паспорту для плашки обстановки. */
+  zones: readonly MapOverlayZone[]
   sources: Record<string, MapSourceSpecification>
   layers: MapLayerSpecification[]
   toggle: (id: string, visible: boolean) => void
@@ -139,5 +141,10 @@ export function useMapOverlays(theme: MapTheme | null): {
       return next
     })
 
-  return { feeds, rows, sources, layers, toggle }
+  const zones = useMemo(
+    () => registered.flatMap((overlay) => data[overlay.id]?.zones ?? []),
+    [registered, data],
+  )
+
+  return { feeds, rows, zones, sources, layers, toggle }
 }

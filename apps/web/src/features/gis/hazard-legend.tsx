@@ -3,7 +3,7 @@ import { useT } from '~/shared/i18n.js'
 import type { OverlayRow } from './overlay-layers.js'
 
 /** Слово уровня в словаре оболочки — как у полосы обстановки. */
-const LEVEL_WORD = { 0: 'normal', 1: 'caution', 2: 'danger', 3: 'extreme' } as const
+export const LEVEL_WORD = { 0: 'normal', 1: 'caution', 2: 'danger', 3: 'extreme' } as const
 
 /**
  * Легенда шкалы обстановки на карте (ADR-0230): видимые наложения и уровни их зон —
