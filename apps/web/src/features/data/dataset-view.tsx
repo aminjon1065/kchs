@@ -4,13 +4,13 @@ import {
   AlertDialog,
   Badge,
   type BadgeProps,
+  Breadcrumbs,
   Button,
   Card,
   EmptyState,
   IconButton,
   InlineEdit,
   ObjectIcon,
-  PanelToolbar,
   Sheet,
   SheetContent,
   Skeleton,
@@ -35,9 +35,13 @@ import {
 import { Suspense, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { LazyChoroplethButton, LazyShowOnMapButton } from '~/features/gis/index.js'
+import {
+  LazyChoroplethButton,
+  LazyLinkedPointsMap,
+  LazyShowOnMapButton,
+} from '~/features/gis/index.js'
 import { ApiError } from '~/shared/api/errors.js'
-import { keys, objectQuery } from '~/shared/api/queries.js'
+import { keys, objectQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { LoadFailure } from '~/shared/errors/load-failure.js'
 import { useT } from '~/shared/i18n.js'
@@ -97,6 +101,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
     refetch: refetchDataset,
   } = useQuery(datasetQuery(objectId))
   const { data: ai } = useQuery(aiStatusQuery())
+  const { data: spaces } = useQuery(spacesQuery())
 
   const rename = useMutation({
     mutationFn: (title: string) => dataApi.patchObjects(objectId, { title }),
@@ -148,33 +153,67 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   // Пространственный анализ — для датасета с геометрией (результат — новый датасет)
   const hasGeometry = dataset.fields.some((field) => field.type === 'geometry')
 
+  const spaceName = spaces?.find((space) => space.id === dataset.spaceId)?.name ?? null
+  const openCatalog = () =>
+    openTab({
+      kind: 'screen',
+      screen: 'data',
+      title: t('data.catalog.title'),
+      icon: 'dataset',
+      mode: 'permanent',
+    })
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <PanelToolbar
-        left={
-          <>
-            <ObjectIcon type="dataset" className="size-4 shrink-0 text-fg-muted" />
-            <InlineEdit
-              value={dataset.name}
-              disabled={!canEdit}
-              onSave={(next) => rename.mutate(next)}
-              className="text-sm font-semibold text-fg"
-              aria-label={t('common.labels.name')}
+    <Tabs defaultValue="table" className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 flex-col gap-2.5 border-b border-line bg-surface px-5 pt-3">
+        <div className="flex items-start justify-between gap-5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <Breadcrumbs
+              items={[
+                { id: 'data', label: t('data.catalog.title'), onClick: openCatalog },
+                ...(spaceName ? [{ id: 'space', label: spaceName }] : []),
+              ]}
             />
-            <Badge size="sm">v{dataset.currentVersion}</Badge>
-            <span className="truncate text-xs text-fg-secondary">
-              {t('data.dataset.rows', { count: dataset.rowCount })}
-              {dataset.lastImportAt
-                ? ` · ${t('data.dataset.lastImport', {
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent-subtle text-accent">
+                <ObjectIcon type="dataset" className="size-4" />
+              </span>
+              <InlineEdit
+                value={dataset.name}
+                disabled={!canEdit}
+                onSave={(next) => rename.mutate(next)}
+                className="min-w-0 text-xl font-semibold text-fg"
+                aria-label={t('common.labels.name')}
+              />
+              <Badge size="sm">v{dataset.currentVersion}</Badge>
+            </div>
+            <div className="flex min-w-0 items-center gap-x-3.5 text-xs text-fg-secondary">
+              <span className="shrink-0 font-mono tabular">
+                {t('data.dataset.rows', { count: dataset.rowCount })}
+              </span>
+              {dataset.description ? (
+                <span className="min-w-0 truncate">{dataset.description}</span>
+              ) : null}
+              {dataset.lastImportAt ? (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-success" />
+                  {t('data.dataset.lastImport', {
                     when: formatRelativeTime(dataset.lastImportAt, { locale }),
-                  })}`
-                : ''}
-            </span>
-          </>
-        }
-        right={
-          <>
+                  })}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex max-w-1/2 shrink-0 flex-wrap items-center justify-end gap-1.5">
             <PresenceAvatars objectId={objectId} />
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<BarChart3 className="size-3.5" />}
+              onClick={openExplore}
+            >
+              {t('data.explore.open')}
+            </Button>
             {ai?.enabled ? (
               // Поле вопроса — вверху «Исследования»: ответ ложится в его конструктор
               <Button
@@ -186,14 +225,16 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
                 {t('data.ask.open')}
               </Button>
             ) : null}
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<BarChart3 className="size-3.5" />}
-              onClick={openExplore}
-            >
-              {t('data.explore.open')}
-            </Button>
+            {canEdit ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Upload className="size-3.5" />}
+                onClick={() => setImportOpen(true)}
+              >
+                {t('data.dataset.import')}
+              </Button>
+            ) : null}
             {hasGeometry ? (
               <Suspense fallback={null}>
                 <LazyShowOnMapButton dataset={dataset} />
@@ -212,16 +253,6 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
             <Suspense fallback={null}>
               <LazyChoroplethButton dataset={dataset} />
             </Suspense>
-            {canEdit ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<Upload className="size-3.5" />}
-                onClick={() => setImportOpen(true)}
-              >
-                {t('data.dataset.import')}
-              </Button>
-            ) : null}
             <IconButton label={t('common.actions.share')} onClick={() => setShareOpen(true)}>
               <Share2 className="size-4" />
             </IconButton>
@@ -234,12 +265,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
                 <Trash2 className="size-4" />
               </IconButton>
             ) : null}
-          </>
-        }
-      />
-
-      <Tabs defaultValue="table" className="flex min-h-0 flex-1 flex-col">
-        <TabsList className="shrink-0 px-2.5">
+          </div>
+        </div>
+        <TabsList className="-mb-px shrink-0 border-b-0">
           <TabsTrigger value="table">{t('data.dataset.tabs.table')}</TabsTrigger>
           <TabsTrigger value="schema" count={dataset.fields.length}>
             {t('data.dataset.tabs.schema')}
@@ -251,32 +279,36 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
             <TabsTrigger value="access">{t('data.dataset.tabs.access')}</TabsTrigger>
           ) : null}
         </TabsList>
+      </header>
 
-        <TabsContent value="table" className="min-h-0 flex-1">
-          <DatasetTable dataset={dataset} canEdit={canEdit} />
+      <TabsContent value="table" className="min-h-0 flex-1">
+        <DatasetTable
+          dataset={dataset}
+          canEdit={canEdit}
+          renderMap={(slot) => (
+            <Suspense fallback={null}>
+              <LazyLinkedPointsMap datasetId={dataset.id} {...slot} />
+            </Suspense>
+          )}
+        />
+      </TabsContent>
+      <TabsContent value="schema" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+        <SchemaTab dataset={dataset} canManage={canManage} />
+      </TabsContent>
+      <TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+        <VersionsTab datasetId={objectId} current={dataset.currentVersion} canManage={canManage} />
+      </TabsContent>
+      {canManage ? (
+        <TabsContent value="access" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+          <AccessTab dataset={dataset} />
         </TabsContent>
-        <TabsContent value="schema" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <SchemaTab dataset={dataset} canManage={canManage} />
-        </TabsContent>
-        <TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <VersionsTab
-            datasetId={objectId}
-            current={dataset.currentVersion}
-            canManage={canManage}
-          />
-        </TabsContent>
-        {canManage ? (
-          <TabsContent value="access" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-            <AccessTab dataset={dataset} />
-          </TabsContent>
-        ) : null}
-        <TabsContent value="imports" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <ImportsTab dataset={dataset} canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="quality" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <QualityTab dataset={dataset} />
-        </TabsContent>
-      </Tabs>
+      ) : null}
+      <TabsContent value="imports" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+        <ImportsTab dataset={dataset} canEdit={canEdit} />
+      </TabsContent>
+      <TabsContent value="quality" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+        <QualityTab dataset={dataset} />
+      </TabsContent>
 
       <ShareDialog
         objectId={objectId}
@@ -310,7 +342,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           }}
         />
       ) : null}
-    </div>
+    </Tabs>
   )
 }
 

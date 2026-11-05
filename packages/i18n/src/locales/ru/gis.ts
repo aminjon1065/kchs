@@ -409,6 +409,12 @@ export const gis = {
     empty: 'Ни у одной строки нет точки',
     failed: 'Точки не загрузились: {reason}',
   },
+  linkedPoints: {
+    label: 'Карта рядом с таблицей «{name}»',
+    points: '{name} · {count, plural, one {# точка} few {# точки} many {# точек} other {# точки}}',
+    truncated: '{name} · первые {count} точек — уточните фильтр',
+    selected: 'Выбрано · {count}',
+  },
   point: {
     pick: 'Указать место',
     clear: 'Убрать точку',

@@ -220,6 +220,7 @@ export const data: DeepPartial<Dictionary['data']> = {
     document_places: 'Ҳуҷҷатҳо дар харита',
   },
   catalog: {
+    title: 'Маълумот',
     upload: 'Боргузории файл',
     empty: 'Ҳоло маълумот нест',
     emptyHint: 'Файлро кашед ё интихоб кунед — ёрдамчии воридот сохтори онро таҳлил мекунад',
@@ -1368,6 +1369,25 @@ export const data: DeepPartial<Dictionary['data']> = {
       onlySelected: 'Танҳо интихобшудаҳо дар панели алоқаманд ({count})',
       filter: 'Филтр аз панели алоқаманд — {label}',
       clearFilter: 'Бекор кардани филтри панели алоқаманд',
+    },
+    map: {
+      toggle: 'Харита дар паҳлӯ',
+      title: 'Харита',
+      hint: 'бо ҷадвал алоқаманд: филтр ва интихоб умумӣ',
+      hide: 'Пинҳон кардани харита',
+      linkedTitle: 'Харита дар паҳлӯ',
+      onlySelected: 'Танҳо интихобшудаҳо дар харита ({count})',
+    },
+    profile: {
+      toggle: 'Профили сутун',
+      title: 'Профил · «{name}»',
+      hint: 'Ҳуҷайраи сутунро интихоб кунед — профили он дар ин ҷо пайдо мешавад',
+      top: 'Қиматҳои бештар вохӯрда',
+      topOf: '{count} аввал аз {distinct}',
+      distribution: 'Тақсимот',
+      wholeDataset: 'аз рӯи ҳамаи сатрҳои маҷмӯа',
+      sampled: 'аз рӯи интихоб',
+      hide: 'Пинҳон кардани профил',
     },
   },
   dataset: {

@@ -45,3 +45,8 @@ export const LazyChoroplethMapButton = lazy(() =>
 export const LazyAreasMap = lazy(() =>
   import('./areas-map.js').then((module) => ({ default: module.AreasMap })),
 )
+
+/** Точки датасета рядом с его таблицей — фильтр и выделение общие (ADR-0230, ADR-0073). */
+export const LazyLinkedPointsMap = lazy(() =>
+  import('./linked-points-map.js').then((module) => ({ default: module.LinkedPointsMap })),
+)
