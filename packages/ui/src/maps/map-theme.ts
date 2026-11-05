@@ -57,7 +57,8 @@ function isDark(hex: string): boolean {
 /**
  * Тема карты из CSS-переменных дизайн-системы (ADR-0065): шкалы `--seq-*` и
  * `--div-*` (свои шаги для каждой темы), палитра графиков `--viz-cat-*`,
- * `--viz-other`, семантические цвета, текст и поверхность для подписей.
+ * `--viz-other`, семантические цвета, шкала обстановки `--hazard-*`, текст и поверхность
+ * для подписей.
  * Светлая или тёмная — по яркости поверхности: так же работает и системная тема.
  */
 export function readMapTheme(element: HTMLElement): MapTheme {
@@ -72,6 +73,7 @@ export function readMapTheme(element: HTMLElement): MapTheme {
     sequential: record(SEQUENTIAL_RAMPS, (name) => ramp('seq', name)),
     diverging: record(DIVERGING_RAMPS, (name) => ramp('div', name)),
     tokens: record(MAP_COLOR_TOKENS, (token) => v(TOKEN_VARIABLES[token])),
+    hazard: [0, 1, 2, 3].map((level) => v(`--hazard-${level}`)),
     text: v('--text'),
     surface,
   }

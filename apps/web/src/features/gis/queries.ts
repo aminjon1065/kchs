@@ -64,6 +64,14 @@ export const explorePointsQuery = (request: string) =>
 export const apiFailureMessage = (error: unknown): string | null =>
   error instanceof ApiError ? error.message : null
 
+/** Граница территории справочника, упрощённая под зум (`GET /gis/territories/:id/geometry`). */
+export const territoryGeometryQuery = (id: string, zoom: number) =>
+  queryOptions({
+    queryKey: ['gis', 'territory-geometry', id, zoom] as const,
+    queryFn: () => http.get('/gis/territories/:id/geometry', { params: { id }, query: { zoom } }),
+    staleTime: 30 * 60_000,
+  })
+
 export const gisApi = {
   postLayers: (body: ApiBody<'POST /gis/layers'>) => http.post('/gis/layers', { body }),
   getLayers: (id: string) => http.get('/gis/layers/:id', { params: { id } }),
