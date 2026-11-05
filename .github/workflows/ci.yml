@@ -214,6 +214,8 @@ jobs:
           RATE_LIMIT_PER_MINUTE: '20000'
           WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: 'true'
           KCHS_WEB_HOST: 0.0.0.0
+          # Проверка CSP открывает продакшен-сборку за Caddy на :8088 — сокет оттуда же
+          REALTIME_EXTRA_ORIGINS: http://localhost:8088
           AI_PROVIDER: openai-compat
           OPENAI_COMPAT_URL: http://127.0.0.1:8782/v1
           AI_MODEL: kchs-e2e

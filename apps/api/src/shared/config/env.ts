@@ -54,6 +54,24 @@ const EnvSchema = z.object({
 
   KCHS_BASE_URL: z.url().default('http://localhost:5173'),
   /**
+   * Дополнительные origin, с которых принимается сокет realtime (через запятую), кроме
+   * `KCHS_BASE_URL`. В установке пусто; задают проверки, где web отдаёт другой адрес, —
+   * продакшен-сборка за Caddy в `csp-check.mjs` (ADR-0225: сокет проверяет Origin).
+   */
+  REALTIME_EXTRA_ORIGINS: z.preprocess(
+    unset,
+    z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .map((item) => new URL(item).origin),
+      ),
+  ),
+  /**
    * Публичный адрес установки для адресов, вшитых в сертификаты УЦ Комитета (списки отзыва,
    * OCSP, сертификат издателя; ADR-0218): шлюз DMZ, если он отличается от `KCHS_BASE_URL`.
    */

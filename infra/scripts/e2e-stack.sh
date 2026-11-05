@@ -62,6 +62,8 @@ ports = {'5432': '45432', '6379': '46379', '9000': '49000', '9001': '49001',
 fixed = {
     'PORT': api, 'API_PORT': api,
     'WEBHOOKS_ALLOW_PRIVATE_ADDRESSES': 'true',
+    # Проверка CSP (csp-check.mjs) — продакшен-сборка за Caddy на :8088, сокет оттуда же
+    'REALTIME_EXTRA_ORIGINS': 'http://localhost:8088',
     'TELEGRAM_POLLING': 'false',
     'METRICS_PORT': '',
     # Полный набор — тысячи запросов одного администратора: лимит по умолчанию (600 в
