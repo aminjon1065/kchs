@@ -3,8 +3,10 @@ import { formatValue } from '@kchs/fields'
 import { Button, Callout, IconButton, KeyValueList, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { FileText, Landmark, Table2, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { territoriesQuery } from '~/entities/territory/queries.js'
 import { useOpenPassport } from '~/entities/territory/territory-link.js'
+import { useFieldOptions } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -14,6 +16,39 @@ import { layerFeatureQuery } from './queries.js'
 
 /** Полей в карточке без настроенной карточки слоя: заголовок и ещё четыре. */
 const DEFAULT_FIELDS = 5
+/** Ширина карточки (`w-72`) — по ней карточка у точки не выходит за правый край карты. */
+const CARD_WIDTH = 288
+/** Значение длиннее — строкой во всю ширину карточки, а не узким столбцом у подписи. */
+const LONG_VALUE = 60
+const NO_FIELDS: DatasetRecord['fields'] = []
+
+/**
+ * Карточка у точки щелчка: не выходит за края карты, высота — до нижнего края;
+ * длинная карточка прокручивается внутри, а не обрезается краем карты.
+ */
+export function FeatureCardAt({
+  point,
+  offset = 8,
+  children,
+}: {
+  point: readonly [number, number]
+  offset?: number
+  children: ReactNode
+}) {
+  const top = `clamp(${offset}px, ${point[1] + offset}px, calc(100% - 200px))`
+  return (
+    <div
+      className="absolute z-20 flex flex-col"
+      style={{
+        left: `clamp(${offset}px, ${point[0] + offset}px, calc(100% - ${CARD_WIDTH + offset}px))`,
+        top,
+        maxHeight: `calc(100% - ${top} - ${offset}px)`,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
 
 /** Шаблон заголовка карточки `{{name}} ({{kind}})` → текст значений строки. */
 function fillTemplate(template: string, text: (key: string) => string): string {
@@ -53,6 +88,8 @@ export function FeatureCard({
     enabled: typeof territoryId === 'string',
   })
   const territory = territories.find((item) => item.id === territoryId)
+  // Территории и справочники — подписью, как в таблице датасета (ADR-0057), а не кодом
+  const fieldOptions = useFieldOptions(dataset?.fields ?? NO_FIELDS)
 
   const fieldOf = (key: string) => dataset?.fields.find((field) => field.key === key)
   const text = (key: string): string => {
@@ -66,7 +103,7 @@ export function FeatureCard({
         {
           type: field.type,
           format: field.format ?? undefined,
-          options: field.options ?? undefined,
+          options: fieldOptions.get(key) ?? field.options ?? undefined,
         },
         { locale },
       ) || '—'
@@ -89,10 +126,15 @@ export function FeatureCard({
       : layer.name
   const rest = popup?.fields.length ? shown : shown.slice(1)
   const templateOnly = popup?.title ? layerTemplateFields(popup.title) : []
+  const items = rest
+    .filter((key) => !templateOnly.includes(key) || rest.length <= 1)
+    .map((key) => ({ key, label: label(key), value: text(key) }))
+  const isLong = (item: { key: string; value: string }) =>
+    fieldOf(item.key)?.type === 'long_text' || item.value.length > LONG_VALUE
 
   return (
-    <div className="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-lg border border-line bg-surface p-3 shadow-md">
-      <div className="flex min-w-0 items-start gap-2">
+    <div className="flex min-h-0 w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-lg border border-line bg-surface p-3 shadow-md">
+      <div className="flex min-w-0 shrink-0 items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs text-fg-muted">{layer.name}</p>
           {feature.isLoading ? (
@@ -123,13 +165,22 @@ export function FeatureCard({
           <Skeleton className="h-4 w-4/5" />
         </div>
       ) : (
-        <KeyValueList
-          items={rest
-            .filter((key) => !templateOnly.includes(key) || rest.length <= 1)
-            .map((key) => ({ key, label: label(key), value: text(key) }))}
-        />
+        <section
+          aria-label={title}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: прокручиваемая область должна получать фокус (axe scrollable-region-focusable)
+          tabIndex={0}
+          className="-mx-3 flex min-h-0 flex-col gap-2.5 overflow-y-auto px-3"
+        >
+          <KeyValueList items={items.filter((item) => !isLong(item))} />
+          {items.filter(isLong).map((item) => (
+            <div key={item.key} className="flex flex-col gap-0.5 text-sm">
+              <p className="text-xs text-fg-muted">{item.label}</p>
+              <p className="whitespace-pre-line break-words text-fg">{item.value}</p>
+            </div>
+          ))}
+        </section>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
         {territory ? (
           <Button
             size="sm"

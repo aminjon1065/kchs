@@ -33,7 +33,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { BasemapSwitcher } from './basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { LayerEditSettings } from './edit/layer-edit-settings.js'
-import { FeatureCard } from './feature-card.js'
+import { FeatureCard, FeatureCardAt } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
 import { gisApi, gisKeys, layerQuery } from './queries.js'
 import { LayerStylePanel } from './style-editor/style-editor.js'
@@ -324,20 +324,14 @@ export function LayerView({
             aria-label={layer.name}
           >
             {picked ? (
-              <div
-                className="absolute z-20"
-                style={{
-                  left: `clamp(12px, ${picked.point[0] + 12}px, calc(100% - 300px))`,
-                  top: `clamp(12px, ${picked.point[1] + 12}px, calc(100% - 240px))`,
-                }}
-              >
+              <FeatureCardAt point={picked.point} offset={12}>
                 <FeatureCard
                   key={picked.rowId}
                   layer={draft ? { ...layer, style: draft } : layer}
                   rowId={picked.rowId}
                   onClose={() => setPicked(null)}
                 />
-              </div>
+              </FeatureCardAt>
             ) : null}
           </MapCanvas>
           {styleOpen ? (

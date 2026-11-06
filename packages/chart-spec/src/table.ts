@@ -52,7 +52,9 @@ export function buildTable(ctx: Ctx): ChartTableModel {
         const n = toNumber(raw)
         return n === null ? '' : format.full(n)
       }
-      return raw === null || raw === undefined ? '' : categoryLabel(ctx, raw, def)
+      // Подпись строки (первый столбец) пустой не бывает: «Нет значения», как у графиков
+      if (raw === null || raw === undefined) return i === 0 ? categoryLabel(ctx, raw, def) : ''
+      return categoryLabel(ctx, raw, def)
     }),
   )
   return { caption: '', columns, rows, total: ctx.result.rowCount ?? ctx.result.rows.length }

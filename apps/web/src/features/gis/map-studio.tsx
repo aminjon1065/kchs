@@ -27,7 +27,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddLayerDialog } from './add-layer-dialog.js'
 import { BasemapSwitcher } from './basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
-import { FeatureCard } from './feature-card.js'
+import { FeatureCard, FeatureCardAt } from './feature-card.js'
 import { HazardLegend } from './hazard-legend.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
@@ -65,7 +65,6 @@ export interface MapTabState {
 
 /** Отступ карточки объекта от точки щелчка и краёв карты, px. */
 const CARD_OFFSET = 12
-const CARD_WIDTH = 288
 
 interface Picked extends FeatureRef {
   point: [number, number]
@@ -643,13 +642,7 @@ export function MapStudio({
               <CursorCoordinates />
               <StudioLinks />
               {picked && pickedLayer ? (
-                <div
-                  className="absolute z-20"
-                  style={{
-                    left: `clamp(${CARD_OFFSET}px, ${picked.point[0] + CARD_OFFSET}px, calc(100% - ${CARD_WIDTH + CARD_OFFSET}px))`,
-                    top: `clamp(${CARD_OFFSET}px, ${picked.point[1] + CARD_OFFSET}px, calc(100% - 240px))`,
-                  }}
-                >
+                <FeatureCardAt point={picked.point} offset={CARD_OFFSET}>
                   <FeatureCard
                     key={`${picked.layerId}:${picked.rowId}`}
                     layer={pickedLayer}
@@ -659,7 +652,7 @@ export function MapStudio({
                       setSelection([])
                     }}
                   />
-                </div>
+                </FeatureCardAt>
               ) : null}
             </MapCanvas>
             {attributesOpen ? <AttributeTable /> : null}

@@ -817,6 +817,30 @@ describe('показатель и таблица', () => {
     ])
     expect(c.table.rows[1]?.[1]).toMatch(/^5.870,0$/)
   })
+
+  it('таблица: пустая подпись строки — «Нет значения», пустая ячейка — пусто', () => {
+    const c = compileChart(
+      spec({
+        type: 'table',
+        encoding: {
+          x: { field: 'district', type: 'nominal' },
+          y: [{ field: 'incidents', type: 'quantitative' }],
+        },
+      }),
+      result(DISTRICTS.fields, [
+        ['Рудаки', 42],
+        [null, 167],
+        ['Варзоб', null],
+      ]),
+      THEME,
+    )
+    if (c.kind !== 'table') throw new Error(c.kind)
+    expect(c.table.rows).toEqual([
+      ['Рудаки', '42'],
+      ['Нет значения', '167'],
+      ['Варзоб', ''],
+    ])
+  })
 })
 
 describe('состояния и безопасность', () => {

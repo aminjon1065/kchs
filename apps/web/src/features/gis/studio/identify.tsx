@@ -190,25 +190,28 @@ export function IdentifyTool() {
   const openedLayer = opened ? studio.layerById.get(opened.layerId) : undefined
   const total = result.groups.reduce((sum, group) => sum + group.items.length + group.more, 0)
   const [x, y] = result.point
+  const top = `clamp(12px, ${y + 12}px, calc(100% - 320px))`
 
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: Esc закрывает список — удобство для клавиатуры
     <div
-      className="absolute z-20 font-sans"
+      // Высота — до нижнего края карты: длинная карточка прокручивается внутри
+      className="absolute z-20 flex flex-col font-sans"
       style={{
         left: `clamp(12px, ${x + 12}px, calc(100% - ${PANEL_WIDTH + 12}px))`,
-        top: `clamp(12px, ${y + 12}px, calc(100% - 320px))`,
+        top,
+        maxHeight: `calc(100% - ${top} - 12px)`,
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') setResult(null)
       }}
     >
       {opened && openedLayer ? (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-h-0 flex-col gap-1">
           <Button
             size="sm"
             variant="secondary"
-            className="self-start"
+            className="shrink-0 self-start"
             icon={<ChevronLeft className="size-3.5" />}
             onClick={() => setOpened(null)}
           >
@@ -224,7 +227,7 @@ export function IdentifyTool() {
       ) : (
         <section
           aria-label={t('gis.identify.title')}
-          className="flex max-h-[min(420px,calc(100vh-12rem))] w-72 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-line bg-surface shadow-md"
+          className="flex max-h-[min(420px,calc(100vh-12rem))] min-h-0 w-72 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-line bg-surface shadow-md"
         >
           <header className="flex items-start gap-2 border-b border-line px-3 py-2">
             <Info className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />

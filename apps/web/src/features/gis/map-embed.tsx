@@ -28,7 +28,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
-import { FeatureCard } from './feature-card.js'
+import { FeatureCard, FeatureCardAt } from './feature-card.js'
 import { HazardLegend } from './hazard-legend.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
 import { layerDatasetQuery } from './layer-source-queries.js'
@@ -38,8 +38,6 @@ import { layerQuery, mapQuery } from './queries.js'
 
 /** Вид по умолчанию до охвата слоя — Таджикистан, как у новой карты. */
 const DEFAULT_CAMERA: MapCamera = { center: [69, 38.6], zoom: 6, bearing: 0, pitch: 0 }
-const CARD_WIDTH = 288
-const CARD_OFFSET = 8
 
 export interface MapEmbedProps {
   /** Сохранённая карта… */
@@ -248,20 +246,14 @@ export function MapEmbed({
             </div>
           ) : null}
           {picked && pickedLayer ? (
-            <div
-              className="absolute z-20"
-              style={{
-                left: `clamp(${CARD_OFFSET}px, ${picked.point[0] + CARD_OFFSET}px, calc(100% - ${CARD_WIDTH + CARD_OFFSET}px))`,
-                top: `clamp(${CARD_OFFSET}px, ${picked.point[1] + CARD_OFFSET}px, calc(100% - 200px))`,
-              }}
-            >
+            <FeatureCardAt point={picked.point}>
               <FeatureCard
                 key={`${picked.layerId}:${picked.rowId}`}
                 layer={pickedLayer.layer}
                 rowId={picked.rowId}
                 onClose={() => setPicked(null)}
               />
-            </div>
+            </FeatureCardAt>
           ) : null}
           <HazardLegend rows={overlays.rows} />
         </MapCanvas>
