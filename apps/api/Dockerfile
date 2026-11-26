@@ -54,6 +54,15 @@ RUN pnpm --filter @kchs/api build
 FROM base AS runtime
 WORKDIR /repo
 
+# npm, corepack и yarn из образа node нужны только стадиям сборки: рантайм запускает
+# `node` и бандл esbuild. Вместе с ними в образе ехало их собственное дерево
+# зависимостей — Trivy находил в нём уязвимости (brace-expansion, pacote, sigstore…),
+# которых в kchs нет и которые обновлением lockfile не исправить
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+          /usr/local/bin/pnpm /usr/local/bin/pnpx /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+ && node --version >/dev/null && ! command -v npm
+
 COPY --from=prod-deps /repo/node_modules ./node_modules
 COPY --from=prod-deps /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
